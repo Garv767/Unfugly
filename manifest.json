@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Unfugly",
+  "version": "1.00.0",
+  "description": "Enhances the SRM Academia.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://academia.srmist.edu.in/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://academia.srmist.edu.in/*"],
+      "js": ["lib/html2canvas.min.js", "content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "32": "images/icon32.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "web_accessible_resources": [  
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"] 
+    }
+  ]
+}

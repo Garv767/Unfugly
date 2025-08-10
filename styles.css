@@ -1,0 +1,166 @@
+/* styles.css */
+
+/* Target the specific <i> element by its ID and its ::before pseudo-element */
+#t2727643000098596129::before {
+    /* Step 1: Clear any existing icon font character if it was used */
+    content: '';
+
+    /* Step 2: Set your new custom image as the background */
+    /*background-image: url('chrome-extension://__MSG_@@extension_id__/images/icon16.png'); /* <<< IMPORTANT: REPLACE WITH THE ACTUAL PATH/URL TO YOUR ICON */
+    
+    /* Step 3: Adjust background properties as needed */
+    background-color: transparent;
+    background-size: contain; /* Ensures the whole image is visible within the element */
+    background-repeat: no-repeat;
+    background-position: center; /* Centers the image */
+
+    /* Step 4: Ensure the pseudo-element has dimensions to display the image */
+    display: inline-block; /* or block, depending on desired layout */
+    width: 0px;   /* <<< IMPORTANT: Adjust width to match your icon's desired size */
+    height: 0px;  /* <<< IMPORTANT: Adjust height to match your icon's desired size */
+
+    /* Step 5: Override any unwanted original styling */
+    font-family: initial; /* Clear any previous icon font family */
+    text-rendering: auto; /* Clear any text-rendering from icon fonts */
+    -webkit-font-smoothing: antialiased; /* Clear icon font smoothing */
+    padding: 0; /* Clear any padding */
+    margin: 0;  /* Clear any margin */
+    line-height: 1; /* Ensure proper vertical alignment if mixed with text */
+}
+
+.t1{
+    display: table-caption !important; /* Ensures it behaves like a caption, fall through */
+}
+
+/* --- Adjust Body Padding to Prevent Original Content Overlap --- */
+/* This rule pushes the original webpage content to the right
+   to make space for your fixed left sidebar. */
+body {
+    padding-left: 0vw; /* Matches the width of the .atndDiv */
+    /*
+       NOTE: If the original WELCOME_ZC_9ZJYVE element is NOT at the very top of the page,
+       and has static content below it that your new fixed divs are covering,
+       you might also need to adjust body padding-top dynamically via JS
+       or strategically place your new divs after WELCOME_ZC_9ZJYVE if its
+       content is always visible above your new divs.
+       For this layout, `padding-left` is the primary adjustment for the left panel.
+    */
+}
+
+
+/* Rules for empty/unoccupied slots */
+.empty-slot {
+    /* No direct background-color here. The black mask will be applied on top of the original cell background. */
+    color: #AAA !important; /* Light gray text for readability */
+    
+    /* Other visual effects inherited from previous requests */
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1); /* Subtle inner shadow for depth */
+    border-radius: 3px;                 /* Match the border-radius of replaced-slot */
+    transition: all 0.3s ease-in-out;   /* Smooth transition for visual changes */
+    
+    /* Ensure no filter or opacity from other rules interferes with visibility */
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+/* Styling for the masking class using a pseudo-element for the black overlay */
+.empty-slot-mask {
+    position: relative; /* Needed for absolute positioning of the ::before pseudo-element */
+    overflow: hidden;   /* Ensures the mask stays within the cell's boundaries */
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.empty-slot-mask::before {
+    /*content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4); /* Black mask with 50% opacity (increased darkness) */
+    /*z-index: 1; /* Places the mask above the cell's content, allowing text to be visible */
+}
+
+/* Make replaced slots stand out slightly more with a subtle shadow */
+.replaced-slot {
+    box-shadow: 0 0 5px rgba(0, 100, 200, 0.2); /* Subtle blue shadow */
+    border-radius: 3px;
+    
+    /* Ensure occupied slots are fully visible and not dulled */
+    filter: none !important; /* Remove any grayscale filter */
+    opacity: 1 !important;   /* Ensure full opacity */
+    
+    /* DO NOT set background-color or color here, to allow original page styles */
+    /* (like the light green and yellow) to show through. */
+}
+
+/*.current-day-highlight {
+    background-color: #e0f2f7 !important; /* Light blue background */
+   /* border: 2px solid #007bff !important; /* Blue border */
+    /*box-shadow: 0 0 8px rgba(0, 123, 255, 0.4); /* Soft glow */
+/*}*/
+
+.dull-out {
+    opacity: 0.5;
+    z-index: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.srm-info-message {
+    position: fixed;
+    bottom: 20px; /* Offset from bottom */
+    right: 20px; /* Offset from right */
+    background-color: #363a42; /* Dark background, similar to accordion header */
+    color: #f0f0f0; /* Light text color */
+    padding: 12px 20px;
+    border-radius: 8px; /* Slightly rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); /* Modern, subtle shadow */
+    z-index: 10000; /* Ensure it's on top of everything */
+    opacity: 0; /* Start invisible for fade-in */
+    transform: translateY(20px); /* Start slightly below for slide-up effect */
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out; /* Smooth transition */
+    font-size: 0.95em;
+    font-weight: 500; /* Slightly bolder text */
+    max-width: 300px; /* Limit width to avoid stretching */
+    text-align: center;
+}
+
+/* State for showing the message */
+.srm-info-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Optional: Add a highlight if it's an important or success message */
+.srm-info-message.success {
+    border-left: 5px solid #00aaff; /* Your unique color for a success indicator */
+    padding-left: 15px; /* Adjust padding for the border */
+}
+
+.srm-info-message.error {
+    border-left: 5px solid #ff4d4d; /* Red for errors */
+    padding-left: 15px;
+}
+
+/* Styling for the Share button */
+#share-button {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease-in-out;
+}
+
+#share-button:hover {
+    transform: scale(1.1);
+}
+
+#share-button img {
+    width: 100%;
+    height: 100%;
+}
