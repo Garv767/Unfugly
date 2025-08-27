@@ -216,7 +216,7 @@ function getNetId() {
  */
 async function checkVersion(){
     const currentVersion = chrome.runtime.getManifest().version;
-    const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/development/version.txt')
+    const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/main/version.txt')
     if (!response.ok) {
         console.warn("Could not fetch latest version info.", response);
         return 1;
