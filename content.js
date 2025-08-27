@@ -214,14 +214,14 @@ function getNetId() {
  * If a new version is available, it calls a function to display a notification to the user.
  * @returns {number} Returns 1 if fetching the latest version fails, otherwise returns nothing.
  */
-function checkVersion(){
+async function checkVersion(){
     const currentVersion = chrome.runtime.getManifest().version;
-    const response = fetch('https://raw.githubusercontent.com/Garv767/Unfugly/main/version.txt');
+    const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/development/version.txt')
     if (!response.ok) {
-        console.warn("checkVersion: Could not fetch latest version info.");
+        console.warn("Could not fetch latest version info.", response);
         return 1;
     };
-    const latestVersion = response.txt();//then(res => res.text()).then(text => text.trim());
+    const latestVersion = (await response.text()).trim();//then(res => res.text()).then(text => text.trim());
     const currentParts = currentVersion.split('.').map(Number);
     const latestParts = latestVersion.split(".").map(Number);
 
@@ -234,7 +234,7 @@ function checkVersion(){
             displayInfoMessage(`A new Version is available! Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>`, 5000, 'critical');
         }
      }
-
+     
 }
 
 //Data Extraction Functions
