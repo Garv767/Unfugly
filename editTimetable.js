@@ -133,5 +133,5 @@ function initializeEdits() {
             editButton.style.opacity = '0.6';
             //saveEdits();
         }
-        timetablePanel.querySelector('h3').appendChild(editButton);
+        document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3').appendChild(editButton);
 }
