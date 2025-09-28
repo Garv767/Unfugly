@@ -104,15 +104,15 @@ function saveEdits() {
 function initializeEdits() {
     editButton = document.createElement('button');
         editButton.id = 'editTimetableButton';
-        const editImage = document.createElement('img');
+        /*const editImage = document.createElement('img');
         const extensionId = chrome.runtime.id; // Get extension ID dynamically
         editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
         editImage.alt = 'Edit Timetable';
         editImage.style.width = '24px';
         editImage.style.height = '24px';
-        editImage.style.verticalAlign = 'middle';
+        editImage.style.verticalAlign = 'middle';*/
         editButton.innerHTML = '';
-        editButton.appendChild(editImage);
+        //editButton.appendChild(editImage);
         editButton.style.cssText = `
             background-color: transparent;
             border: none;
