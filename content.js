@@ -973,6 +973,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <div id="timetable-content-container"></div>
     `;
     accordionWrapper.appendChild(timetablePanel);
+    initializeEdits();
 
     // Inject timetable HTML
     const timetableContentContainer = timetablePanel.querySelector('#timetable-content-container');
