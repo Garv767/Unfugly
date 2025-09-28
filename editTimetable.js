@@ -112,6 +112,7 @@ function initializeEdits() {
         editImage.style.height = '24px';
         editImage.style.verticalAlign = 'middle';*/
         editButton.innerHTML = '';
+        editButton.textContent = 'Edit';
         //editButton.appendChild(editImage);
         editButton.style.cssText = `
             background-color: transparent;
