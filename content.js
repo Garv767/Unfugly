@@ -972,39 +972,6 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <h3 style="color: #fff;">Timetable</h3>
         <div id="timetable-content-container"></div>
     `;
-
-    editButton = document.createElement('button');
-        editButton.id = 'editTimetableButton';
-        const editImage = document.createElement('img');
-        const extensionId = chrome.runtime.id; // Get extension ID dynamically
-        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
-        editImage.alt = 'Edit Timetable';
-        editImage.style.width = '24px';
-        editImage.style.height = '24px';
-        editImage.style.verticalAlign = 'middle';
-        editButton.innerHTML = '';
-        editButton.appendChild(editImage);
-        editButton.style.cssText = `
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            
-            justify-content: center;
-            align-items: center;
-            width: 30px;
-            height: 30px;
-        `;
-        editButton.onmouseover = () => editButton.style.opacity = '0.8';
-        editButton.onmouseout = () => editButton.style.opacity = '1';
-        editButton.title = 'Edit Timetable';
-        editButton.onclick = () => {
-            editTimetable();
-            editButton.style.opacity = '0.6';
-            //saveEdits();
-        }
-        timetablePanel.querySelector('h3').appendChild(editButton);
     accordionWrapper.appendChild(timetablePanel);
 
     // Inject timetable HTML

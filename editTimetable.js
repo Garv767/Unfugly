@@ -29,6 +29,8 @@ function handleSlotClick(event) {
 
 function editTimetable() {
     const timetable = document.querySelector('#timetable-content-container > table');
+
+    
     if (!timetable) {
         displayInfoMessage("Timetable table not found.", 5000, 'error');
         return;
@@ -97,4 +99,39 @@ function saveEdits() {
             
         });
     displayInfoMessage("Edits saved successfully!", 3000, 'success');
+}
+
+function initializeEdits() {
+    editButton = document.createElement('button');
+        editButton.id = 'editTimetableButton';
+        const editImage = document.createElement('img');
+        const extensionId = chrome.runtime.id; // Get extension ID dynamically
+        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
+        editImage.alt = 'Edit Timetable';
+        editImage.style.width = '24px';
+        editImage.style.height = '24px';
+        editImage.style.verticalAlign = 'middle';
+        editButton.innerHTML = '';
+        editButton.appendChild(editImage);
+        editButton.style.cssText = `
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            
+            justify-content: center;
+            align-items: center;
+            width: 30px;
+            height: 30px;
+        `;
+        editButton.onmouseover = () => editButton.style.opacity = '0.8';
+        editButton.onmouseout = () => editButton.style.opacity = '1';
+        editButton.title = 'Edit Timetable';
+        editButton.onclick = () => {
+            editTimetable();
+            editButton.style.opacity = '0.6';
+            //saveEdits();
+        }
+        timetablePanel.querySelector('h3').appendChild(editButton);
 }
