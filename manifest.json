@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "1.00.0",
+  "version": "1.02.0",
   "description": "Enhances the SRM Academia.",
   "permissions": [
     "activeTab",
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*"],
-      "js": ["lib/html2canvas.min.js", "content.js"],
+      "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js"],
       "css": ["styles.css"]
     }
   ],

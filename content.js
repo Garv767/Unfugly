@@ -532,18 +532,37 @@ function extractAttendanceDataFromDocument(doc) {
 function extractMarksDataFromDocument(doc) {
     const marksData = [];
     const table = doc.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
+    const courseTable = doc.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)');
     if (!table) {
         console.warn("extractMarksDataFromDocument: Marks table not found.");
         return marksData;
     }
 
     const rows = table.querySelectorAll('tbody tr:not(:first-child)');
+    const courseRows = courseTable.querySelectorAll('tbody tr:not(:first-child)');
+    const courseMap = {};
+    courseRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const cellText = cells[0].textContent.trim();
+        const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
+        const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
+        const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
+        const courseCode = courseCodeMatch ;
+        //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
+        //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
+        let courseTitle = cells[1].textContent.trim();
+        courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
+        courseMap[courseCode] = { courseTitle: courseTitle };
+        //console.log("extractMarksDataFromDocument: Mapped course code to title:", courseCode, courseTitle);
+    });
 
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const cells = row.querySelectorAll('td');
         if (cells.length >= 3) {
             const courseCode = cells[0].textContent.trim();
+            const courseTitle = courseMap[courseCode]?.courseTitle;
+            cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
             const courseType = cells[1].textContent.trim();
             const componentMarksCell = cells[2];
             const components = [];
@@ -553,7 +572,7 @@ function extractMarksDataFromDocument(doc) {
 
             componentMarksCell.querySelector('table').style.cssText = `width:100%`;
             const totalRow = document.createElement('tr');
-            totalRow.bgColor = `#E6E6FA`;
+            totalRow.style.backgroundColor = '#E6E6FA';
             const totalPerSub = componentMarksCell.querySelector('table > tbody')
             totalPerSub.appendChild(totalRow);
             
@@ -584,10 +603,10 @@ function extractMarksDataFromDocument(doc) {
                         }
                     }
                 });
-                totalRow.innerHTML = `<strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong>`
+                totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
                 if(totalObtainedMarks/totalMaxMarks < 0.5) {
-                   totalRow.innerHTML = `<strong>Total:</strong><font color=red>${totalObtainedMarks.toFixed(2)}</font> / <strong>${totalMaxMarks.toFixed(2)}</strong>`
-                 };
+                    totalRow.innerHTML = `<strong>Total:</strong><font color=red>${totalObtainedMarks.toFixed(2)}</font> / <strong>${totalMaxMarks.toFixed(2)}</strong>`
+                };
             }
 
             marksData.push({
@@ -953,6 +972,39 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <h3 style="color: #fff;">Timetable</h3>
         <div id="timetable-content-container"></div>
     `;
+
+    editButton = document.createElement('button');
+        editButton.id = 'editTimetableButton';
+        const editImage = document.createElement('img');
+        const extensionId = chrome.runtime.id; // Get extension ID dynamically
+        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
+        editImage.alt = 'Edit Timetable';
+        editImage.style.width = '24px';
+        editImage.style.height = '24px';
+        editImage.style.verticalAlign = 'middle';
+        editButton.innerHTML = '';
+        editButton.appendChild(editImage);
+        editButton.style.cssText = `
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            
+            justify-content: center;
+            align-items: center;
+            width: 30px;
+            height: 30px;
+        `;
+        editButton.onmouseover = () => editButton.style.opacity = '0.8';
+        editButton.onmouseout = () => editButton.style.opacity = '1';
+        editButton.title = 'Edit Timetable';
+        editButton.onclick = () => {
+            editTimetable();
+            editButton.style.opacity = '0.6';
+            //saveEdits();
+        }
+        timetablePanel.querySelector('h3').appendChild(editButton);
     accordionWrapper.appendChild(timetablePanel);
 
     // Inject timetable HTML
@@ -1276,7 +1328,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     }
 
     // Remove last two columns
-    allTableRows.forEach(row => {
+    /*  allTableRows.forEach(row => {
         const cells = row.querySelectorAll('td, th');
         //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
         //cells[0].style.color = '#fff'; // Ensure first column text is visible
@@ -1286,7 +1338,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (secondToLast) secondToLast.style.display = 'none';
             if (last) last.style.display = 'none';
         }
-    });
+    });*/
 
     // Replace slots with course titles
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
@@ -1331,6 +1383,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (courseData[cleanCellText]) {
                 const courseInfo = courseData[cleanCellText];
                 cell.classList.add('replaced-slot');
+                cell.title = `Slot: ${cellText}`;
                 cell.innerHTML = ''; // Clear original content
                 const titleSpan = document.createElement('span');
                 titleSpan.textContent = courseInfo.title;
@@ -1355,7 +1408,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 //cell.style.backgroundColor = '#f0f0f0'; // Slightly different background for unknown slots
                 cell.style.backgroundColor = '#585b5bff';
                 cell.style.fontSize = '0.8em';
-                cell.title = `Unrecognized slot: ${cellText}`;
+                cell.title = `Slot: ${cellText}`;
             } else { // Empty slot
                 cell.classList.add('empty-slot-mask');
                 cell.classList.add('empty-slot');
@@ -1396,12 +1449,12 @@ function addDownloadTimetableButton(timetableTable) {
             console.warn("addDownloadTimetableButton: Caption element with class 't1' not found. Appending button to parent.");
             // Fallback: create a div and append to table's parent
             const buttonContainer = document.createElement('div');
-             buttonContainer.style.cssText = `
-                 display: flex;
-                 justify-content: flex-end;
-                 padding: 5px;
-                 width: 100%;
-             `;
+            buttonContainer.style.cssText = `
+                display: flex;
+                justify-content: flex-end;
+                padding: 5px;
+                width: 100%;
+            `;
             timetableTable.parentNode.insertBefore(buttonContainer, timetableTable);
             captionElement = buttonContainer; // Use this as the target for button
         } else {
