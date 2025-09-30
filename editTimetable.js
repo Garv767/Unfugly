@@ -157,6 +157,8 @@ function initializeEdits() {
         hideButton.onclick = () => {
             //editTimetable();
             hideButton.style.opacity = '0.6';
+            showButton.style.opacity = '1';
+            editButton.style.opacity = '1';
             //saveEdits();
         }
         editMenu.appendChild(hideButton);
@@ -191,6 +193,8 @@ function initializeEdits() {
         showButton.onclick = () => {
             //editTimetable();
             showButton.style.opacity = '0.6';
+            hideButton.style.opacity = '1';
+            editButton.style.opacity = '1';
             saveEdits();
         }
         editMenu.appendChild(showButton);
@@ -225,6 +229,8 @@ function initializeEdits() {
         editButton.onclick = () => {
             editTimetable();
             editButton.style.opacity = '0.6';
+            showButton.style.opacity = '1';
+            hideButton.style.opacity = '1';
             //saveEdits();
         }
         editMenu.appendChild(editButton);        
