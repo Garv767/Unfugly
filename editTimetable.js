@@ -161,6 +161,40 @@ function initializeEdits() {
         }
         editMenu.appendChild(hideButton);
 
+        showButton = document.getElementById('showEditsButton') || document.createElement('button');
+        showButton.id = 'showEditsButton';
+        /*const editImage = document.createElement('img');
+        const extensionId = chrome.runtime.id; // Get extension ID dynamically
+        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
+        editImage.alt = 'Edit Timetable';
+        editImage.style.width = '24px';
+        editImage.style.height = '24px';
+        editImage.style.verticalAlign = 'middle';*/
+        //editButton.appendChild(editImage);
+        showButton.innerHTML = '';
+        showButton.textContent = ' Show ';
+        showButton.style.cssText = `
+            background-color: green;
+            border-radius: 13px;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            
+            justify-content: center;
+            align-items: center;
+            display: inline-flex;
+        `;
+        showButton.onmouseover = () => editButton.style.opacity = '0.8';
+        showButton.onmouseout = () => editButton.style.opacity = '1';
+        showButton.title = 'Show Edited Timetable';
+        showButton.onclick = () => {
+            //editTimetable();
+            showButton.style.opacity = '0.6';
+            saveEdits();
+        }
+        editMenu.appendChild(showButton);
+
         
 
         //timetablePanel = document.getElementById('timetable-content-container');
