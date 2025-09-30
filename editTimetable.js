@@ -45,7 +45,7 @@ function editTimetable() {
             }
         });
     
-    const saveButton = document.createElement('button');
+    /*const saveButton = document.createElement('button');
     saveButton.textContent = 'Save Edits';
     saveButton.style.margin = '10px';
     saveButton.style.padding = '5px 10px';
@@ -59,7 +59,7 @@ function editTimetable() {
     saveButton.onclick = () => {
         saveEdits();
         saveButton.remove();
-    };
+    };*/
 }
 
 function saveEdits() {
@@ -102,20 +102,46 @@ function saveEdits() {
 }
 
 function initializeEdits() {
-    editButton = document.createElement('button');
-        editButton.id = 'editTimetableButton';
-        /*const editImage = document.createElement('img');
-        const extensionId = chrome.runtime.id; // Get extension ID dynamically
-        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
-        editImage.alt = 'Edit Timetable';
-        editImage.style.width = '24px';
-        editImage.style.height = '24px';
-        editImage.style.verticalAlign = 'middle';*/
-        editButton.innerHTML = '';
-        editButton.textContent = 'Edit';
-        //editButton.appendChild(editImage);
-        editButton.style.cssText = `
-            background-color: transparent;
+    const editMenu = document.createElement('div');
+    editMenu.id = 'editMenu';
+    editMenu.style.display = 'inline-flex';
+    editMenu.classList.add = 'flex items-center space-x-1 p-1 bg-gray-200 rounded-full shadow-inner';
+    /*editMenu.innerHTML=`
+        <button
+      matButton
+      class="check"
+      id="hideEditsButton"
+      [ngClass]="choice === 'accept' ? ['check-on'] : ['check-off']"
+      type="button"
+      (click)="choice = 'accept'"
+    >Hide
+    </button>
+    <button
+      matButton
+      class="na"
+      id="editTimetableButton"
+      [ngClass]="choice?.length > 0 ? ['na-off'] : ['na-on']"
+      (click)="choice = ''"
+    >
+      <fa-icon [icon]="faBan" *ngIf="choice?.length > 0; else blank"></fa-icon>
+     Show
+    </button>
+    <button
+      matButton
+      class="deny"
+      [ngClass]="choice === 'deny' ? ['deny-on'] : ['deny-off']"
+      (click)="choice = 'deny'"
+    >Modify
+    </button>
+        
+    `;*/
+    hideButton = document.getElementById('hideEditsButton') || document.createElement('button');
+        hideButton.id = 'hideEditsButton';
+        hideButton.innerHTML = '';
+        hideButton.textContent = ' Hide ';
+        hideButton.style.cssText = `
+            background-color: #fbc02d;
+            border-radius: 13px;
             border: none;
             cursor: pointer;
             padding: 0;
@@ -123,16 +149,21 @@ function initializeEdits() {
             
             justify-content: center;
             align-items: center;
-            width: 30px;
-            height: 30px;
+            display: inline-flex;
         `;
-        editButton.onmouseover = () => editButton.style.opacity = '0.8';
-        editButton.onmouseout = () => editButton.style.opacity = '1';
-        editButton.title = 'Edit Timetable';
-        editButton.onclick = () => {
-            editTimetable();
-            editButton.style.opacity = '0.6';
+        hideButton.onmouseover = () => editButton.style.opacity = '0.8';
+        hideButton.onmouseout = () => editButton.style.opacity = '1';
+        hideButton.title = 'Hide Edits';
+        hideButton.onclick = () => {
+            //editTimetable();
+            hideButton.style.opacity = '0.6';
             //saveEdits();
         }
-        document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3').appendChild(editButton);
+        editMenu.appendChild(hideButton);
+
+        
+
+        //timetablePanel = document.getElementById('timetable-content-container');
+        //timetablePanel.querySelector('h3').appendChild(editButton);
+        document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3').appendChild(editMenu);
 }
