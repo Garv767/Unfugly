@@ -428,7 +428,7 @@ function extractAttendanceDataFromDocument(doc) {
         let classesToAttend = 0;
         const targetPercentage = 75;
 
-        if (cells.length > 6) {
+        if (cells.length > 7) {
             // Only add margin header once
             if (!marginHeaderAdded && header) {
                 let headcell = document.createElement('th');
@@ -495,13 +495,13 @@ function extractAttendanceDataFromDocument(doc) {
             if (doc === document) { // Check if the document is the main window's document
                 row.append(marginCell);
             }
-        } else if (cells.length === 6) {
+        } else if (cells.length === 7) {
             console.log("extractAttendanceDataFromDocument: Processing 'Attendance locked at sem end' row.");
             const courseCodeRaw = cells[0].textContent.trim();
             const courseCodeMatch = courseCodeRaw.match(/^([A-Z0-9]+)/);
             const courseCode = courseCodeMatch ? courseCodeMatch[1] : courseCodeRaw;
             const courseTitle = cells[1].textContent.trim();
-            const percentageText = cells[5].textContent.trim();
+            const percentageText = cells[6].textContent.trim();
             const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
             const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
 
