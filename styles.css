@@ -164,3 +164,81 @@ body {
     width: 100%;
     height: 100%;
 }
+
+
+
+
+.container {
+  text-align: center;
+  width: 100vw;
+}
+
+.btn-grp::before {
+  position: absolute;
+  content: "";
+  top: 0;
+  left: 25px;
+  height: 50px;
+  width: 100px;
+  background-color: LightGrey;
+  z-index: -1;
+}
+
+.btn-grp {
+  position: relative;
+  width: 150px;
+  height: 50px;
+  display: flex;
+}
+
+.check-off {
+  color: grey;
+  border-radius: 50%;
+  border: none;
+  background: LightGrey;
+  height: 50px;
+  width: 50px;
+}
+.check-on {
+  color: white;
+  background-color: green;
+  border-radius: 50%;
+  border: none;
+  height: 50px;
+  width: 50px;
+}
+
+.na-off {
+  color: grey;
+  border: none;
+  background: transparent;
+  height: 50px;
+  width: 50px;
+}
+
+.na-on {
+  border-radius: 50%;
+  background-color: WhiteSmoke;
+  border: 1px solid grey;
+  height: 50px;
+  width: 50px;
+}
+
+.deny-off {
+  background-color: LightGrey;
+  color: grey;
+  height: 50px;
+  width: 50px;
+  border-radius: 50%;
+  border: none;
+
+  /* background: transparent; */
+}
+.deny-on {
+  color: white;
+  background-color: red;
+  border-radius: 50%;
+  border: none;
+  height: 50px;
+  width: 50px;
+}

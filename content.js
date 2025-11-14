@@ -428,7 +428,7 @@ function extractAttendanceDataFromDocument(doc) {
         let classesToAttend = 0;
         const targetPercentage = 75;
 
-        if (cells.length > 6) {
+        if (cells.length > 7) {
             // Only add margin header once
             if (!marginHeaderAdded && header) {
                 let headcell = document.createElement('th');
@@ -473,7 +473,7 @@ function extractAttendanceDataFromDocument(doc) {
                     if (classesToAttend < 0) classesToAttend = 0; // Should not happen with current formula, but for safety
                     marginCell.textContent = `-${classesToAttend}`;
                     marginCell.title = `Needs to attend ${classesToAttend} class(es) to reach >= ${targetPercentage}% attendance.`;
-                    marginCell.style.color = "rgba(255, 0, 0, 0.6)";
+                    marginCell.style.color = "red";
                 }
             } else {
                 marginCell.textContent = "N/A";
@@ -495,13 +495,18 @@ function extractAttendanceDataFromDocument(doc) {
             if (doc === document) { // Check if the document is the main window's document
                 row.append(marginCell);
             }
-        } else if (cells.length === 6) {
+        } else if (cells.length === 7) {
             console.log("extractAttendanceDataFromDocument: Processing 'Attendance locked at sem end' row.");
-            const courseCodeRaw = cells[0].textContent.trim();
-            const courseCodeMatch = courseCodeRaw.match(/^([A-Z0-9]+)/);
-            const courseCode = courseCodeMatch ? courseCodeMatch[1] : courseCodeRaw;
+            //const courseCodeIndex =/* cells[0].textContent.indexOf('<br>') !== -1 ?*/ cells[0].textContent.split('"')[0] ;//: cells[0].textContent;
+            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeIndex);
+            const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
+            const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
+            //console.log("extractAttendanceDataFromDocument: Fetched raw course code:",courseCodeTrail) ;
+            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeRaw);
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
+            const courseCode = courseCodeMatch ;//? courseCodeMatch[1] : courseCodeRaw;
             const courseTitle = cells[1].textContent.trim();
-            const percentageText = cells[5].textContent.trim();
+            const percentageText = cells[6].textContent.trim();
             const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
             const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
 
@@ -605,12 +610,13 @@ function extractMarksDataFromDocument(doc) {
                 });
                 totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
                 if(totalObtainedMarks/totalMaxMarks < 0.5) {
-                    totalRow.innerHTML = `<strong>Total:</strong><font color=red>${totalObtainedMarks.toFixed(2)}</font> / <strong>${totalMaxMarks.toFixed(2)}</strong>`
+                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
                 };
             }
 
             marksData.push({
                 CourseCode: courseCode,
+                courseMap: courseMap,
                 CourseType: courseType,
                 Components: components,
                 TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
@@ -973,7 +979,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <div id="timetable-content-container"></div>
     `;
     accordionWrapper.appendChild(timetablePanel);
-    initializeEdits();
+    //initializeEdits();
 
     // Inject timetable HTML
     const timetableContentContainer = timetablePanel.querySelector('#timetable-content-container');
@@ -1134,7 +1140,7 @@ function formatMarksTable(marksData, container, attendanceData) {
     // Helper for colors based on %
     const getColor = (pct) => {
         if (pct < 50) return '#E57373'; // muted red
-        if (pct < 80) return '#FBC02D'; // muted yellow
+        if (pct < 85) return '#FBC02D'; // muted yellow
         return '#81C784'; // muted green
     };
 
@@ -1296,7 +1302,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     }
 
     // Remove last two columns
-    /*  allTableRows.forEach(row => {
+      allTableRows.forEach(row => {
         const cells = row.querySelectorAll('td, th');
         //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
         //cells[0].style.color = '#fff'; // Ensure first column text is visible
@@ -1306,7 +1312,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (secondToLast) secondToLast.style.display = 'none';
             if (last) last.style.display = 'none';
         }
-    });*/
+    });
 
     // Replace slots with course titles
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
@@ -1634,6 +1640,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         const dataToCache = {
             profileData: fetchedData.profileData,
             replacedTimetableHTML: fetchedData.replacedTimetableHTML,
+            editedSlots:'',
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
             lastUpdated: new Date().toISOString()
