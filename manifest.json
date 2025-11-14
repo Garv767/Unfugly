@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "1.02.0",
+  "version": "1.02.1",
   "description": "Enhances the SRM Academia.",
   "permissions": [
     "activeTab",
