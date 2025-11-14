@@ -1,0 +1,338 @@
+
+{
+    "attendanceData": [
+        {
+            "absentHours": 11,
+            "attendedClasses": 47,
+            "classesToAttend": 0,
+            "classesToSkip": 4,
+            "courseCode": "21MAB201T",
+            "courseTitle": "Transforms and Boundary Value Problems",
+            "hoursConducted": 58,
+            "percentage": 81.03
+        },
+        {
+            "absentHours": 6,
+            "attendedClasses": 40,
+            "classesToAttend": 0,
+            "classesToSkip": 7,
+            "courseCode": "21CSC201J",
+            "courseTitle": "Data Structures and Algorithms",
+            "hoursConducted": 46,
+            "percentage": 86.96
+        },
+        {
+            "absentHours": 9,
+            "attendedClasses": 48,
+            "classesToAttend": 0,
+            "classesToSkip": 7,
+            "courseCode": "21CSS201T",
+            "courseTitle": "Computer Organization and Architecture",
+            "hoursConducted": 57,
+            "percentage": 84.21
+        },
+        {
+            "absentHours": 7,
+            "attendedClasses": 49,
+            "classesToAttend": 0,
+            "classesToSkip": 9,
+            "courseCode": "21CSC203P",
+            "courseTitle": "Advanced Programming Practice",
+            "hoursConducted": 56,
+            "percentage": 87.5
+        },
+        {
+            "absentHours": 1,
+            "attendedClasses": 43,
+            "classesToAttend": 0,
+            "classesToSkip": 13,
+            "courseCode": "21CSC202J",
+            "courseTitle": "Operating Systems",
+            "hoursConducted": 44,
+            "percentage": 97.73
+        },
+        {
+            "absentHours": 0,
+            "attendedClasses": 40,
+            "classesToAttend": 0,
+            "classesToSkip": 13,
+            "courseCode": "21LEM202T",
+            "courseTitle": "UHV-II: Universal Human Values – Understanding Harmony and Ethical Human Conduct",
+            "hoursConducted": 40,
+            "percentage": 100
+        },
+        {
+            "absentHours": 0,
+            "attendedClasses": 14,
+            "classesToAttend": 0,
+            "classesToSkip": 4,
+            "courseCode": "21LEM201T",
+            "courseTitle": "Professional Ethics",
+            "hoursConducted": 14,
+            "percentage": 100
+        },
+        {
+            "absentHours": 4,
+            "attendedClasses": 24,
+            "classesToAttend": 0,
+            "classesToSkip": 4,
+            "courseCode": "21CSC202J",
+            "courseTitle": "Operating Systems",
+            "hoursConducted": 28,
+            "percentage": 85.71
+        },
+        {
+            "absentHours": 4,
+            "attendedClasses": 20,
+            "classesToAttend": 0,
+            "classesToSkip": 2,
+            "courseCode": "21CSC201J",
+            "courseTitle": "Data Structures and Algorithms",
+            "hoursConducted": 24,
+            "percentage": 83.33
+        }
+    ],
+    "editedSlots": "",
+    "lastUpdated": "2025-11-12T17:48:23.322Z",
+    "marksData": [
+        {
+            "Components": [
+                {
+                    "ComponentName": "FT-III",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 8.4
+                },
+                {
+                    "ComponentName": "FT-IV",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 14
+                },
+                {
+                    "ComponentName": "LLT-I",
+                    "MaxMarks": 10,
+                    "ObtainedMarks": 8
+                },
+                {
+                    "ComponentName": "FT-II",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 8.1
+                },
+                {
+                    "ComponentName": "FT-I",
+                    "MaxMarks": 5,
+                    "ObtainedMarks": 5
+                }
+            ],
+            "CourseCode": "21MAB201T",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 60,
+            "TotalObtainedMarks": 43.5
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "FML-III",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 18
+                },
+                {
+                    "ComponentName": "FML-II",
+                    "MaxMarks": 60,
+                    "ObtainedMarks": 54
+                },
+                {
+                    "ComponentName": "FML-I",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 18
+                }
+            ],
+            "CourseCode": "21LEM201T",
+            "CourseType": "Practical",
+            "TotalMaxMarks": 100,
+            "TotalObtainedMarks": 90
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "FP-I",
+                    "MaxMarks": 10,
+                    "ObtainedMarks": 9
+                },
+                {
+                    "ComponentName": "FP-II",
+                    "MaxMarks": 10,
+                    "ObtainedMarks": 10
+                },
+                {
+                    "ComponentName": "PBL-I",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 17.9
+                },
+                {
+                    "ComponentName": "PBL-II",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 19
+                },
+                {
+                    "ComponentName": "PBL-III",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 16.2
+                },
+                {
+                    "ComponentName": "R21 Report and Viva - Theory",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 19
+                }
+            ],
+            "CourseCode": "21CSC203P",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 100,
+            "TotalObtainedMarks": 91.1
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "FT-III",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 12.38
+                },
+                {
+                    "ComponentName": "FT-IV",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 11
+                },
+                {
+                    "ComponentName": "LLT-I",
+                    "MaxMarks": 10,
+                    "ObtainedMarks": 7.75
+                },
+                {
+                    "ComponentName": "FT-II",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 7.5
+                },
+                {
+                    "ComponentName": "FT-I",
+                    "MaxMarks": 5,
+                    "ObtainedMarks": 4
+                }
+            ],
+            "CourseCode": "21CSS201T",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 60,
+            "TotalObtainedMarks": 42.63
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "LLJ-II",
+                    "MaxMarks": 8,
+                    "ObtainedMarks": 8
+                },
+                {
+                    "ComponentName": "LLJ-I",
+                    "MaxMarks": 7,
+                    "ObtainedMarks": 6.27
+                },
+                {
+                    "ComponentName": "FJ-III",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 13.12
+                },
+                {
+                    "ComponentName": "FJ-II",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 13.08
+                },
+                {
+                    "ComponentName": "FJ-I",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 10.48
+                }
+            ],
+            "CourseCode": "21CSC202J",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 60,
+            "TotalObtainedMarks": 50.95
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "LLJ-II",
+                    "MaxMarks": 8,
+                    "ObtainedMarks": 6.8
+                },
+                {
+                    "ComponentName": "LLJ-I",
+                    "MaxMarks": 7,
+                    "ObtainedMarks": 4.2
+                },
+                {
+                    "ComponentName": "FJ-III",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 13.7
+                },
+                {
+                    "ComponentName": "FJ-II",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 13.6
+                },
+                {
+                    "ComponentName": "FJ-I",
+                    "MaxMarks": 15,
+                    "ObtainedMarks": 9.5
+                }
+            ],
+            "CourseCode": "21CSC201J",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 60,
+            "TotalObtainedMarks": 47.8
+        },
+        {
+            "Components": [
+                {
+                    "ComponentName": "R21 Summative - T",
+                    "MaxMarks": 20,
+                    "ObtainedMarks": 13
+                },
+                {
+                    "ComponentName": "FMT-I",
+                    "MaxMarks": 50,
+                    "ObtainedMarks": 43
+                },
+                {
+                    "ComponentName": "LLT-I",
+                    "MaxMarks": 30,
+                    "ObtainedMarks": 30
+                }
+            ],
+            "CourseCode": "21LEM202T",
+            "CourseType": "Theory",
+            "TotalMaxMarks": 100,
+            "TotalObtainedMarks": 86
+        },
+        {
+            "Components": [],
+            "CourseCode": "21CSC202J",
+            "CourseType": "Practical",
+            "TotalMaxMarks": 0,
+            "TotalObtainedMarks": 0
+        },
+        {
+            "Components": [],
+            "CourseCode": "21CSC201J",
+            "CourseType": "Practical",
+            "TotalMaxMarks": 0,
+            "TotalObtainedMarks": 0
+        }
+    ],
+    "profileData": {
+        "name": "GARV RAHUT",
+        "programmeBranch": "B.Tech",
+        "registrationNo": "RA2411003010718",
+        "schoolDepartment": "Computer Science and Engineering(CS)",
+        "section": "L1",
+        "semester": "3"
+    },
+    "replacedTimetableHTML": "<table align=\"\" border=\"5px\" cellpadding=\"10\" cellspacing=\"2\" width=\"400\" style=\"border: 10px; max-width: 100%; background-color: rgb(0, 0, 0);\">\n  <caption class=\"t1\" style=\"display: table-caption; margin-top: 5px;\">Your Personalized Timetable by Unfugly</caption>\n    <tbody><tr>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\" rowspan=\"1\">Time</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">08:00 \t- 08:50</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">08:50 \t- 09:40</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">09:45 \t- 10:35</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">10:40 \t- 11:30</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">11:35 \t- 12:25</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">12:30 \t- 01:20</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">01:25 \t- 02:15</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">02:20 \t- 03:10</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">03:10 \t- 04:00</td>\n        <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">04:00 \t- 04:50</td>\n\t\t<td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">04:50 \t- 05:30</td>\n\t\t<td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">05:30 \t- 06:10</td>\n    </tr>\n    \n    \n    <tr>\n        \n  \t<td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 1</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: A\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Transforms and Boundary Value Problems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: A / X\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Transforms and Boundary Value Problems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: F / X\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Operating Systems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: F\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Operating Systems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: G\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">UHV-II: Universal Human Values – Under...</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: To be Alloted</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P6\">P6</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P7\">P7</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P8\">P8</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P9\">P9</td>\n  <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P10\">P10</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L11\">L11</td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L12\">L12</td>\n    </tr>\n    <tr>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 2</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P11\">P11</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P12/X\">P12/X</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P13/X\">P13/X</td>\n        <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: P14\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Professional Ethics</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: online</span></td>\n  \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P15\">P15</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: B\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: B\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: G\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">UHV-II: Universal Human Values – Under...</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: To be Alloted</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: G\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">UHV-II: Universal Human Values – Under...</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: To be Alloted</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: A\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Transforms and Boundary Value Problems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L21\">L21</td>\n\t\t  <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L22\">L22</td>\n    </tr>\n    <tr>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 3</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: C\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Computer Organization and Architecture</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: C / X\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Computer Organization and Architecture</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: A / X\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Transforms and Boundary Value Problems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: D\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Advanced Programming Practice</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n  \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: B\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P26\">P26</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P27\">P27</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P28\">P28</td>\n        <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: P29\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Operating Systems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: TP2-CLS419(A)</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: P30\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Operating Systems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: TP2-CLS419(A)</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L31\">L31</td>\n\t\t  <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L32\">L32</td>\n    </tr>\n    <tr>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 4</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P31\">P31</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P32/X\">P32/X</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P33/X\">P33/X</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P34\">P34</td>\n  \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P35\">P35</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: D\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Advanced Programming Practice</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: D\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Advanced Programming Practice</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: B\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: E\">E</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: C\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Computer Organization and Architecture</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L41\">L41</td>\n\t\t  <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L42\">L42</td>\n    </tr>\n    <tr>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 5</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: E\">E </td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: E / X\">E / X</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: C / X\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Computer Organization and Architecture</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: F\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Operating Systems</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n  \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: D\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Advanced Programming Practice</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: LH604</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P46\">P46</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P47\">P47</td>\n        <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: P48\">P48</td>\n        <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: P49\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: TP713</span></td>\n        <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" class=\"replaced-slot\" title=\"Slot: P50\"><span style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Data Structures and Algorithms</span><span style=\"color: rgb(85, 85, 85); font-size: 0.6em; display: block;\">Room: TP713</span></td>\n  \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L51\">L51</td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 0.8em;\" title=\"Slot: L52\">L52</td>\n    </tr>\n</tbody></table>"
+}

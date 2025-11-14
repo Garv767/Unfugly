@@ -616,7 +616,6 @@ function extractMarksDataFromDocument(doc) {
 
             marksData.push({
                 CourseCode: courseCode,
-                courseMap: courseMap,
                 CourseType: courseType,
                 Components: components,
                 TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
@@ -979,7 +978,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <div id="timetable-content-container"></div>
     `;
     accordionWrapper.appendChild(timetablePanel);
-    //initializeEdits();
+    initializeEdits();
 
     // Inject timetable HTML
     const timetableContentContainer = timetablePanel.querySelector('#timetable-content-container');
@@ -1302,7 +1301,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     }
 
     // Remove last two columns
-      allTableRows.forEach(row => {
+    /*  allTableRows.forEach(row => {
         const cells = row.querySelectorAll('td, th');
         //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
         //cells[0].style.color = '#fff'; // Ensure first column text is visible
@@ -1312,7 +1311,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (secondToLast) secondToLast.style.display = 'none';
             if (last) last.style.display = 'none';
         }
-    });
+    });*/
 
     // Replace slots with course titles
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
