@@ -1900,11 +1900,15 @@ function handleCurrentPage() {
     } else if (hash.includes('#Page:My_Time_Table_2023_24')) {
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
-        handleAttendancePage();
-        //inlineMarksTotal();
-    } /*else if (hash.includes('#Page:Academic_Status')) {
-        inlineMarksTotal();
-    }*/
+        try {
+            // Attempt to run the main function
+            handleAttendancePage();
+        } catch (error) {
+            // If it crashes, log the error and run the fallback
+            //console.warn("handleAttendancePage crashed. Running inlineMarksTotal instead.", error);
+            inlineMarksTotal();
+        }
+    }
     
 }
 
@@ -1958,5 +1962,5 @@ if (document.body) {
     });
 }
 
-checkVersion(); //Temporery function call for this version only
+checkVersion();
 handleCurrentPage(); // Initial call to set up the page correctly
