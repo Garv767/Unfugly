@@ -749,7 +749,139 @@ async function inlineMarksTotal() {
 }
 
 
+//Function to show total marks of students in Student Academic Status page
+async function marksTotalReport() {
+    try{
+    
+        await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
 
+        //const marksData = [];
+        //#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)
+        //const table = document.querySelector('div.cntdDiv > div > table:nth-child(7)');
+        const table = document.querySelector('div > div.cntdDiv > div > table:nth-child(5)');
+        //const table = document.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
+        const courseTable = document.querySelector('div.cntdDiv > div > table:nth-child(3)');
+        if (!table) {
+            console.warn("inlineMarksTotal: Marks table not found.");
+            //return marksData;
+        }
+
+        const rows = table.querySelectorAll(' tr:not(:first-child)');
+        const courseRows = courseTable.querySelectorAll('tbody tr:nth-child(n + 3)');
+        const courseTableHeader = courseTable.querySelector('tbody tr:nth-child(2)');
+        let courseCodeIndexHeader;
+        if (courseTableHeader) {
+        // Select all the cells (td or th) within that first row as an Array
+        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+
+        // Iterate through the cells to find the one containing 'Course Code'
+        cells.forEach((cell, index) => {
+            // Use trim() to handle leading/trailing whitespace and check inclusion
+            if (cell.textContent.trim().includes('Course Code')) {
+                courseCodeIndexHeader = index; // Store the 0-based index
+                //console.log("marksTotalReport: Found 'Course Code' header at index:", courseCodeIndexHeader);
+            }
+        });
+        if (courseCodeIndexHeader === undefined) {
+            courseCodeIndexHeader = 0; // Default to the first column
+            console.log("marksTotalReport: 'Course Code' header not found, defaulting to index 0.");
+        }
+    }
+
+        const courseMap = {};
+        courseRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const cellText = cells[courseCodeIndexHeader].textContent.trim();
+            const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
+            //console.log("marksTotalReport: Processing course code raw:", courseCodeRaw);
+            const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            //console.log("marksTotalReport: Processed course code:", courseCode);
+            //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
+            //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
+            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
+            courseMap[courseCode] = { courseTitle: courseTitle };
+            //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
+        });
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 3) {
+                const courseCode = cells[0].textContent.trim();
+                //console.log("marksTotalReport: Processing course code in marks table:", courseCode);
+                const courseTitle = courseMap[courseCode]?.courseTitle;
+                cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
+                const courseType = cells[1].textContent.trim();
+                const componentMarksCell = cells[2];
+                //console.log("Com:",componentMarksCell);
+                const components = [];
+                let totalMaxMarks = 0;
+                let totalObtainedMarks = 0;
+                const innerMarksTableRows = componentMarksCell.querySelectorAll('table tbody tr');
+
+                componentMarksCell.querySelector('table').style.cssText = `width:100%`;
+                const totalRow = document.createElement('tr');
+                totalRow.style.backgroundColor = '#E6E6FA';
+                const totalPerSub = componentMarksCell.querySelector('table > tbody')
+                totalPerSub.appendChild(totalRow);
+                
+                if (innerMarksTableRows.length > 0) {
+                    const componentCells = innerMarksTableRows[0].querySelectorAll('td');
+                    componentCells.forEach(compCell => {
+                        const strongTag = compCell.querySelector('strong');
+                        const fontTag = compCell.querySelector('font ');
+
+                        if (strongTag && fontTag) {
+                            const compInfo = strongTag.textContent;
+                            const obtainedVal = strongTag.lastChild ? strongTag.lastChild.textContent.trim() : '0'; // Safely access nextSibling
+                            //console.log("Obtained Val:",obtainedVal);
+                            //console.log("compInfo:",compInfo);
+                            const infoMatch = compInfo.match(/(.+)\/([\d.]+)/);/*/(.+)\/([\d.]+)/*/
+                            const compMarks = infoMatch[2];
+                            //console.log("comp Marks:",compMarks);
+                            const marksMatch = compMarks.match(/\d+\.\d{2}/);///\d+\.\d+/
+                            //console.log("com InfoMatch:\n", marksMatch);
+
+                            if (infoMatch) {
+                                //const componentName = infoMatch[1];
+                                const maxM = parseFloat(marksMatch[0]);
+                                const obtainedM = parseFloat(obtainedVal);
+
+                                /*components.push({
+                                    ComponentName: componentName,
+                                    MaxMarks: maxM,
+                                    ObtainedMarks: obtainedM
+                                });*/
+
+                                totalMaxMarks += maxM;
+                                totalObtainedMarks += obtainedM;
+                            }
+                        }
+                    });
+                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
+                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                        totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
+                    };
+                }
+
+                /*marksData.push({
+                    CourseCode: courseCode,
+                    CourseType: courseType,
+                    Components: components,
+                    TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
+                    TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
+                });*/
+            }
+        }
+    } catch (error) {
+        console.error("marksTotalReport: Error processing attendance/marks page:", error);
+        displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
+    }
+    //return marksData;
+}
 
 
 //Main Handlers
