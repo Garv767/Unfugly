@@ -1130,6 +1130,35 @@ async function handleAttendancePage() {
     }
 }
 
+/**Handles the feedback page
+ * to be added in next version
+ */
+async function handleFeedbackPage() {
+    //console.log("handleFeedbackPage: Starting process for Feedback page.");
+    try {
+        await waitForElement(document, '#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
+        
+        const notice = document.createElement('div');
+        notice.style.cssText = `
+            background-color: palegreen;
+            color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        `;
+        notice.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
+        const formContainer = document.querySelector('#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
+        if (formContainer) {
+            formContainer.prepend(notice);
+        } else {
+            console.error("handleFeedbackPage: Form container not found.");
+        }
+    } catch (error) {
+        console.error("handleFeedbackPage: Error processing Feedback page:", error);
+        displayInfoMessage("An error occurred while enhancing Feedback page.", 5000, 'error');
+    }
+}
 /**
  * Shares a link to the extension itself using the Web Share API.
  */
@@ -2045,8 +2074,8 @@ function handleCurrentPage() {
         }
     } else if (hash.includes('#Page:Academic_Status')) {
         marksTotalReport();
-    }
-    
+    } else if (hash.includes('#Course_Feedback')) {
+        handleFeedbackPage();
     }
     
 }
