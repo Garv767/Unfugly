@@ -616,7 +616,6 @@ function extractMarksDataFromDocument(doc) {
 
             marksData.push({
                 CourseCode: courseCode,
-                courseMap: courseMap,
                 CourseType: courseType,
                 Components: components,
                 TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
@@ -625,6 +624,263 @@ function extractMarksDataFromDocument(doc) {
         }
     }
     return marksData;
+}
+
+//Fallback function to display total marks
+async function inlineMarksTotal() {
+    try{
+    
+        await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
+
+        //const marksData = [];
+        //#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)
+        //const table = document.querySelector('div.cntdDiv > div > table:nth-child(7)');
+        const table = document.querySelector('div > div.cntdDiv > div > table:nth-child(7)');
+        //const table = document.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
+        const courseTable = document.querySelector('div.cntdDiv > div > table:nth-child(4)');
+        if (!table) {
+            console.warn("inlineMarksTotal: Marks table not found.");
+            //return marksData;
+        }
+
+        const rows = table.querySelectorAll(' tr:not(:first-child)');
+        const courseRows = courseTable.querySelectorAll('tbody tr:not(:first-child)');
+        const courseTableHeader = courseTable.querySelector('tbody tr:first-child');
+        let courseCodeIndexHeader;
+        if (courseTableHeader) {
+        // Select all the cells (td or th) within that first row as an Array
+        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+
+        // Iterate through the cells to find the one containing 'Course Code'
+        cells.forEach((cell, index) => {
+            // Use trim() to handle leading/trailing whitespace and check inclusion
+            if (cell.textContent.trim().includes('Course Code')) {
+                courseCodeIndexHeader = index; // Store the 0-based index
+            }
+        });
+        if (courseCodeIndexHeader === undefined) {
+            courseCodeIndexHeader = 0; // Default to the first column
+        }
+    }
+
+        const courseMap = {};
+        courseRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const cellText = cells[courseCodeIndexHeader].textContent.trim();
+            const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
+            const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
+            //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
+            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
+            courseMap[courseCode] = { courseTitle: courseTitle };
+            //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
+        });
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 3) {
+                const courseCode = cells[0].textContent.trim();
+                const courseTitle = courseMap[courseCode]?.courseTitle;
+                cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
+                const courseType = cells[1].textContent.trim();
+                const componentMarksCell = cells[2];
+                const components = [];
+                let totalMaxMarks = 0;
+                let totalObtainedMarks = 0;
+                const innerMarksTableRows = componentMarksCell.querySelectorAll('table tbody tr');
+
+                componentMarksCell.querySelector('table').style.cssText = `width:100%`;
+                const totalRow = document.createElement('tr');
+                totalRow.style.backgroundColor = '#E6E6FA';
+                const totalPerSub = componentMarksCell.querySelector('table > tbody')
+                totalPerSub.appendChild(totalRow);
+                
+                if (innerMarksTableRows.length > 0) {
+                    const componentCells = innerMarksTableRows[0].querySelectorAll('td');
+                    componentCells.forEach(compCell => {
+                        const strongTag = compCell.querySelector('strong');
+                        const fontTag = compCell.querySelector('font > br');
+
+                        if (strongTag && fontTag) {
+                            const compInfo = strongTag.textContent.trim();
+                            const obtainedVal = fontTag.nextSibling ? fontTag.nextSibling.textContent.trim() : ''; // Safely access nextSibling
+                            const infoMatch = compInfo.match(/(.+)\/([\d.]+)/);
+
+                            if (infoMatch) {
+                                //const componentName = infoMatch[1];
+                                const maxM = parseFloat(infoMatch[2]);
+                                const obtainedM = parseFloat(obtainedVal);
+
+                                /*components.push({
+                                    ComponentName: componentName,
+                                    MaxMarks: maxM,
+                                    ObtainedMarks: obtainedM
+                                });*/
+
+                                totalMaxMarks += maxM;
+                                totalObtainedMarks += obtainedM;
+                            }
+                        }
+                    });
+                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
+                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                        totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
+                    };
+                }
+
+                /*marksData.push({
+                    CourseCode: courseCode,
+                    CourseType: courseType,
+                    Components: components,
+                    TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
+                    TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
+                });*/
+            }
+        }
+    } catch (error) {
+        console.error("inlineMarksTotal: Error processing attendance/marks page:", error);
+        displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
+    }
+    //return marksData;
+}
+
+
+//Function to show total marks of students in Student Academic Status page
+async function marksTotalReport() {
+    try{
+    
+        await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
+
+        //const marksData = [];
+        //#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)
+        //const table = document.querySelector('div.cntdDiv > div > table:nth-child(7)');
+        const table = document.querySelector('div > div.cntdDiv > div > table:nth-child(5)');
+        //const table = document.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
+        const courseTable = document.querySelector('div.cntdDiv > div > table:nth-child(3)');
+        if (!table) {
+            console.warn("inlineMarksTotal: Marks table not found.");
+            //return marksData;
+        }
+
+        const rows = table.querySelectorAll(' tr:not(:first-child)');
+        const courseRows = courseTable.querySelectorAll('tbody tr:nth-child(n + 3)');
+        const courseTableHeader = courseTable.querySelector('tbody tr:nth-child(2)');
+        let courseCodeIndexHeader;
+        if (courseTableHeader) {
+        // Select all the cells (td or th) within that first row as an Array
+        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+
+        // Iterate through the cells to find the one containing 'Course Code'
+        cells.forEach((cell, index) => {
+            // Use trim() to handle leading/trailing whitespace and check inclusion
+            if (cell.textContent.trim().includes('Course Code')) {
+                courseCodeIndexHeader = index; // Store the 0-based index
+                //console.log("marksTotalReport: Found 'Course Code' header at index:", courseCodeIndexHeader);
+            }
+        });
+        if (courseCodeIndexHeader === undefined) {
+            courseCodeIndexHeader = 0; // Default to the first column
+            console.log("marksTotalReport: 'Course Code' header not found, defaulting to index 0.");
+        }
+    }
+
+        const courseMap = {};
+        courseRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const cellText = cells[courseCodeIndexHeader].textContent.trim();
+            const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
+            //console.log("marksTotalReport: Processing course code raw:", courseCodeRaw);
+            const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            //console.log("marksTotalReport: Processed course code:", courseCode);
+            //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
+            //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
+            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
+            courseMap[courseCode] = { courseTitle: courseTitle };
+            //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
+        });
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 3) {
+                const courseCode = cells[0].textContent.trim();
+                //console.log("marksTotalReport: Processing course code in marks table:", courseCode);
+                const courseTitle = courseMap[courseCode]?.courseTitle;
+                cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
+                const courseType = cells[1].textContent.trim();
+                const componentMarksCell = cells[2];
+                //console.log("Com:",componentMarksCell);
+                const components = [];
+                let totalMaxMarks = 0;
+                let totalObtainedMarks = 0;
+                const innerMarksTableRows = componentMarksCell.querySelectorAll('table tbody tr');
+
+                componentMarksCell.querySelector('table').style.cssText = `width:100%`;
+                const totalRow = document.createElement('tr');
+                totalRow.style.backgroundColor = '#E6E6FA';
+                const totalPerSub = componentMarksCell.querySelector('table > tbody')
+                totalPerSub.appendChild(totalRow);
+                
+                if (innerMarksTableRows.length > 0) {
+                    const componentCells = innerMarksTableRows[0].querySelectorAll('td');
+                    componentCells.forEach(compCell => {
+                        const strongTag = compCell.querySelector('strong');
+                        const fontTag = compCell.querySelector('font ');
+
+                        if (strongTag && fontTag) {
+                            const compInfo = strongTag.textContent;
+                            const obtainedVal = strongTag.lastChild ? strongTag.lastChild.textContent.trim() : '0'; // Safely access nextSibling
+                            //console.log("Obtained Val:",obtainedVal);
+                            //console.log("compInfo:",compInfo);
+                            const infoMatch = compInfo.match(/(.+)\/([\d.]+)/);/*/(.+)\/([\d.]+)/*/
+                            const compMarks = infoMatch[2];
+                            //console.log("comp Marks:",compMarks);
+                            const marksMatch = compMarks.match(/\d+\.\d{2}/);///\d+\.\d+/
+                            //console.log("com InfoMatch:\n", marksMatch);
+
+                            if (infoMatch) {
+                                //const componentName = infoMatch[1];
+                                const maxM = parseFloat(marksMatch[0]);
+                                const obtainedM = parseFloat(obtainedVal);
+
+                                /*components.push({
+                                    ComponentName: componentName,
+                                    MaxMarks: maxM,
+                                    ObtainedMarks: obtainedM
+                                });*/
+
+                                totalMaxMarks += maxM;
+                                totalObtainedMarks += obtainedM;
+                            }
+                        }
+                    });
+                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
+                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                        totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
+                    };
+                }
+
+                /*marksData.push({
+                    CourseCode: courseCode,
+                    CourseType: courseType,
+                    Components: components,
+                    TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
+                    TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
+                });*/
+            }
+        }
+    } catch (error) {
+        console.error("marksTotalReport: Error processing attendance/marks page:", error);
+        displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
+    }
+    //return marksData;
 }
 
 
@@ -874,6 +1130,35 @@ async function handleAttendancePage() {
     }
 }
 
+/**Handles the feedback page
+ * to be added in next version
+ */
+async function handleFeedbackPage() {
+    //console.log("handleFeedbackPage: Starting process for Feedback page.");
+    try {
+        await waitForElement(document, '#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
+        
+        const notice = document.createElement('div');
+        notice.style.cssText = `
+            background-color: palegreen;
+            color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        `;
+        notice.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
+        const formContainer = document.querySelector('#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
+        if (formContainer) {
+            formContainer.prepend(notice);
+        } else {
+            console.error("handleFeedbackPage: Form container not found.");
+        }
+    } catch (error) {
+        console.error("handleFeedbackPage: Error processing Feedback page:", error);
+        displayInfoMessage("An error occurred while enhancing Feedback page.", 5000, 'error');
+    }
+}
 /**
  * Shares a link to the extension itself using the Web Share API.
  */
@@ -1302,7 +1587,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     }
 
     // Remove last two columns
-      allTableRows.forEach(row => {
+    allTableRows.forEach(row => {
         const cells = row.querySelectorAll('td, th');
         //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
         //cells[0].style.color = '#fff'; // Ensure first column text is visible
@@ -1733,42 +2018,45 @@ function highlightCurrentDayOrder(container) {
 function handleCurrentPage() {
     const hash = window.location.hash;
     console.log(`handleCurrentPage: Current hash is: ${hash}`);
+    if(!window.location.href.includes('creatorapp.zoho.com/srm_university/')){
+        const tittle = document.querySelector('#tab_WELCOME > div > span');
+        if (tittle) {
+            tittle.textContent = "Unfuglied";
+        }
 
-    const tittle = document.querySelector('#tab_WELCOME > div > span');
+        // --- Icon Logic ---
+        const iconElement = document.getElementById('t2727643000098596129');
 
-    if (tittle) {
-        tittle.textContent = "Unfuglied";
-        //console.log(tittle.textContent);
-    }
+        if (iconElement) {
+            // STEP 1: Kill the "Ghost" CSS
+            // The original icon lives in the ::before of the class "holidays-gift-exchange".
+            // By removing the class, we destroy the ::before pseudo-element entirely.
+            iconElement.removeAttribute('class'); 
+            
+            // STEP 2: Clean the container
+            iconElement.innerHTML = '';
+            iconElement.textContent = '';
 
-    // Find the specific <i> element by its ID
-    const iconElement = document.getElementById('t2727643000098596129');
+            // STEP 3: Create your new image (Replaces the CSS background-image logic)
+            const newImage = document.createElement('img');
+            
+            // Use the proper Chrome API to get the URL (replaces __MSG_@@extension_id__)
+            newImage.src = chrome.runtime.getURL('images/icon128.png');
 
-    if (iconElement) {
-        // 1. Clear any existing content or children from the <i> tag.
-        // This is crucial if it was displaying an icon font character.
-        iconElement.textContent = ''; // Clears any text content
-        iconElement.innerHTML = '';   // Clears any child HTML elements
+            // STEP 4: Apply the styles you wanted (Translated from CSS to JS)
+            // "width: 0px; height: 0px" in your CSS was likely to hide the old icon.
+            // Since we removed the class, we can now set the REAL size we want.
+            newImage.style.width = '24px'; 
+            newImage.style.height = '24px';
+            newImage.style.display = 'inline-block'; // Matches your "display: inline-block"
+            newImage.style.verticalAlign = 'middle'; // Ensures alignment with text
+            newImage.style.border = 'none';          // "background-color: transparent" equivalent
+            newImage.style.marginRight = '8px';
 
-        // 2. Create a new <img> element
-        const newImage = document.createElement('img');
-        const extensionId = chrome.runtime.id;
-        const imageUrl = `chrome-extension://${extensionId}/images/icon128.png`;
-        //console.log("Dynamically constructed image URL:", imageUrl);
-        newImage.src = imageUrl;
-
-        // 3. Apply desired styling directly to the <img> tag
-        newImage.style.width = '24px';
-        newImage.style.height = '24px';
-        newImage.style.verticalAlign = 'middle'; // Helps with vertical alignment if next to text
-        
-        // 4. Append the new <img> element to the <i> tag
-        iconElement.appendChild(newImage);
-
-        //console.log("Custom image added directly into the <i> element.");
-
-    } else {
-        console.warn("Icon element with ID 't2727643000098596129' not found in Welcome Page.");
+            // STEP 5: Inject
+            tittle.prepend(newImage);
+            //tittle.parentNode.insertBefore(iconElement, tittle);
+        }   
     }
 
     if (hash.includes('#WELCOME')) {
@@ -1776,7 +2064,18 @@ function handleCurrentPage() {
     } else if (hash.includes('#Page:My_Time_Table_2023_24')) {
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
-        handleAttendancePage();
+        try {
+            // Attempt to run the main function
+            handleAttendancePage();
+        } catch (error) {
+            // If it crashes, log the error and run the fallback
+            //console.warn("handleAttendancePage crashed. Running inlineMarksTotal instead.", error);
+            inlineMarksTotal();
+        }
+    } else if (hash.includes('#Page:Academic_Status')) {
+        marksTotalReport();
+    } else if (hash.includes('#Course_Feedback')) {
+        handleFeedbackPage();
     }
     
 }
@@ -1831,5 +2130,5 @@ if (document.body) {
     });
 }
 
-checkVersion(); //Temporery function call for this version only
+checkVersion();
 handleCurrentPage(); // Initial call to set up the page correctly

@@ -101,6 +101,47 @@ function saveEdits() {
     displayInfoMessage("Edits saved successfully!", 3000, 'success');
 }
 
+function loadEdits() {
+    const timetable = document.querySelector('#timetable-content-container > table');
+    if (!timetable) {
+        displayInfoMessage("Timetable table not found.", 5000, 'error');
+        return;
+    }
+    currentNetId = getNetId();
+    const storageKey  = `unfuglyData_${currentNetId}`;
+    chrome.storage.local.get(storageKey, (result) => {
+        const existingData = result[storageKey] || {};
+        const editedSlots = existingData.editedSlots || {};
+        Object.keys(editedSlots).forEach(slotId => {
+            if(!slotId) {
+                console.log("Empty slotId found in storage, skipping.");
+            } else {
+                console.log("Loading edit for slotId:", slotId, editedSlots[slotId].title);
+            }
+            const slot = timetable.querySelector(`td[title^="Slot: ${slotId}"]`);
+            if (slot) {
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = editedSlots[slotId].title;
+
+                const classroomSpan = document.createElement('span');
+                classroomSpan.textContent = editedSlots[slotId].classroom ? `Room: ${editedSlots[slotId].classroom}` : '';
+                titleSpan.style.fontWeight = '600';
+                titleSpan.style.color = '#334';
+                titleSpan.style.display = 'block';
+                titleSpan.style.fontSize = '11px';
+                classroomSpan.style.fontWeight = 'semi-bold'; // Changed to normal for distinction
+                classroomSpan.style.color = '#555';
+                classroomSpan.style.fontSize = '0.6em';
+                classroomSpan.style.display = 'block';
+                slot.classList.add('edited-slot', 'replaced-slot');
+                slot.style.backgroundColor = '#FBC02D';
+                slot.appendChild(titleSpan);
+                slot.appendChild(classroomSpan);
+            }
+        });
+    });
+}
+
 function initializeEdits() {
     const editMenu = document.createElement('div');
     editMenu.id = 'editMenu';
@@ -151,8 +192,8 @@ function initializeEdits() {
             align-items: center;
             display: inline-flex;
         `;
-        hideButton.onmouseover = () => editButton.style.opacity = '0.8';
-        hideButton.onmouseout = () => editButton.style.opacity = '1';
+        //hideButton.onmouseover = () => hideButton.style.opacity = '0.8';
+        //hideButton.onmouseout = () => editButton.style.opacity = '1';
         hideButton.title = 'Hide Edits';
         hideButton.onclick = () => {
             //editTimetable();
@@ -187,8 +228,8 @@ function initializeEdits() {
             align-items: center;
             display: inline-flex;
         `;
-        showButton.onmouseover = () => editButton.style.opacity = '0.8';
-        showButton.onmouseout = () => editButton.style.opacity = '1';
+        //showButton.onmouseover = () => editButton.style.opacity = '0.8';
+        //showButton.onmouseout = () => editButton.style.opacity = '1';
         showButton.title = 'Show Edited Timetable';
         showButton.onclick = () => {
             //editTimetable();
@@ -196,6 +237,7 @@ function initializeEdits() {
             hideButton.style.opacity = '1';
             editButton.style.opacity = '1';
             saveEdits();
+            loadEdits();
         }
         editMenu.appendChild(showButton);
 
@@ -223,8 +265,8 @@ function initializeEdits() {
             align-items: center;
             display: inline-flex;
         `;
-        editButton.onmouseover = () => editButton.style.opacity = '0.8';
-        editButton.onmouseout = () => editButton.style.opacity = '1';
+        //editButton.onmouseover = () => editButton.style.opacity = '0.8';
+        //editButton.onmouseout = () => editButton.style.opacity = '1';
         editButton.title = 'Edit Timetable';
         editButton.onclick = () => {
             editTimetable();

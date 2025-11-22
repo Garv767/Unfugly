@@ -1,7 +1,7 @@
 /* styles.css */
 
 /* Target the specific <i> element by its ID and its ::before pseudo-element */
-#t2727643000098596129::before {
+/*#t2727643000098596129::before*/ .temp {
     /* Step 1: Clear any existing icon font character if it was used */
     content: '';
 
