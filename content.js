@@ -626,6 +626,131 @@ function extractMarksDataFromDocument(doc) {
     return marksData;
 }
 
+//Fallback function to display total marks
+async function inlineMarksTotal(doc) {
+    try{
+    
+        await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
+
+        //const marksData = [];
+        //#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)
+        //const table = document.querySelector('div.cntdDiv > div > table:nth-child(7)');
+        const table = document.querySelector('div > div.cntdDiv > div > table:nth-child(7)');
+        //const table = document.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
+        const courseTable = document.querySelector('div.cntdDiv > div > table:nth-child(4)');
+        if (!table) {
+            console.warn("inlineMarksTotal: Marks table not found.");
+            //return marksData;
+        }
+
+        const rows = table.querySelectorAll(' tr:not(:first-child)');
+        const courseRows = courseTable.querySelectorAll('tbody tr:not(:first-child)');
+        const courseTableHeader = courseTable.querySelector('tbody tr:first-child');
+        let courseCodeIndexHeader;
+        if (courseTableHeader) {
+        // Select all the cells (td or th) within that first row as an Array
+        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+
+        // Iterate through the cells to find the one containing 'Course Code'
+        cells.forEach((cell, index) => {
+            // Use trim() to handle leading/trailing whitespace and check inclusion
+            if (cell.textContent.trim().includes('Course Code')) {
+                courseCodeIndexHeader = index; // Store the 0-based index
+            }
+        });
+        if (courseCodeIndexHeader === undefined) {
+            courseCodeIndexHeader = 0; // Default to the first column
+        }
+    }
+
+        const courseMap = {};
+        courseRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const cellText = cells[courseCodeIndexHeader].textContent.trim();
+            const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
+            const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
+            //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
+            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
+            courseMap[courseCode] = { courseTitle: courseTitle };
+            //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
+        });
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 3) {
+                const courseCode = cells[0].textContent.trim();
+                const courseTitle = courseMap[courseCode]?.courseTitle;
+                cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
+                const courseType = cells[1].textContent.trim();
+                const componentMarksCell = cells[2];
+                const components = [];
+                let totalMaxMarks = 0;
+                let totalObtainedMarks = 0;
+                const innerMarksTableRows = componentMarksCell.querySelectorAll('table tbody tr');
+
+                componentMarksCell.querySelector('table').style.cssText = `width:100%`;
+                const totalRow = document.createElement('tr');
+                totalRow.style.backgroundColor = '#E6E6FA';
+                const totalPerSub = componentMarksCell.querySelector('table > tbody')
+                totalPerSub.appendChild(totalRow);
+                
+                if (innerMarksTableRows.length > 0) {
+                    const componentCells = innerMarksTableRows[0].querySelectorAll('td');
+                    componentCells.forEach(compCell => {
+                        const strongTag = compCell.querySelector('strong');
+                        const fontTag = compCell.querySelector('font > br');
+
+                        if (strongTag && fontTag) {
+                            const compInfo = strongTag.textContent.trim();
+                            const obtainedVal = fontTag.nextSibling ? fontTag.nextSibling.textContent.trim() : ''; // Safely access nextSibling
+                            const infoMatch = compInfo.match(/(.+)\/([\d.]+)/);
+
+                            if (infoMatch) {
+                                //const componentName = infoMatch[1];
+                                const maxM = parseFloat(infoMatch[2]);
+                                const obtainedM = parseFloat(obtainedVal);
+
+                                /*components.push({
+                                    ComponentName: componentName,
+                                    MaxMarks: maxM,
+                                    ObtainedMarks: obtainedM
+                                });*/
+
+                                totalMaxMarks += maxM;
+                                totalObtainedMarks += obtainedM;
+                            }
+                        }
+                    });
+                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
+                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                        totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
+                    };
+                }
+
+                /*marksData.push({
+                    CourseCode: courseCode,
+                    CourseType: courseType,
+                    Components: components,
+                    TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
+                    TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
+                });*/
+            }
+        }
+    } catch (error) {
+        console.error("inlineMarksTotal: Error processing attendance/marks page:", error);
+        displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
+    }
+    //return marksData;
+}
+
+
+
+
 
 //Main Handlers
 
@@ -1776,7 +1901,10 @@ function handleCurrentPage() {
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
         handleAttendancePage();
-    }
+        //inlineMarksTotal();
+    } /*else if (hash.includes('#Page:Academic_Status')) {
+        inlineMarksTotal();
+    }*/
     
 }
 
