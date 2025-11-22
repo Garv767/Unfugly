@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "1.03.1",
-  "description": "Enhances the SRM Academia.",
+  "version": "1.04.1",
+  "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
     "activeTab",
     "storage"
