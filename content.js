@@ -232,6 +232,7 @@ async function checkVersion(){
         if (currentPart < latestPart) {
             let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
             displayInfoMessage(`A new Version is available! Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>`, 5000, 'critical');
+            break;
         }
      }
      
