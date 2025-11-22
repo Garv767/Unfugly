@@ -627,7 +627,7 @@ function extractMarksDataFromDocument(doc) {
 }
 
 //Fallback function to display total marks
-async function inlineMarksTotal(doc) {
+async function inlineMarksTotal() {
     try{
     
         await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
