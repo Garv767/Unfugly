@@ -1989,42 +1989,45 @@ function highlightCurrentDayOrder(container) {
 function handleCurrentPage() {
     const hash = window.location.hash;
     console.log(`handleCurrentPage: Current hash is: ${hash}`);
+    if(!window.location.href.includes('creatorapp.zoho.com/srm_university/')){
+        const tittle = document.querySelector('#tab_WELCOME > div > span');
+        if (tittle) {
+            tittle.textContent = "Unfuglied";
+        }
 
-    const tittle = document.querySelector('#tab_WELCOME > div > span');
+        // --- Icon Logic ---
+        const iconElement = document.getElementById('t2727643000098596129');
 
-    if (tittle) {
-        tittle.textContent = "Unfuglied";
-        //console.log(tittle.textContent);
-    }
+        if (iconElement) {
+            // STEP 1: Kill the "Ghost" CSS
+            // The original icon lives in the ::before of the class "holidays-gift-exchange".
+            // By removing the class, we destroy the ::before pseudo-element entirely.
+            iconElement.removeAttribute('class'); 
+            
+            // STEP 2: Clean the container
+            iconElement.innerHTML = '';
+            iconElement.textContent = '';
 
-    // Find the specific <i> element by its ID
-    const iconElement = document.getElementById('t2727643000098596129');
+            // STEP 3: Create your new image (Replaces the CSS background-image logic)
+            const newImage = document.createElement('img');
+            
+            // Use the proper Chrome API to get the URL (replaces __MSG_@@extension_id__)
+            newImage.src = chrome.runtime.getURL('images/icon128.png');
 
-    if (iconElement) {
-        // 1. Clear any existing content or children from the <i> tag.
-        // This is crucial if it was displaying an icon font character.
-        iconElement.textContent = ''; // Clears any text content
-        iconElement.innerHTML = '';   // Clears any child HTML elements
+            // STEP 4: Apply the styles you wanted (Translated from CSS to JS)
+            // "width: 0px; height: 0px" in your CSS was likely to hide the old icon.
+            // Since we removed the class, we can now set the REAL size we want.
+            newImage.style.width = '24px'; 
+            newImage.style.height = '24px';
+            newImage.style.display = 'inline-block'; // Matches your "display: inline-block"
+            newImage.style.verticalAlign = 'middle'; // Ensures alignment with text
+            newImage.style.border = 'none';          // "background-color: transparent" equivalent
+            newImage.style.marginRight = '8px';
 
-        // 2. Create a new <img> element
-        const newImage = document.createElement('img');
-        const extensionId = chrome.runtime.id;
-        const imageUrl = `chrome-extension://${extensionId}/images/icon128.png`;
-        //console.log("Dynamically constructed image URL:", imageUrl);
-        newImage.src = imageUrl;
-
-        // 3. Apply desired styling directly to the <img> tag
-        newImage.style.width = '24px';
-        newImage.style.height = '24px';
-        newImage.style.verticalAlign = 'middle'; // Helps with vertical alignment if next to text
-        
-        // 4. Append the new <img> element to the <i> tag
-        iconElement.appendChild(newImage);
-
-        //console.log("Custom image added directly into the <i> element.");
-
-    } else {
-        console.warn("Icon element with ID 't2727643000098596129' not found in Welcome Page.");
+            // STEP 5: Inject
+            tittle.prepend(newImage);
+            //tittle.parentNode.insertBefore(iconElement, tittle);
+        }   
     }
 
     if (hash.includes('#WELCOME')) {
