@@ -8,11 +8,12 @@
     "storage"
   ],
   "host_permissions": [
-    "https://academia.srmist.edu.in/*"
+    "https://academia.srmist.edu.in/*",
+    "https://creatorapp.zoho.com/srm_university/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://academia.srmist.edu.in/*"],
+      "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
       "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js"],
       "css": ["styles.css"]
     }

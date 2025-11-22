@@ -1908,6 +1908,10 @@ function handleCurrentPage() {
             //console.warn("handleAttendancePage crashed. Running inlineMarksTotal instead.", error);
             inlineMarksTotal();
         }
+    } else if (hash.includes('#Page:Academic_Status')) {
+        marksTotalReport();
+    }
+    
     }
     
 }
