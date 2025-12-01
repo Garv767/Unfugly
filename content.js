@@ -63,7 +63,7 @@ function displayInfoMessage(message, duration = 3000, type = 'info') {
         font-family: Arial, sans-serif;
         justify-content: center;
         text-align: center; 
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 1000;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
