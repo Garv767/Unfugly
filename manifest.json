@@ -14,7 +14,7 @@
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
-      "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js"],
+      "js": ["lib/html2canvas.min.js", "content.js"],
       "css": ["styles.css"]
     }
   ],
