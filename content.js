@@ -1136,7 +1136,7 @@ async function handleAttendancePage() {
 async function handleFeedbackPage() {
     //console.log("handleFeedbackPage: Starting process for Feedback page.");
     try {
-        await waitForElement(document, '#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
+        await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
         
         const notice = document.createElement('div');
         notice.style.cssText = `
@@ -1148,7 +1148,7 @@ async function handleFeedbackPage() {
             font-weight: bold;
         `;
         notice.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
-        const formContainer = document.querySelector('#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
+        const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
             formContainer.prepend(notice);
         } else {
