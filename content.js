@@ -63,7 +63,7 @@ function displayInfoMessage(message, duration = 3000, type = 'info') {
         font-family: Arial, sans-serif;
         justify-content: center;
         text-align: center; 
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 1000;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -1137,7 +1137,7 @@ async function handleAttendancePage() {
 async function handleFeedbackPage() {
     //console.log("handleFeedbackPage: Starting process for Feedback page.");
     try {
-        await waitForElement(document, '#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
+        await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
         
         const notice = document.createElement('div');
         notice.style.cssText = `
@@ -1149,7 +1149,7 @@ async function handleFeedbackPage() {
             font-weight: bold;
         `;
         notice.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
-        const formContainer = document.querySelector('#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
+        const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
             formContainer.prepend(notice);
         } else {
