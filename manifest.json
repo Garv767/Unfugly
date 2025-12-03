@@ -4,7 +4,7 @@
   "version": "1.04.1",
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
-    "activeTab",
+    
     "storage"
   ],
   "host_permissions": [
