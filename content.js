@@ -1847,7 +1847,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         //Fetch Course Registration data to get profile and batch
         console.log("backgroundFetchAllData: Fetching Course Registration data...");
-        const registrationPageUrl = "https://academia.srmist.edu.in/#Page:My_Time_Table_2023_24";
+        const registrationPageUrl = "https://academia.srmist.edu.in/#My_Time_Table_Attendance";
         const { iframeDoc: regIframeDoc, iframe: regIframe } = await createHiddenIframe(
             registrationPageUrl,
             ['div.cntdDiv table:not(.course_tbl)', 'table.course_tbl']
@@ -2062,7 +2062,7 @@ function handleCurrentPage() {
 
     if (hash.includes('#WELCOME')) {
         handleWelcomePage();
-    } else if (hash.includes('#Page:My_Time_Table_2023_24')) {
+    } else if (hash.includes('#My_Time_Table_Attendance')) {
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
         try {
