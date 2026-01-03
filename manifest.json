@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "1.04.1",
+  "version": "1.05.1",
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
     "activeTab",

@@ -1130,24 +1130,214 @@ async function handleAttendancePage() {
     }
 }
 
+
+//Feedback functions
+
+async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
+    const field = sub.querySelector(`.select2-container.${fieldIdentifier} > a`);
+    if (field) {
+        //field.scrollIntoView({ block: 'center', behavior: 'instant' });
+        field.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        // Wait for the dropdown animation to finish
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                        await delay(300);
+
+        const resultField = field.querySelector('span.select2-chosen');              
+        const select2Id = resultField.getAttribute('id').replace('select2-chosen-', '');
+
+        const select2Result = document.getElementById(`select2-results-${select2Id}`);
+
+        const options = select2Result.querySelectorAll('li.select2-results-dept-0');
+
+        for( const opt of options) {
+            if(opt.textContent.trim() === targetValue) {
+                // Click it
+                            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
+                            // Fallback click
+                            opt.click();
+                            break;
+            }
+        }
+        return;
+    }
+
+    /*const searchInput = field.querySelector(`input[name*='${fieldIdentifier}']`);
+    console.log("Search Input:", searchInput);
+                    
+                    if (searchInput) {
+                        // Type the value
+                        searchInput.value = targetValue;
+                        console.log("Search Input after value set:", searchInput.value);
+                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
+                    }
+
+    console.log("Field:", field);*/
+
+    /*// 1. Scroll into view (helps with lazy loading)
+            button.scrollIntoView({ block: 'center', behavior: 'instant' });
+
+            // 2. Open Dropdown
+            // We use mousedown as established previously
+            button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    */
+}
+
+async function fillSubject(targetValue) {
+    const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+    //zc-Enter_Your_Feedback_Here_Theory subform-custom-width
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    for (const sub of subs) {
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Punctuality', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Sincerity', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills', targetValue);
+
+        await delay(5300);
+
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions', targetValue);
+
+
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Punctuality', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Sincerity', targetValue);
+        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course', targetValue);
+        /*zc-Enter_Your_Feedback_Here_Theory-Punctuality-group
+        zc-Enter_Your_Feedback_Here_Theory-Sincerity-group
+
+        
+        */
+        //console.log(subs);
+
+    }
+
+    
+}
+
+
+
 /**Handles the feedback page
  * to be added in next version
  */
 async function handleFeedbackPage() {
-    //console.log("handleFeedbackPage: Starting process for Feedback page.");
+    // console.log("handleFeedbackPage: Starting process for Feedback page.");
+
+    // Helper: A simple delay function to let UI animations finish
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Helper: The logic to handle the specific Select2 dropdowns
+    async function fillFeedback() {
+        // 1. Define the unique parts of the names for the dropdowns you want to fill
+        const feedbackFields = [
+            "Communication_Presentation_Skills",
+            "Standard_of_Test_Questions",
+            "Punctuality",
+            "Sincerity"
+            // Add other unique identifier strings here as you find them
+        ];
+
+        // 2. The value you want to select (e.g., "5", "Excellent", "Good")
+        // Adjust this string to match exactly what appears in the dropdown options.
+        const targetValue = "Excellent"; 
+
+        for (const field of feedbackFields) {
+            try {
+                // A. Find the "Opener" (the box you click to open the dropdown)
+                // We look for a container that matches the field name but is NOT the hidden dropdown itself
+                // Select2 containers usually have 'select2-container' class.
+                // We try to find one that likely corresponds to our field.
+                // (This selector looks for the row/group containing the field name, then finds the select2 container inside it)
+                const container = document.querySelector(`div[class*='${field}'] .select2-container`) || 
+                                  document.querySelector(`.select2-container[id*='${field}']`) ||
+                                  // Fallback: search for the generic container if the specific class is on the parent
+                                  document.evaluate(`//div[contains(@class, '${field}')]//div[contains(@class, 'select2-container')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+
+                if (container) { 
+                    // Click to open    
+                    const choice = container.querySelector('.select2-choice') || container;
+                    choice.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    
+                    // Wait for the dropdown animation to finish
+                    await delay(300); 
+
+                    // B. Find the specific input box using the pattern we analyzed
+                    // We look for the input inside the now-visible dropdown
+                    const searchInput = document.querySelector(`input[name*='${field}']`);
+                    
+                    if (searchInput) {
+                        // Type the value
+                        searchInput.value = targetValue;
+                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
+                        //searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        // Wait a tiny bit for the filter to run
+                        await delay(100);
+
+                        // Press Enter to select the top result
+                        //searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+                        
+                        console.log(`Filled ${field} with ${targetValue}`);
+                    }
+                } else {
+                    console.warn(`Could not find opener for field: ${field}`);
+                }
+                
+                // Small pause between fields to look natural and prevent freezing
+                await delay(200);
+
+            } catch (err) {
+                console.error(`Error filling ${field}:`, err);
+            }
+        }
+    }
+
     try {
-        await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');//#Student_Feedback_Form_ZC_E81F34 > div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group
-        
+        await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
+        const targetValue = "Excellent"; // The value to autofill (temprorary hardcoded)
         const notice = document.createElement('div');
         notice.style.cssText = `
             background-color: palegreen;
             color: #000;
             padding: 10px;
             border-radius: 5px;
+            width: 400px;
             margin-bottom: 15px;
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         `;
-        notice.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
+        
+        // Create the text span
+        const textSpan = document.createElement('span');
+        textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
+        notice.appendChild(textSpan);
+
+        // Create the button
+        const btn = document.createElement('button');
+        btn.textContent = "Autofill (beta)";
+        btn.style.cssText = `
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: normal;
+        `;
+        
+        // Attach the click event to our new function
+        btn.onclick = (e) => {
+            e.preventDefault(); // Prevent form submission if inside a form tag
+            btn.textContent = "Filling...";
+            fillSubject(targetValue).then(() => {
+                btn.textContent = "Done!";
+            });
+        };
+        notice.appendChild(btn);
+
         const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
             formContainer.prepend(notice);
@@ -1846,7 +2036,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         //Fetch Course Registration data to get profile and batch
         console.log("backgroundFetchAllData: Fetching Course Registration data...");
-        const registrationPageUrl = "https://academia.srmist.edu.in/#Page:My_Time_Table_2023_24";
+        const registrationPageUrl = "https://academia.srmist.edu.in/#My_Time_Table_Attendance";
         const { iframeDoc: regIframeDoc, iframe: regIframe } = await createHiddenIframe(
             registrationPageUrl,
             ['div.cntdDiv table:not(.course_tbl)', 'table.course_tbl']
@@ -1907,7 +2097,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         }
 
         // Step 3: Fetch attendance and marks data
-        console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
+       /* console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
         const attendanceUrl = "https://academia.srmist.edu.in/#Page:My_Attendance";
         const { iframeDoc: attendanceIframeDoc, iframe: attendanceIframe } = await createHiddenIframe(
             attendanceUrl,
@@ -1918,7 +2108,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         fetchedData.attendanceData = extractAttendanceDataFromDocument(attendanceIframeDoc);
         fetchedData.marksData = extractMarksDataFromDocument(attendanceIframeDoc);
         attendanceIframe.remove();
-        console.log("backgroundFetchAllData: Attendance and marks data fetched and processed.");
+        console.log("backgroundFetchAllData: Attendance and marks data fetched and processed.");*/
 
         // Store the combined data
         const storageKey = `unfuglyData_${currentNetId}`;
@@ -2061,7 +2251,7 @@ function handleCurrentPage() {
 
     if (hash.includes('#WELCOME')) {
         handleWelcomePage();
-    } else if (hash.includes('#Page:My_Time_Table_2023_24')) {
+    } else if (hash.includes('#My_Time_Table_Attendance')) { //'#Page:My_Time_Table_2023_24'
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
         try {
