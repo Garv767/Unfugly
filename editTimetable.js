@@ -71,14 +71,19 @@ function saveEdits() {
         
         editedSlots.forEach(slot => {
             const slotId = slot.title.slice(6).trim();
-            const title = slot.querySelector('span:nth-child(1)') ? slot.querySelector('span:nth-child(1)').textContent : '';
-            const classroom = slot.querySelector('span:nth-child(2)') ? slot.querySelector('span:nth-child(2)').textContent.replace('Room: ', '') : '';
+            const editedTitle = slot.getElementsByClassName('editedSlot-editedTitle') ? slot.getElementsByClassName('editedSlot-editedTitle')[0].textContent : '';
+            const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
             
             existingData.editedSlots[slotId] = { 
-                title: title, 
-                classroom: classroom
+                originalTitle: null, 
+                originalClassroom: null,
+                editedTitle: editedTitle,
+                editedClassroom: editedClassroom
             };
         });
+
+        const removedFromEdits = timetable.getElementsByClassName('removeEditButton');
+        Array.from(removedFromEdits).forEach(button => button.remove());
 
         chrome.storage.local.set({ [storageKey]: existingData }, () => {
             if (chrome.runtime.lastError) {
