@@ -237,141 +237,106 @@ function hideEdits() {
      
 }
 function initializeEdits() {
+    loadEdits();
+    let isEditMode = false;
+
     const editMenu = document.createElement('div');
     editMenu.id = 'editMenu';
-    editMenu.style.display = 'inline-flex';
-    editMenu.classList.add = 'flex items-center space-x-1 p-1 bg-gray-200 rounded-full shadow-inner';
-    /*editMenu.innerHTML=`
-        <button
-      matButton
-      class="check"
-      id="hideEditsButton"
-      [ngClass]="choice === 'accept' ? ['check-on'] : ['check-off']"
-      type="button"
-      (click)="choice = 'accept'"
-    >Hide
-    </button>
-    <button
-      matButton
-      class="na"
-      id="editTimetableButton"
-      [ngClass]="choice?.length > 0 ? ['na-off'] : ['na-on']"
-      (click)="choice = ''"
-    >
-      <fa-icon [icon]="faBan" *ngIf="choice?.length > 0; else blank"></fa-icon>
-     Show
-    </button>
-    <button
-      matButton
-      class="deny"
-      [ngClass]="choice === 'deny' ? ['deny-on'] : ['deny-off']"
-      (click)="choice = 'deny'"
-    >Modify
-    </button>
-        
-    `;*/
-    hideButton = document.getElementById('hideEditsButton') || document.createElement('button');
-        hideButton.id = 'hideEditsButton';
-        hideButton.innerHTML = '';
-        hideButton.textContent = ' Hide ';
-        hideButton.style.cssText = `
-            background-color: #fbc02d;
-            border-radius: 13px;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            
-            justify-content: center;
-            align-items: center;
-            display: inline-flex;
-        `;
-        //hideButton.onmouseover = () => hideButton.style.opacity = '0.8';
-        //hideButton.onmouseout = () => editButton.style.opacity = '1';
-        hideButton.title = 'Hide Edits';
-        hideButton.onclick = () => {
-            //editTimetable();
-            hideButton.style.opacity = '0.6';
-            showButton.style.opacity = '1';
-            editButton.style.opacity = '1';
-            //saveEdits();
-        }
-        editMenu.appendChild(hideButton);
+    editMenu.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        padding: 4px; /* Slimmer padding */
+        margin-left: 20px; /* Added left padding */
+        background-color: rgba(255, 255, 255, 0.1); /* Glass effect */
+        backdrop-filter: blur(10px);
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 4px;
+        transition: all 0.3s ease;
+    `;
 
-        showButton = document.getElementById('showEditsButton') || document.createElement('button');
-        showButton.id = 'showEditsButton';
-        /*const editImage = document.createElement('img');
-        const extensionId = chrome.runtime.id; // Get extension ID dynamically
-        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
-        editImage.alt = 'Edit Timetable';
-        editImage.style.width = '24px';
-        editImage.style.height = '24px';
-        editImage.style.verticalAlign = 'middle';*/
-        //editButton.appendChild(editImage);
-        showButton.innerHTML = '';
-        showButton.textContent = ' Show ';
-        showButton.style.cssText = `
-            background-color: green;
-            border-radius: 13px;
+    function createSquircleButton(id, text, color, title) {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.textContent = text;
+        btn.title = title;
+        // Storing the theme color in a custom property for the setActive function
+        btn.dataset.themeColor = color; 
+        
+        btn.style.cssText = `
+            background-color: transparent; /* Default transparent */
+            color: rgba(255, 255, 255, 0.8);
             border: none;
+            border-radius: 10px;
             cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            
+            padding: 6px 14px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
             justify-content: center;
             align-items: center;
-            display: inline-flex;
+            min-width: 65px;
         `;
-        //showButton.onmouseover = () => editButton.style.opacity = '0.8';
-        //showButton.onmouseout = () => editButton.style.opacity = '1';
-        showButton.title = 'Show Edited Timetable';
-        showButton.onclick = () => {
-            //editTimetable();
-            showButton.style.opacity = '0.6';
-            hideButton.style.opacity = '1';
-            editButton.style.opacity = '1';
+        return btn;
+    }
+
+    const hideButton = createSquircleButton('hideEditsButton', 'Hide', '#546E7A', 'Hide Edits');
+    const showButton = createSquircleButton('showEditsButton', 'Show', '#43A047', 'Show/Save Edits');
+    const editButton = createSquircleButton('editTimetableButton', 'Modify', '#1E88E5', 'Edit Mode');
+
+    // Handle Active State Animation
+    function setActive(activeBtn) {
+        [hideButton, showButton, editButton].forEach(btn => {
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = 'rgba(255, 255, 255, 0.8)';
+            btn.style.boxShadow = 'none';
+            btn.style.transform = 'scale(1)';
+        });
+
+        // Pronounced Active State: Solid color + Scale + Shadow
+        activeBtn.style.backgroundColor = activeBtn.dataset.themeColor;
+        activeBtn.style.color = '#fff';
+        activeBtn.style.transform = 'scale(1.05)';
+        activeBtn.style.boxShadow = `0 4px 12px ${activeBtn.dataset.themeColor}66`; // 66 adds alpha to hex
+    }
+
+    // Logic Assignments
+    hideButton.onclick = () => {
+        setActive(hideButton);
+        saveEdits();
+        hideEdits();
+        isEditMode = false;
+        showButton.textContent = 'Show';
+    };
+
+    showButton.onclick = () => {
+        setActive(showButton);
+        if (isEditMode) {
             saveEdits();
+            isEditMode = false;
+            showButton.textContent = 'Show';
+        } else {
             loadEdits();
         }
-        editMenu.appendChild(showButton);
+    };
 
-        editButton = document.getElementById('editTimetableButton') || document.createElement('button');
-        editButton.id = 'editTimetableButton';
-        /*const editImage = document.createElement('img');
-        const extensionId = chrome.runtime.id; // Get extension ID dynamically
-        editImage.src = `chrome-extension://${extensionId}/images/edit.png`; // Path to your download icon
-        editImage.alt = 'Edit Timetable';
-        editImage.style.width = '24px';
-        editImage.style.height = '24px';
-        editImage.style.verticalAlign = 'middle';*/
-        //editButton.appendChild(editImage);
-        editButton.innerHTML = '';
-        editButton.textContent = ' Modify ';
-        editButton.style.cssText = `
-            background-color: green;
-            border-radius: 13px;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            
-            justify-content: center;
-            align-items: center;
-            display: inline-flex;
-        `;
-        //editButton.onmouseover = () => editButton.style.opacity = '0.8';
-        //editButton.onmouseout = () => editButton.style.opacity = '1';
-        editButton.title = 'Edit Timetable';
-        editButton.onclick = () => {
+    editButton.onclick = () => {
+        setActive(editButton);
+        isEditMode = true;
+        showButton.textContent = 'Save';
+        loadEdits();
+        setTimeout(() => {
             editTimetable();
-            editButton.style.opacity = '0.6';
-            showButton.style.opacity = '1';
-            hideButton.style.opacity = '1';
-            //saveEdits();
-        }
-        editMenu.appendChild(editButton);        
+        }, 50);
+    };
 
-        //timetablePanel = document.getElementById('timetable-content-container');
-        //timetablePanel.querySelector('h3').appendChild(editButton);
-        document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3').appendChild(editMenu);
-}
+    editMenu.append(hideButton, showButton, editButton);
+    //document.body.appendChild(editMenu); // Or wherever you append it
+    const timetableHeading = document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3');
+    timetableHeading.appendChild(editMenu);
+    timetableHeading.style.marginBottom = '0px';
+    setActive(showButton); // Default active button
+    console.log("Edit menu initialized.");
+   }
