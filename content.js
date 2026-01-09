@@ -2042,6 +2042,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
     const fetchedData = {
         profileData: null,
+        editedSlots: null,
         replacedTimetableHTML: null,
         attendanceData: null,
         marksData: null,
