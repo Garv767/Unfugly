@@ -213,6 +213,29 @@ function loadEdits() {
     });
 }
 
+function hideEdits() {
+    //saveEdits();
+    const timetable = document.querySelector('#timetable-content-container > table'); // > tbody');
+    const editedSlot = timetable ? timetable.querySelectorAll('.edited-slot') : [];
+    console.log("Hiding edits for slots:", editedSlot);
+    editedSlot.forEach(cell => {
+        const originalTitleSpan = cell.getElementsByClassName('editedSlot-originalTitle')[0];
+        const originalClassroomSpan = cell.getElementsByClassName('editedSlot-originalClassroom')[0];
+        originalTitleSpan.style.display = 'block';
+        if(originalClassroomSpan) originalClassroomSpan.style.display = 'block';
+
+        const editedTitleSpan = cell.getElementsByClassName('editedSlot-editedTitle')[0];
+        const editedClassroomSpan = cell.getElementsByClassName('editedSlot-editedClassroom')[0];
+        if(editedTitleSpan) editedTitleSpan.style.display = 'none';
+        if(editedClassroomSpan) editedClassroomSpan.style.display = 'none';
+
+        cell.classList.remove('edited-slot');
+        cell.style.backgroundColor = cell.dataset.originalBg;
+        console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
+
+    });
+     
+}
 function initializeEdits() {
     const editMenu = document.createElement('div');
     editMenu.id = 'editMenu';
