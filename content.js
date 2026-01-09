@@ -2127,14 +2127,17 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
         // Store the combined data
         const storageKey = `unfuglyData_${currentNetId}`;
+        const existingData = await chrome.storage.local.get(storageKey);
+        //console.log(existingData[storageKey].editedSlots, "edited slots before preserving");
         const dataToCache = {
             profileData: fetchedData.profileData,
             replacedTimetableHTML: fetchedData.replacedTimetableHTML,
-            editedSlots:'',
+            editedSlots: existingData?.[storageKey]?.editedSlots ?? {},
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
             lastUpdated: new Date().toISOString()
         };
+        console.log(dataToCache.editedSlots, "edited slots preserved");
         chrome.storage.local.set({ [storageKey]: dataToCache }, () => {
             if (chrome.runtime.lastError) console.error("Error saving all data to cache:", chrome.runtime.lastError);
             else console.log("backgroundFetchAllData: All data saved to cache.");
