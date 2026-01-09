@@ -1454,7 +1454,6 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <div id="timetable-content-container"></div>
     `;
     accordionWrapper.appendChild(timetablePanel);
-    //initializeEdits();
 
     // Inject timetable HTML
     const timetableContentContainer = timetablePanel.querySelector('#timetable-content-container');
@@ -1465,6 +1464,8 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
     } else {
         timetableContentContainer.innerHTML = '<p style="color: #fff;">Timetable data not available.</p>';
     }
+
+        initializeEdits();
 
     // Attendance Panel
     const attendancePanel = document.createElement('div');
@@ -1840,6 +1841,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 titleSpan.style.color = '#334';
                 titleSpan.style.display = 'block';
                 titleSpan.style.fontSize = '11px'; // Adjust font size for better fit
+                titleSpan.classList.add('editedSlot-originalTitle');
 
                 const classroomSpan = document.createElement('span');
                 classroomSpan.textContent = courseInfo.classroom ? `Room: ${courseInfo.classroom}` : '';
@@ -1847,6 +1849,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 classroomSpan.style.color = '#555';
                 classroomSpan.style.fontSize = '0.6em';
                 classroomSpan.style.display = 'block';
+                classroomSpan.classList.add('editedSlot-originalClassroom');
 
                 cell.appendChild(titleSpan);
                 if (courseInfo.classroom) cell.appendChild(classroomSpan);
@@ -1856,8 +1859,19 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 cell.style.color = '#aaa';
                 //cell.style.backgroundColor = '#f0f0f0'; // Slightly different background for unknown slots
                 cell.style.backgroundColor = '#585b5bff';
-                cell.style.fontSize = '0.8em';
+                cell.style.fontSize = '11px';
                 cell.title = `Slot: ${cellText}`;
+                
+                const unknownSpan = document.createElement('span');
+                unknownSpan.textContent = cellText;
+                unknownSpan.style.fontWeight = '400';
+                unknownSpan.style.color = 'rgb(170,170,170)';
+                unknownSpan.style.display = 'block';
+                unknownSpan.classList.add('editedSlot-originalTitle');
+
+                cell.innerHTML = ''; // Clear original content
+                cell.appendChild(unknownSpan);
+
             } else { // Empty slot
                 cell.classList.add('empty-slot-mask');
                 cell.classList.add('empty-slot');
