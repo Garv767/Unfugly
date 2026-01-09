@@ -1,30 +1,39 @@
 function handleSlotClick(event) {
     const slot = event.currentTarget;
+    if (!slot.classList.contains('editedSlot'))slot.dataset.originalBg = slot.style.backgroundColor; // Store original background color
     let slotTitle = slot.title.trim();
     console.log("Clicked slot title:", slotTitle.slice(6));
-    const titleSpan = document.createElement('span');
+    const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
     //titleSpan.textContent = courseInfo.title;
     titleSpan.style.fontWeight = '600';
     titleSpan.style.color = '#334';
     titleSpan.style.display = 'block';
     titleSpan.style.fontSize = '11px'; // Adjust font size for better fit
+    titleSpan.classList.add('editedSlot-editedTitle');
 
-    const classroomSpan = document.createElement('span');
+    const classroomSpan = slot.getElementsByClassName('editedSlot-editedClassroom')[0] || document.createElement('span');
     //classroomSpan.textContent = courseInfo.classroom ? `Room: ${courseInfo.classroom}` : '';
     classroomSpan.style.fontWeight = 'semi-bold'; // Changed to normal for distinction
     classroomSpan.style.color = '#555';
     classroomSpan.style.fontSize = '0.6em';
     classroomSpan.style.display = 'block';
+    classroomSpan.classList.add('editedSlot-editedClassroom');
 
     const tittle = prompt("Enter course title:" );
     const classroom = prompt("Enter classroom (optional):");
+    //If user cancels both prompts, do nothing
+    if(tittle === null && classroom === null) return;
     titleSpan.textContent = tittle ? tittle : slotTitle.slice(6)       ;
     classroomSpan.textContent = classroom ? `Room: ${classroom}` : '';
     slot.classList.add('edited-slot', 'replaced-slot');
-    slot.innerHTML = ''; // Clear existing content
+    //slot.innerHTML = ''; // Clear existing content
     slot.style.backgroundColor = '#FBC02D';
     slot.appendChild(titleSpan);
     slot.appendChild(classroomSpan);
+
+    slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
+    if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
+}
 }
 
 function editTimetable() {
@@ -44,22 +53,10 @@ function editTimetable() {
                 slot.onclick = handleSlotClick;
             }
         });
-    
-    /*const saveButton = document.createElement('button');
-    saveButton.textContent = 'Save Edits';
-    saveButton.style.margin = '10px';
-    saveButton.style.padding = '5px 10px';
-    saveButton.style.backgroundColor = '#4CAF50';
-    saveButton.style.color = 'white';
-    saveButton.style.border = 'none';
-    saveButton.style.borderRadius = '4px';
-    saveButton.style.cursor = 'pointer';
-    //#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3
-    document.querySelector('#unfuglyAppWrapper > div.unfugly-accordion-wrapper > div:nth-child(1) > h3').appendChild(saveButton);
-    saveButton.onclick = () => {
-        saveEdits();
-        saveButton.remove();
-    };*/
+    const editedSlots = timetable.querySelectorAll('td.edited-slot');
+    editedSlots.forEach(slot => {
+        removeEdits();
+    });      
 }
 
 function saveEdits() {
