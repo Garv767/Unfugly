@@ -15,7 +15,7 @@ function handleSlotClick(event) {
     //classroomSpan.textContent = courseInfo.classroom ? `Room: ${courseInfo.classroom}` : '';
     classroomSpan.style.fontWeight = 'semi-bold'; // Changed to normal for distinction
     classroomSpan.style.color = '#555';
-    classroomSpan.style.fontSize = '0.6em';
+    classroomSpan.style.fontSize = '9px';
     classroomSpan.style.display = 'block';
     classroomSpan.classList.add('editedSlot-editedClassroom');
 
