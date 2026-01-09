@@ -115,26 +115,37 @@ function loadEdits() {
         const existingData = result[storageKey] || {};
         const editedSlots = existingData.editedSlots || {};
         Object.keys(editedSlots).forEach(slotId => {
-            if(!slotId) {
+            /*if(!slotId) {
                 console.log("Empty slotId found in storage, skipping.");
             } else {
-                console.log("Loading edit for slotId:", slotId, editedSlots[slotId].title);
-            }
+                console.log("Loading edit for slotId:", slotId, editedSlots[slotId].editedTitle);
+            }*/
             const slot = timetable.querySelector(`td[title^="Slot: ${slotId}"]`);
             if (slot) {
-                const titleSpan = document.createElement('span');
-                titleSpan.textContent = editedSlots[slotId].title;
+                //console.log("Applying edit to slot:", slotId, slot);
+                if(!slot.dataset.originalBg) slot.dataset.originalBg = slot.style.backgroundColor; // Store original background color
 
-                const classroomSpan = document.createElement('span');
-                classroomSpan.textContent = editedSlots[slotId].classroom ? `Room: ${editedSlots[slotId].classroom}` : '';
+                slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
+                if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
+
+                const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
+                titleSpan.textContent = editedSlots[slotId].editedTitle;
+
+                const classroomSpan = slot.getElementsByClassName('editedSlot-editedClassroom')[0] || document.createElement('span');
+                classroomSpan.textContent = editedSlots[slotId].editedClassroom ? `Room: ${editedSlots[slotId].editedClassroom}` : '';
+
                 titleSpan.style.fontWeight = '600';
                 titleSpan.style.color = '#334';
                 titleSpan.style.display = 'block';
                 titleSpan.style.fontSize = '11px';
+                titleSpan.classList.add('editedSlot-editedTitle');
+
                 classroomSpan.style.fontWeight = 'semi-bold'; // Changed to normal for distinction
                 classroomSpan.style.color = '#555';
                 classroomSpan.style.fontSize = '0.6em';
                 classroomSpan.style.display = 'block';
+                classroomSpan.classList.add('editedSlot-editedClassroom');
+
                 slot.classList.add('edited-slot', 'replaced-slot');
                 slot.style.backgroundColor = '#FBC02D';
                 slot.appendChild(titleSpan);
