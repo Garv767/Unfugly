@@ -34,6 +34,64 @@ function handleSlotClick(event) {
     slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
     if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
 }
+
+function removeEdits() {
+    const timetable = document.querySelector('#timetable-content-container > table');
+    const editedSlot = timetable ? timetable.querySelectorAll('.edited-slot') : [];
+
+    editedSlot.forEach(cell => {
+        cell.style.position = 'relative';
+
+        const removeButton = cell.getElementsByClassName('removeEditButton')[0] || document.createElement('button');
+        removeButton.textContent = '×';
+        removeButton.style.position = 'absolute';
+        removeButton.style.top = '2px';
+        removeButton.style.right = '2px';
+        removeButton.style.backgroundColor = '#E53935';
+        removeButton.style.color = 'white';
+        removeButton.style.border = 'none';
+        removeButton.style.borderRadius = '50%';
+        removeButton.style.width = '18px';
+        removeButton.style.height = '18px';
+        removeButton.style.fontSize = '12px';
+        removeButton.style.cursor = 'pointer';
+        removeButton.style.display = 'flex';
+        removeButton.style.justifyContent = 'center';
+        removeButton.style.alignItems = 'center';
+        removeButton.style.zIndex = '10';
+        removeButton.classList.add('removeEditButton');
+
+        cell.prepend(removeButton);
+
+        removeButton.onclick = (event) => {
+            event.stopPropagation(); // Prevent triggering the slot click event
+            cell.classList.remove('edited-slot');
+            cell.style.backgroundColor = cell.dataset.originalBg;
+            console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
+            const titleSpan = cell.getElementsByClassName('editedSlot-editedTitle')[0];
+            const classroomSpan = cell.getElementsByClassName('editedSlot-editedClassroom')[0];
+            if(titleSpan) titleSpan.remove();
+            if(classroomSpan) classroomSpan.remove();
+            cell.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'block';
+            const originalClassroomSpan = cell.getElementsByClassName('editedSlot-originalClassroom')[0];
+            if(originalClassroomSpan) originalClassroomSpan.style.display = 'block';
+            chrome.storage.local.get(`unfuglyData_${currentNetId}`, (result) => {
+                const existingData = result[`unfuglyData_${currentNetId}`] || {};
+                const editedSlots = existingData.editedSlots || {};
+                const slotId = cell.title.slice(6).trim();
+                delete editedSlots[slotId];
+                existingData.editedSlots = editedSlots;
+                chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: existingData }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Error updating local storage:", chrome.runtime.lastError);
+                    } else {
+                        console.log('Edit removed and storage updated');
+                    }
+                });
+            });
+            removeButton.remove();
+        }
+    });
 }
 
 function editTimetable() {
