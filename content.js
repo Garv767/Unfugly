@@ -232,6 +232,7 @@ async function checkVersion(){
         if (currentPart < latestPart) {
             let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
             displayInfoMessage(`A new Version is available! Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>`, 5000, 'critical');
+            break;
         }
      }
      
@@ -2112,7 +2113,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         }
 
         // Step 3: Fetch attendance and marks data
-       /* console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
+        /*console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
         const attendanceUrl = "https://academia.srmist.edu.in/#Page:My_Attendance";
         const { iframeDoc: attendanceIframeDoc, iframe: attendanceIframe } = await createHiddenIframe(
             attendanceUrl,
