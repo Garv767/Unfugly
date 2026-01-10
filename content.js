@@ -219,7 +219,7 @@ async function checkVersion(){
     const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/main/version.txt')
     if (!response.ok) {
         console.warn("Could not fetch latest version info.", response);
-        return 1;
+        return;
     };
     const latestVersion = (await response.text()).trim();//then(res => res.text()).then(text => text.trim());
     const currentParts = currentVersion.split('.').map(Number);
@@ -230,9 +230,11 @@ async function checkVersion(){
         const currentPart = currentParts[i] || 0;
         const latestPart = latestParts[i] || 0;
         if (currentPart < latestPart) {
-            let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
-            displayInfoMessage(`A new Version is available! Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>`, 5000, 'critical');
-            break;
+            chrome.runtime.sendMessage({ action: "trigger_update" }); // Signal background script
+            //chrome.runtime.requestUpdateCheck();
+            //let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
+            displayInfoMessage(`A new Version is available, updating...`, 5000, 'critical');//Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>
+            return;
         }
      }
      
@@ -1313,9 +1315,11 @@ async function handleFeedbackPage() {
         
         // Create the text span
         const textSpan = document.createElement('span');
-        textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
+        textSpan.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
+        //textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
         notice.appendChild(textSpan);
 
+        /*
         // Create the button
         const btn = document.createElement('button');
         btn.textContent = "Autofill (beta)";
@@ -1338,6 +1342,7 @@ async function handleFeedbackPage() {
             });
         };
         notice.appendChild(btn);
+        */
 
         const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
