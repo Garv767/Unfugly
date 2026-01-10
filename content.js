@@ -219,7 +219,7 @@ async function checkVersion(){
     const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/main/version.txt')
     if (!response.ok) {
         console.warn("Could not fetch latest version info.", response);
-        return 1;
+        return;
     };
     const latestVersion = (await response.text()).trim();//then(res => res.text()).then(text => text.trim());
     const currentParts = currentVersion.split('.').map(Number);
