@@ -1315,9 +1315,11 @@ async function handleFeedbackPage() {
         
         // Create the text span
         const textSpan = document.createElement('span');
-        textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
+        textSpan.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
+        //textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
         notice.appendChild(textSpan);
 
+        /*
         // Create the button
         const btn = document.createElement('button');
         btn.textContent = "Autofill (beta)";
@@ -1340,6 +1342,7 @@ async function handleFeedbackPage() {
             });
         };
         notice.appendChild(btn);
+        */
 
         const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
