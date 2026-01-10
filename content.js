@@ -230,8 +230,11 @@ async function checkVersion(){
         const currentPart = currentParts[i] || 0;
         const latestPart = latestParts[i] || 0;
         if (currentPart < latestPart) {
-            let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
-            displayInfoMessage(`A new Version is available! Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>`, 5000, 'critical');
+            chrome.runtime.sendMessage({ action: "trigger_update" }); // Signal background script
+            //chrome.runtime.requestUpdateCheck();
+            //let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
+            displayInfoMessage(`A new Version is available, updating...`, 5000, 'critical');//Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>
+            return;
         }
      }
      
