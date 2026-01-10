@@ -230,7 +230,6 @@ async function checkVersion(){
         const currentPart = currentParts[i] || 0;
         const latestPart = latestParts[i] || 0;
         if (currentPart < latestPart) {
-<<<<<<< HEAD
             chrome.runtime.sendMessage({ action: "trigger_update" }); // Signal background script
             //chrome.runtime.requestUpdateCheck();
             //let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
