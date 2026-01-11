@@ -1978,7 +1978,7 @@ function addDownloadTimetableButton(timetableTable) {
         `;
 
         captionElement.appendChild(downloadButton);
-        captionElement.appendChild(qrImage); // Append QR code image to caption
+        //captionElement.appendChild(qrImage); // Append QR code image to caption
     }
 
     // Re-attach event listener to ensure it works on dynamically added tables
