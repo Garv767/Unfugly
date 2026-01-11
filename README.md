@@ -40,7 +40,7 @@ Unfugly is a Chrome extension that enhances the SRM Academia portal experience b
    - Quick access to attendance and marks data
    - An interactive timetable with edit capabilities
 
-### Editing Your Timetable(Under development)
+### Editing Your Timetable
 1. Click on any unallocated (grey) slot in your timetable
 2. Enter the course title and classroom (optional) when prompted
 3. Changes are automatically saved to your browser storage
@@ -56,13 +56,15 @@ Unfugly is a Chrome extension that enhances the SRM Academia portal experience b
 Unfugly/
 ├── manifest.json              # Extension configuration
 ├── content.js                 # Main content script
-├── editTimetable.js          # Timetable editing functionality
-├── styles.css                # Custom styling
-├── imageURLScript.js         # Image handling utilities
+├── editTimetable.js           # Timetable editing functionality
+├── styles.css                 # Custom styling
+├── background.js              # Background worker
+├── imageURLScript.js          # Image handling utilities
 ├── lib/
-│   └── html2canvas.min.js    # Screenshot library
-├── images/                   # Extension icons and assets
-└── README.md                 # This file
+│   └── html2canvas.min.js     # Screenshot library
+├── images/                    # Extension icons and assets
+├── version.txt                # To track latest verion
+└── README.md                  # This file
 ```
 
 ## Permissions
@@ -99,7 +101,7 @@ Contributions are welcome! Feel free to:
 ## Support
 
 If you encounter any issues or have suggestions:
-1. Check if you're on the latest version (v1.04.1)
+1. Check if you're on the latest version (v1.05.3)
 2. Try refreshing the page
 3. Check the browser console for error messages
 4. Open an issue on GitHub with details about the problem
