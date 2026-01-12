@@ -1615,7 +1615,7 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
  */
 function formatMarksTable(marksData, container, attendanceData) {
     if (!marksData || marksData.length === 0) {
-        container.innerHTML = '<p style="color: #fff; text-align: center; font-size: 1.1em;">No marks data found.</p>';
+        container.innerHTML = '<p style="color: #ccc; text-align: center;">No marks data found.</p>';
         return;
     }
 

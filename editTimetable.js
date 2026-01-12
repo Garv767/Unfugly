@@ -329,6 +329,7 @@ function initializeEdits() {
         loadEdits();
         setTimeout(() => {
             editTimetable();
+            displayInfoMessage("Click on any slot to edit it.", 5000, 'info');
         }, 50);
     };
 
