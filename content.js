@@ -1797,6 +1797,8 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     });
 
     // Replace slots with course titles
+    let slotId = 1;
+
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
         const row = allTableRows[rowIndex];
         if (!row) continue;
@@ -1831,6 +1833,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             cell.style.color = '';
             cell.style.fontWeight = '';
             cell.style.position = '';
+            cell.id = `slot-${slotId++}`; // Assign unique ID
 
             let cellText = cell.textContent.trim();
             // Clean cell text to get the slot (e.g., "A / B" -> "A")

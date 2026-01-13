@@ -78,7 +78,7 @@ function removeEdits() {
             chrome.storage.local.get(`unfuglyData_${currentNetId}`, (result) => {
                 const existingData = result[`unfuglyData_${currentNetId}`] || {};
                 const editedSlots = existingData.editedSlots || {};
-                const slotId = cell.title.slice(6).trim();
+                const slotId = cell.id; //.title.slice(6).trim();
                 delete editedSlots[slotId];
                 existingData.editedSlots = editedSlots;
                 chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: existingData }, () => {
@@ -128,7 +128,7 @@ function saveEdits() {
         existingData.editedSlots = existingData.editedSlots || {};
         
         editedSlots.forEach(slot => {
-            const slotId = slot.title.slice(6).trim();
+            const slotId = slot.id;
             const editedTitle = slot.getElementsByClassName('editedSlot-editedTitle') ? slot.getElementsByClassName('editedSlot-editedTitle')[0].textContent : '';
             const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
             
@@ -178,7 +178,7 @@ function loadEdits() {
             } else {
                 console.log("Loading edit for slotId:", slotId, editedSlots[slotId].editedTitle);
             }*/
-            const slot = timetable.querySelector(`td[title^="Slot: ${slotId}"]`);
+            const slot = timetable.querySelector(`#${slotId}`); //(`td[title^="Slot: ${slotId}"]`);
             if (slot) {
                 //console.log("Applying edit to slot:", slotId, slot);
                 if(!slot.dataset.originalBg) slot.dataset.originalBg = slot.style.backgroundColor; // Store original background color
