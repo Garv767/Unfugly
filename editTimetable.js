@@ -133,8 +133,6 @@ function saveEdits() {
             const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
             
             existingData.editedSlots[slotId] = { 
-                originalTitle: null, 
-                originalClassroom: null,
                 editedTitle: editedTitle,
                 editedClassroom: editedClassroom
             };
