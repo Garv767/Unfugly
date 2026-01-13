@@ -2,7 +2,7 @@ function handleSlotClick(event) {
     const slot = event.currentTarget;
     if (!slot.classList.contains('editedSlot'))slot.dataset.originalBg = slot.style.backgroundColor; // Store original background color
     let slotTitle = slot.title.trim();
-    console.log("Clicked slot title:", slotTitle.slice(6));
+    //console.log("Clicked slot title:", slotTitle.slice(6));
     const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
     //titleSpan.textContent = courseInfo.title;
     titleSpan.style.fontWeight = '600';
@@ -67,7 +67,7 @@ function removeEdits() {
             event.stopPropagation(); // Prevent triggering the slot click event
             cell.classList.remove('edited-slot');
             cell.style.backgroundColor = cell.dataset.originalBg;
-            console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
+            //console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
             const titleSpan = cell.getElementsByClassName('editedSlot-editedTitle')[0];
             const classroomSpan = cell.getElementsByClassName('editedSlot-editedClassroom')[0];
             if(titleSpan) titleSpan.remove();
@@ -85,7 +85,7 @@ function removeEdits() {
                     if (chrome.runtime.lastError) {
                         console.error("Error updating local storage:", chrome.runtime.lastError);
                     } else {
-                        console.log('Edit removed and storage updated');
+                        //console.log('Edit removed and storage updated');
                     }
                 });
             });
@@ -215,7 +215,7 @@ function hideEdits() {
     //saveEdits();
     const timetable = document.querySelector('#timetable-content-container > table'); // > tbody');
     const editedSlot = timetable ? timetable.querySelectorAll('.edited-slot') : [];
-    console.log("Hiding edits for slots:", editedSlot);
+    //console.log("Hiding edits for slots:", editedSlot);
     editedSlot.forEach(cell => {
         const originalTitleSpan = cell.getElementsByClassName('editedSlot-originalTitle')[0];
         const originalClassroomSpan = cell.getElementsByClassName('editedSlot-originalClassroom')[0];
@@ -229,7 +229,7 @@ function hideEdits() {
 
         cell.classList.remove('edited-slot');
         cell.style.backgroundColor = cell.dataset.originalBg;
-        console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
+        //console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
 
     });
      
@@ -337,5 +337,5 @@ function initializeEdits() {
     timetableHeading.appendChild(editMenu);
     timetableHeading.style.marginBottom = '0px';
     setActive(showButton); // Default active button
-    console.log("Edit menu initialized.");
+    //console.log("Edit menu initialized.");
    }

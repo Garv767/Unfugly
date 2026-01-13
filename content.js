@@ -1383,11 +1383,11 @@ function renderProfilePanel(profileData, container, dayOrder) {
     let dayOnUpdate = '';
     if (dayOrderSpan) {
         dayOnUpdate = dayOrderSpan.textContent.replace(/Day Order:/, '').trim(); // Extract day order from the span
-        console.log("renderProfilePanel: dayOrderSpan:", dayOnUpdate);
+        //console.log("renderProfilePanel: dayOrderSpan:", dayOnUpdate);
     }
 
         const dayOrderToday = dayOrder; //|| dayOnUpdate; // Default to 'N/A' if not provided\
-    console.log("renderProfilePanel: dayOrderToday:", dayOrderToday);
+    //console.log("renderProfilePanel: dayOrderToday:", dayOrderToday);
     // Check if a profile panel already exists to avoid duplication during refreshes
     let profilePanel = container.querySelector('.profile-panel');
     if (!profilePanel) {
@@ -2146,7 +2146,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             marksData: fetchedData.marksData,
             lastUpdated: new Date().toISOString()
         };
-        console.log(dataToCache.editedSlots, "edited slots preserved");
+        //console.log(dataToCache.editedSlots, "edited slots preserved");
         chrome.storage.local.set({ [storageKey]: dataToCache }, () => {
             if (chrome.runtime.lastError) console.error("Error saving all data to cache:", chrome.runtime.lastError);
             else console.log("backgroundFetchAllData: All data saved to cache.");
