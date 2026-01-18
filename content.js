@@ -2229,7 +2229,6 @@ function highlightCurrentDayOrder(container) {
 
 //Page Router
 
-
 /**
  * Determines the current page based on the URL hash and calls the appropriate handler.
  */
