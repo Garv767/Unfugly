@@ -2156,7 +2156,6 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         if (titleElement) {
             titleElement.textContent = "Unfugly: Data updated!";
         }
-        
         // Re-render panels with the newly fetched data
         renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder); // Pass dayOrder for profile panel
         renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper); // Pass previous data for diff
