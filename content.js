@@ -2335,7 +2335,6 @@ window.myMutationObserver = new MutationObserver((mutationsList, observer) => {
     }
 });
 
-
 // Start observing the body for childList changes
 if (document.body) {
     window.myMutationObserver.observe(document.body, { childList: true, subtree: true });
