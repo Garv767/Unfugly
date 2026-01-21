@@ -101,7 +101,7 @@ Contributions are welcome! Feel free to:
 ## Support
 
 If you encounter any issues or have suggestions:
-1. Check if you're on the latest version (v1.05.5)
+1. Check if you're on the latest version (v1.05.*)
 2. Try refreshing the page
 3. Check the browser console for error messages
 4. Open an issue on GitHub with details about the problem
