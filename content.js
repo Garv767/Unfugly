@@ -2060,7 +2060,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         //Fetch Course Registration data to get profile and batch
         console.log("backgroundFetchAllData: Fetching Course Registration data...");
-        const registrationPageUrl = "https://academia.srmist.edu.in/#My_Time_Table_Attendance";
+        const registrationPageUrl = "https://academia.srmist.edu.in/#Page:My_Time_Table_2023_24"; //#My_Time_Table_Attendance";
         const { iframeDoc: regIframeDoc, iframe: regIframe } = await createHiddenIframe(
             registrationPageUrl,
             ['div.cntdDiv table:not(.course_tbl)', 'table.course_tbl']
@@ -2121,7 +2121,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         }
 
         // Step 3: Fetch attendance and marks data
-        /*console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
+        console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
         const attendanceUrl = "https://academia.srmist.edu.in/#Page:My_Attendance";
         const { iframeDoc: attendanceIframeDoc, iframe: attendanceIframe } = await createHiddenIframe(
             attendanceUrl,
@@ -2132,7 +2132,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         fetchedData.attendanceData = extractAttendanceDataFromDocument(attendanceIframeDoc);
         fetchedData.marksData = extractMarksDataFromDocument(attendanceIframeDoc);
         attendanceIframe.remove();
-        console.log("backgroundFetchAllData: Attendance and marks data fetched and processed.");*/
+        console.log("backgroundFetchAllData: Attendance and marks data fetched and processed.");
 
         // Store the combined data
         const storageKey = `unfuglyData_${currentNetId}`;
@@ -2278,7 +2278,7 @@ function handleCurrentPage() {
 
     if (hash.includes('#WELCOME')) {
         handleWelcomePage();
-    } else if (hash.includes('#My_Time_Table_Attendance')) { //'#Page:My_Time_Table_2023_24'
+    } else if (hash.includes('#Page:My_Time_Table_2023_24')) { //#My_Time_Table_Attendance
         //handleTimetablePage();
     } else if (hash.includes('#Page:My_Attendance')) {
         try {
