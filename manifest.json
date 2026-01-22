@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "1.05.7",
+  "version": "1.05.8",
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
     
@@ -9,13 +9,15 @@
   ],
   "host_permissions": [
     "https://academia.srmist.edu.in/*",
-    "https://creatorapp.zoho.com/srm_university/*"
+    "https://creatorapp.zoho.com/srm_university/*",
+    "http://localhost:8000/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
-      "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js"],
-      "css": ["styles.css"]
+      "js": ["lib/html2canvas.min.js", "solveCaptcha.js", "content.js", "editTimetable.js"],
+      "css": ["styles.css"],
+      "all_frames": false
     }
   ],
   "background": [
