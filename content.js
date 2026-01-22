@@ -18,6 +18,9 @@ window.isFetchingInBackground = false;
 // Global variables for retry mechanism for timetable page loading
 window.timetableRetryCount = 0;
 
+//Gloabl flag for extra lab slots
+let extraSlotFlag = false;
+
 const MAX_TIMETABLE_RETRIES = 20; // Max attempts
 
 const TIMETABLE_RETRY_DELAY = 1000; // 1 second delay between attempts
@@ -351,6 +354,7 @@ function extractCourseDataFromDocument(doc_context) {
                 if (!slotCell || !courseTitleCell || !clsRoomCell) continue;
 
                 const slot = slotCell.textContent.trim();
+                if (slot.includes('L')) extraSlotFlag = true;
                 const rawTitle = courseTitleCell.textContent.trim();
 
                     let truncatedTitle = ''; // Declare a variable to store the truncated title
@@ -1783,18 +1787,20 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
         //console.log("replaceSlotsWithCourseTitles: Removed 2nd row.");
     }
 
-    // Remove last two columns
-    allTableRows.forEach(row => {
-        const cells = row.querySelectorAll('td, th');
-        //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
-        //cells[0].style.color = '#fff'; // Ensure first column text is visible
-        if (cells.length >= 2) { // Ensure there are at least two columns to potentially remove
-            const secondToLast = cells[cells.length - 2];
-            const last = cells[cells.length - 1];
-            if (secondToLast) secondToLast.style.display = 'none';
-            if (last) last.style.display = 'none';
-        }
-    });
+    // Remove last two columns if 'L' slots not required
+    if (!extraSlotFlag) {
+        allTableRows.forEach(row => {
+            const cells = row.querySelectorAll('td, th');
+            //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
+            //cells[0].style.color = '#fff'; // Ensure first column text is visible
+            if (cells.length >= 2) { // Ensure there are at least two columns to potentially remove
+                const secondToLast = cells[cells.length - 2];
+                const last = cells[cells.length - 1];
+                if (secondToLast) secondToLast.style.display = 'none';
+                if (last) last.style.display = 'none';
+            }
+        });
+    }
 
     // Replace slots with course titles
     let slotId = 1;
