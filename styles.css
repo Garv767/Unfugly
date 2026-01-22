@@ -101,7 +101,7 @@ body {
 /*}*/
 
 .dull-out {
-    opacity: 0.5;
+    opacity: 0.6;
     z-index: 1;
     transition: opacity 0.3s ease-in-out;
 }
