@@ -2324,7 +2324,8 @@ window.myMutationObserver = new MutationObserver((mutationsList, observer) => {
             // Check if any of the main view containers have been added
             const addedContainers = Array.from(mutation.addedNodes).some(node =>
                 node.id && (
-                    node.id.startsWith('zc-viewcontainer_WELCOME') ||
+                    node.id.startsWith('zc-viewcontainer_WELCOME') || //zc-viewcontainer_WELCOME
+                    node.id.startsWith('WELCOME_ZC_DCMHKR') ||
                     node.id.startsWith('zc-viewcontainer_My_Time_Table') ||
                     node.id.startsWith('zc-viewcontainer_My_Attendance')
                 )
