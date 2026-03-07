@@ -72,3 +72,9 @@
         window.location.hash = targetPageHash;
     }
 })();
+
+
+
+
+
+ window.localStorage.getItem('studentProfilePhotoUrl');
