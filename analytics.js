@@ -9,7 +9,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
                 // Extract netId directly from the key name (e.g., "unfuglyData_ab1234")
                 const netId = key.split('_')[1];
 
-                console.log('UP:01');
+                //console.log('UP:01');
 
                 try {
                     const response = await fetch('https://unfugly-backend.onrender.com/save-data', {
@@ -23,7 +23,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
                     });
 
                     const result = await response.json();
-                    console.log('UP:02');
+                    //console.log('UP:02');
                 } catch (error) {
                     console.error('ER:01');
                 }
