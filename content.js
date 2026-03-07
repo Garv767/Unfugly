@@ -1359,6 +1359,105 @@ async function handleFeedbackPage() {
         displayInfoMessage("An error occurred while enhancing Feedback page.", 5000, 'error');
     }
 }
+
+/*Handles academic planner page*/
+function handleAcademicPlannerPage(){
+    //document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table');
+    waitForElement(document, 'div > div.zc-pb-tile-container > div > div > div > div > table').then(() =>{
+        const tableBody = document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
+        tableBody.style.display ='none';
+        const rows = tableBody.querySelectorAll('tr');
+        console.log(rows);
+        const calendar = document.createElement('div'); //(`<div id="unfugly-academic-planner-calendar" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">test</div>`);
+        calendar.style.cssText = `
+            margin-top: 20px;
+            box-sizing: border-box;
+            background-color: #333;
+        `;
+        calendar.id = 'unfugly-academic-planner-calendar';
+        //calendar.innerHTML = 'test';
+        rows.forEach((row, index) => {
+            if(index === 0){
+                const cols =row.querySelectorAll('th');
+                var x =1;
+                for(let i=0;i<cols.length;i+=5){
+                    const monthName = cols[i+2].textContent;
+                    //console.log("Month Name:",monthName);
+                    const monthHeader = document.createElement('div');
+                    monthHeader.id = `month_${x++}`;
+                    monthHeader.innerHTML = `<div style="background-color:#444; padding:5px; border-radius:5px; grid-column: span 7;">${monthName}</div>`;
+                    monthHeader.style.cssText = `
+                        display: grid;
+                        grid-template-columns: repeat(7, 1fr);
+                        gap: 5px;
+                        text-align: center;
+                        font-size: 1.1em;
+                        font-weight: bold;
+                        color: #fff;
+                        margin: 10px;
+                        border: 1px solid #555;
+                    `;
+
+                    const weekHeader = document.createElement('div');
+                    weekHeader.style.cssText = `
+                        grid-column: span 7;
+                        text-align: center;
+                        font-size: 1em;
+                        font-weight: bold;
+                        color: #fff;
+                        margin-bottom: 10px;
+                    `;
+                    weekHeader.innerHTML = `<div style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">
+                        <div>Mon</div>
+                        <div>Tue</div>
+                        <div>Wed</div>
+                        <div>Thu</div>
+                        <div>Fri</div>
+                        <div>Sat</div>
+                        <div>Sun</div>
+                    </div>`;
+                    calendar.appendChild(monthHeader);
+                    monthHeader.appendChild(weekHeader);
+                }
+            } else {
+                const cols = row.querySelectorAll('td');
+                for(let i=0;i<cols.length;i+=5){
+                    const date = cols[i].textContent;
+                    const day = cols[i+1].textContent;
+                    const event = cols[i+2].textContent;
+                    const dayOrder = cols[i+3].textContent;
+
+                    if(date.trim() === '') continue;
+
+                    const monthDiv = calendar.querySelector(`#month_${(i/5)+1}`);
+                    const eventDiv = document.createElement('div');
+                    eventDiv.innerHTML = `<div style = "display:flex; flex-direction: row; justify-content: space-between;"><strong style="color:#00ff00;">${date}</strong>
+                        <div style="font-size:0.8em; color:#ffcc00; align: right;">${dayOrder}</div>
+                        </div>
+                        <br/>
+                        <div style="font-size:0.9em; max-height:50px; overflow: hidden;">${event}</div>
+                        <br/>
+                        
+                    `;
+                    eventDiv.style.padding = "5px";
+                    eventDiv.style.border = "1px solid #444";
+                    eventDiv.style.borderRadius = "5px";
+
+                    if(date == 1 ){
+                    eventDiv.style.gridColumnStart = ((day === 'Mon') ? 1 : (day === 'Tue') ? 2 : (day === 'Wed') ? 3 : (day === 'Thu') ? 4 : (day === 'Fri') ? 5 : (day === 'Sat') ? 6 : 7);                        
+                    }
+
+                    monthDiv.appendChild(eventDiv);
+
+                    console.log(`Date: ${date}, Day: ${day}, Event: ${event}, Day Order: ${dayOrder}`);
+                }
+            }
+        });
+        document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table').after(calendar);
+    })
+}
+
+
 /**
  * Shares a link to the extension itself using the Web Share API.
  */
@@ -2299,6 +2398,8 @@ function handleCurrentPage() {
         marksTotalReport();
     } else if (hash.includes('#Course_Feedback')) {
         handleFeedbackPage();
+    } else if (hash.includes('#Page:Academic_Planner_2025_26_EVEN') || hash.includes('#Page:Academic_Planner_2025_26_ODD')) {
+        handleAcademicPlannerPage();
     }
     
 }
