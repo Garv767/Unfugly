@@ -750,7 +750,8 @@ async function inlineMarksTotal() {
             }
         }
     } catch (error) {
-        console.error("inlineMarksTotal: Error processing attendance/marks page:", error);
+        //console.error("inlineMarksTotal: Error processing attendance/marks page:", error);
+        console.error("ER:03");
         displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
     }
     //return marksData;
