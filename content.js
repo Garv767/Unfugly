@@ -185,7 +185,8 @@ async function createHiddenIframe(url, selectorsToWaitFor = ['body']) { // Defau
                 //console.log("createHiddenIframe: All required elements found in iframe. Resolving promise.");
                 resolve({ iframeDoc, iframe });
             } catch (error) {
-                console.error("createHiddenIframe: Error waiting for iframe content for URL:", url, error);
+                //console.error("createHiddenIframe: Error waiting for iframe content for URL:", url, error);
+                console.error("ER:02");
                 reject(error);
             }
         };
