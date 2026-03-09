@@ -886,7 +886,8 @@ async function marksTotalReport() {
             }
         }
     } catch (error) {
-        console.error("marksTotalReport: Error processing attendance/marks page:", error);
+        //console.error("marksTotalReport: Error processing attendance/marks page:", error);
+        console.error("ER:04");
         displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
     }
     //return marksData;
