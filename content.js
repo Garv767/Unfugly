@@ -1369,46 +1369,51 @@ function handleAcademicPlannerPage(){
         const rows = document.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
         console.log(rows);
 
-        const unfuglyCalendar = {};
-        const monthHeaderMap = {}; // Helper to map column index to Month Name
+        // 1. Scrape the current page into a local object
+        const currentUrlCalendar = {};
+        const monthHeaderMap = {};
 
         rows.forEach((row, index) => {
             if (index === 0) {
-                // Step 1: Extract Month Names and map them to their starting column index
                 const headers = row.querySelectorAll('th');
                 headers.forEach((th, thIndex) => {
-                    if (thIndex % 5 === 2) { // The month name is usually in the 3rd cell of every 5-cell group
+                    if (thIndex % 5 === 2) {
                         const monthName = th.textContent.trim();
-                        unfuglyCalendar[monthName] = {};
-                        monthHeaderMap[thIndex - 2] = monthName; // Map the start of the group (index 0, 5, 10...)
+                        currentUrlCalendar[monthName] = {};
+                        monthHeaderMap[thIndex - 2] = monthName;
                     }
                 });
             } else {
-                // Step 2: Extract data for each month's date
                 const cols = row.querySelectorAll('td');
                 for (let i = 0; i < cols.length; i += 5) {
-                    const dateValue = cols[i].textContent.trim();
-                    
-                    // Only process if there is a valid date in the cell
-                    if (dateValue && dateValue !== "") {
+                    const dateValue = cols[i]?.textContent.trim();
+                    if (dateValue) {
                         const monthName = monthHeaderMap[i];
-                        const day = cols[i + 1].textContent.trim();
-                        const event = cols[i + 2].textContent.trim();
-                        const dayOrder = cols[i + 3].textContent.trim();
-
-                        unfuglyCalendar[monthName][dateValue] = {
-                            day: day,
-                            dayOrder: dayOrder,
-                            event: event
+                        currentUrlCalendar[monthName][dateValue] = {
+                            day: cols[i + 1].textContent.trim(),
+                            dayOrder: cols[i + 3].textContent.trim(),
+                            event: cols[i + 2].textContent.trim()
                         };
                     }
                 }
             }
         });
 
-        // Store the final object
-        chrome.storage.local.set({ 'unfuglyData_calendar': unfuglyCalendar }, () => {
-            console.log("Universal Calendar updated:", unfuglyCalendar);
+        // 2. Fetch existing calendar, merge, and save
+        chrome.storage.local.get('unfuglyData_calendar', (result) => {
+            const oldCalendar = result.unfuglyData_calendar || {};
+
+            // Merge logic: This keeps existing months from other URLs 
+            // and overwrites/adds months from the current URL.
+            const updatedCalendar = {
+                ...oldCalendar,
+                ...currentUrlCalendar
+            };
+
+            chrome.storage.local.set({ 'unfuglyData_calendar': updatedCalendar }, () => {
+                console.log("Universal Calendar synced and merged:", updatedCalendar);
+                displayInfoMessage("Academic Planner synced successfully!", 3000, 'success');
+            });
         });
 
         /*const calendar = document.createElement('div'); //(`<div id="unfugly-academic-planner-calendar" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">test</div>`);
