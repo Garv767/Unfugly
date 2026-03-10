@@ -1401,18 +1401,26 @@ function handleAcademicPlannerPage(){
 
         // 2. Fetch existing calendar, merge, and save
         chrome.storage.local.get('unfuglyData_calendar', (result) => {
-            const oldCalendar = result.unfuglyData_calendar || {};
+            const oldCalendarWrap = result.unfuglyData_calendar || { data: {}, lastUpdated: null };
+            
+            // Create the IST timestamp
+            const istTime = new Date().toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                dateStyle: "medium",
+                timeStyle: "short"
+            });
 
-            // Merge logic: This keeps existing months from other URLs 
-            // and overwrites/adds months from the current URL.
-            const updatedCalendar = {
-                ...oldCalendar,
-                ...currentUrlCalendar
+            // Merge new months into the 'data' property
+            const updatedCalendarWrap = {
+                data: {
+                    ...oldCalendarWrap.data,
+                    ...currentUrlCalendar // The scraped logic from our previous turn
+                },
+                lastUpdated: istTime
             };
 
-            chrome.storage.local.set({ 'unfuglyData_calendar': updatedCalendar }, () => {
-                console.log("Universal Calendar synced and merged:", updatedCalendar);
-                displayInfoMessage("Academic Planner synced successfully!", 3000, 'success');
+            chrome.storage.local.set({ 'unfuglyData_calendar': updatedCalendarWrap }, () => {
+                console.log(`Calendar Updated at ${istTime}`);
             });
         });
 
