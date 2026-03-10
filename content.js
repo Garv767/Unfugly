@@ -1363,12 +1363,55 @@ async function handleFeedbackPage() {
 /*Handles academic planner page*/
 function handleAcademicPlannerPage(){
     //document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table');
-    waitForElement(document, 'div > div.zc-pb-tile-container > div > div > div > div > table').then(() =>{
-        const tableBody = document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
-        tableBody.style.display ='none';
-        const rows = tableBody.querySelectorAll('tr');
+    waitForElement(document, 'div.zc-pb-tile-container table').then(() =>{
+        //const tableBody = document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
+        //tableBody.style.display ='none';
+        const rows = document.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
         console.log(rows);
-        const calendar = document.createElement('div'); //(`<div id="unfugly-academic-planner-calendar" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">test</div>`);
+
+        const unfuglyCalendar = {};
+        const monthHeaderMap = {}; // Helper to map column index to Month Name
+
+        rows.forEach((row, index) => {
+            if (index === 0) {
+                // Step 1: Extract Month Names and map them to their starting column index
+                const headers = row.querySelectorAll('th');
+                headers.forEach((th, thIndex) => {
+                    if (thIndex % 5 === 2) { // The month name is usually in the 3rd cell of every 5-cell group
+                        const monthName = th.textContent.trim();
+                        unfuglyCalendar[monthName] = {};
+                        monthHeaderMap[thIndex - 2] = monthName; // Map the start of the group (index 0, 5, 10...)
+                    }
+                });
+            } else {
+                // Step 2: Extract data for each month's date
+                const cols = row.querySelectorAll('td');
+                for (let i = 0; i < cols.length; i += 5) {
+                    const dateValue = cols[i].textContent.trim();
+                    
+                    // Only process if there is a valid date in the cell
+                    if (dateValue && dateValue !== "") {
+                        const monthName = monthHeaderMap[i];
+                        const day = cols[i + 1].textContent.trim();
+                        const event = cols[i + 2].textContent.trim();
+                        const dayOrder = cols[i + 3].textContent.trim();
+
+                        unfuglyCalendar[monthName][dateValue] = {
+                            day: day,
+                            dayOrder: dayOrder,
+                            event: event
+                        };
+                    }
+                }
+            }
+        });
+
+        // Store the final object
+        chrome.storage.local.set({ 'unfuglyData_calendar': unfuglyCalendar }, () => {
+            console.log("Universal Calendar updated:", unfuglyCalendar);
+        });
+
+        /*const calendar = document.createElement('div'); //(`<div id="unfugly-academic-planner-calendar" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">test</div>`);
         calendar.style.cssText = `
             margin-top: 20px;
             box-sizing: border-box;
@@ -1453,7 +1496,7 @@ function handleAcademicPlannerPage(){
                 }
             }
         });
-        document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table').after(calendar);
+        document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table').after(calendar);*/
     })
 }
 
