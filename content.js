@@ -890,6 +890,33 @@ async function marksTotalReport() {
     //return marksData;
 }
 
+async function checkAndSyncCalendar() {
+    const result = await chrome.storage.local.get('unfuglyData_calendar');
+    const calendar = result.unfuglyData_calendar;
+
+    if (calendar && calendar.lastUpdated) {
+        const lastUpdateDate = new Date(calendar.lastUpdated);
+        const now = new Date();
+        const diffInHours = (now - lastUpdateDate) / (1000 * 60 * 60);
+
+        // Only fetch if data is older than 24 hours
+        if (diffInHours < 24) {
+            return;
+        }
+    }
+
+    // Fallback or Update: Fetch both semester URLs
+    const urls = [
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD", 
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN"
+    ];
+
+    for (const url of urls) {
+        const { iframeDoc, iframe } = await createHiddenIframe(url, ['div.zc-pb-tile-container table']);
+        await handleAcademicPlannerPage(iframeDoc); // Pass the iframe doc to your scraper
+        iframe.remove();
+    }
+}
 
 //Main Handlers
 
@@ -1361,12 +1388,12 @@ async function handleFeedbackPage() {
 }
 
 /*Handles academic planner page*/
-function handleAcademicPlannerPage(){
+function handleAcademicPlannerPage(doc = document) {
     //document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table');
-    waitForElement(document, 'div.zc-pb-tile-container table').then(() =>{
-        //const tableBody = document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
+    waitForElement(doc, 'div.zc-pb-tile-container table').then(() =>{
+        //const tableBody = doc.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
         //tableBody.style.display ='none';
-        const rows = document.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
+        const rows = doc.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
         console.log(rows);
 
         // 1. Scrape the current page into a local object
@@ -2317,6 +2344,8 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         if (titleElement) {
             titleElement.textContent = "Unfugly: Data updated!";
         }
+
+        await checkAndSyncCalendar();
         // Re-render panels with the newly fetched data
         renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder); // Pass dayOrder for profile panel
         renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper); // Pass previous data for diff
