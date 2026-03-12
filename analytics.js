@@ -23,7 +23,7 @@ function getISTString() {
 // ─────────────────────────────────────────────────────────────
 async function syncUserData(netId, data) {
     try {
-        const response = await fetch(`${BACKEND}/save-data`, {
+        const response = await fetch(`${BACKEND}/v2/save-data`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
