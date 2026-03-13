@@ -453,6 +453,7 @@ function extractAttendanceDataFromDocument(doc) {
             const courseCode = courseCodeMatch ;//? courseCodeMatch[1] : courseCodeRaw;
 
             const courseTitle = cells[1].textContent.trim();
+            const courseType  = cells[2].textContent.trim(); // "Theory" or "Practical"
             const hoursConductedText = cells[6].textContent.trim();
             const absentHoursText = cells[7].textContent.trim();
             const percentageText = cells[8].textContent.trim();
@@ -490,6 +491,7 @@ function extractAttendanceDataFromDocument(doc) {
             attendanceData.push({
                 courseCode: courseCode,
                 courseTitle: courseTitle,
+                courseType: courseType, 
                 hoursConducted: totalClasses,
                 absentHours: absentClasses,
                 attendedClasses: attendedClasses,
@@ -513,6 +515,7 @@ function extractAttendanceDataFromDocument(doc) {
             const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
             const courseCode = courseCodeMatch ;//? courseCodeMatch[1] : courseCodeRaw;
             const courseTitle = cells[1].textContent.trim();
+            const courseType  = cells[2].textContent.trim(); // "Theory" or "Practical"
             const percentageText = cells[6].textContent.trim();
             const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
             const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
@@ -520,6 +523,7 @@ function extractAttendanceDataFromDocument(doc) {
             attendanceData.push({
                 courseCode: courseCode,
                 courseTitle: courseTitle,
+                courseType: courseType, 
                 percentage: currentPercentage,
                 totalClasses: 'N/A',
                 attendedClasses: 'N/A',
@@ -1020,7 +1024,7 @@ async function handleWelcomePage() {
             if (cachedData.profileData && cachedData.replacedTimetableHTML && cachedData.attendanceData && cachedData.marksData) {
                 //console.log("handleWelcomePage: Complete cached data found. Displaying immediately.");
                 renderProfilePanel(cachedData.profileData, appWrapper, dayOrderInfo);
-                renderAccordionPanels(cachedData, previousAttendanceData, appWrapper);
+            renderAccordionPanels(cachedData, previousAttendanceData, appWrapper, currentNetId);
                 if (titleElement) {
                     titleElement.textContent = "Unfugly: Data loaded from cache!";
                 }
@@ -1620,7 +1624,7 @@ function renderProfilePanel(profileData, container, dayOrder) {
  * @param {Array} previousAttendanceData Previous attendance data for change highlighting.
  * @param {HTMLElement} container The container to append the panels to.
  */
-function renderAccordionPanels(cachedData, previousAttendanceData, container) {
+function renderAccordionPanels(cachedData, previousAttendanceData, container, netId) {
     // Check if accordion wrapper exists
     let accordionWrapper = container.querySelector('.unfugly-accordion-wrapper');
     if (!accordionWrapper) {
@@ -1667,6 +1671,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container) {
         <div id="attendance-content-container"></div>
     `;
     accordionWrapper.appendChild(attendancePanel);
+    injectPredictButton(attendancePanel, netId); // ← predict button beside "Attendance" heading
 
     // Inject attendance data
     formatAttendanceTable(cachedData.attendanceData, previousAttendanceData, attendancePanel.querySelector('#attendance-content-container'));
@@ -1986,10 +1991,27 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
 
     // Replace slots with course titles
     let slotId = 1;
+ 
+    // Slot map: built while iterating so it stays in sync with whatever
+    // timetable the user's registration page actually returns.
+    // dayOrder keys "1"–"5" match the calendar's dayOrder values.
+    const dayOrderSlotMap = { '1': [], '2': [], '3': [], '4': [], '5': [] };
+    // slotToCourse: slot letter → { title, courseType }
+    // courseType derived from slot name: P# and L# are Practical, letter slots are Theory
+    const slotToCourse = {};
+    let dayCounter = -1; // counts only non-removed, real Day rows (1–5)
+    
 
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
         const row = allTableRows[rowIndex];
         if (!row) continue;
+
+        // Skip rows that were detached from DOM (the removed header rows)
+        //if (!row.parentNode) continue;
+        if (rowIndex !== 1) { // Only increment dayCounter for actual day rows, not the first header row
+            dayCounter++;
+        }
+        const currentDayOrder = String(dayCounter);
 
         const firstCell = row.querySelector('td, th');
         if (firstCell.textContent.trim() === 'TO') {
@@ -2030,6 +2052,18 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (courseData[cleanCellText]) {
                 const courseInfo = courseData[cleanCellText];
                 cell.classList.add('replaced-slot');
+ 
+                // ── Build slot map entry ──
+                if (dayOrderSlotMap[currentDayOrder]) {
+                    dayOrderSlotMap[currentDayOrder].push(cleanCellText);
+                }
+                // P# or L# slots are Practical; single letter slots (A–G, X) are Theory
+                const isLabSlot = /^[PL]\d+/.test(cleanCellText);
+                slotToCourse[cleanCellText] = {
+                    title:      courseInfo.title,
+                    courseType: isLabSlot ? 'Practical' : 'Theory'
+                };
+
                 cell.title = `Slot: ${cellText}`;
                 cell.innerHTML = ''; // Clear original content
                 const titleSpan = document.createElement('span');
@@ -2077,6 +2111,9 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
         }
     }
     //console.log("replaceSlotsWithCourseTitles: Timetable updated with course titles and classrooms.");
+ 
+    // Return the slot map so backgroundFetchAllData can persist it
+    return { dayOrder: dayOrderSlotMap, slotToCourse };
 }
 
 /**
@@ -2286,7 +2323,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
                 const tempTable = tempDiv.querySelector('table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]');
 
                 if (tempTable && courseSlotMap) {
-                    replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
+                    fetchedData.slotMap = replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
                     fetchedData.replacedTimetableHTML = tempTable.outerHTML;
                 }
             }
@@ -2300,7 +2337,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = regPageTtTable.outerHTML;
                 const tempTable = tempDiv.querySelector('table');
-                replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
+                fetchedData.slotMap = replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
                 fetchedData.replacedTimetableHTML = tempTable.outerHTML;
                 console.log("backgroundFetchAllData: Used Course Registration page timetable as fallback.");
             } else {
@@ -2332,6 +2369,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             editedSlots: existingData?.[storageKey]?.editedSlots ?? {},
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
+            slotMap: fetchedData.slotMap ?? null,   // ← new: { dayOrder, slotToCourse }
             lastUpdated: new Date().toISOString()
         };
         //console.log(dataToCache.editedSlots, "edited slots preserved");
@@ -2348,7 +2386,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         await checkAndSyncCalendar();
         // Re-render panels with the newly fetched data
         renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder); // Pass dayOrder for profile panel
-        renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper); // Pass previous data for diff
+        renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper, currentNetId); // Pass previous data for diff
         displayInfoMessage("All new data fetched and displayed!", 3000, 'success');
 
     } catch (error) {
