@@ -208,8 +208,34 @@ function injectPredictButton(attendancePanel, netId) {
 // UI — MODAL
 // ─────────────────────────────────────────────────────────────
 
-function openPredictModal(netId) {
+async function openPredictModal(netId) {
     if (document.getElementById('unfugly-predict-modal')) return;
+
+    // Fetch Calendar data to determine the maximum available date
+    const storageResult = await chrome.storage.local.get('unfuglyData_calendar');
+    const calendarData = storageResult.unfuglyData_calendar?.data || {};
+
+    let maxDateStr = null;
+    let maxDate = new Date(0);
+
+    // Calculate max date from calendar data keys
+    for (const monthKey in calendarData) {
+        const cleanMonthKey = monthKey.replace(/['\-]/g, ' 20'); // Convert "Jul'25" to "Jul 2025"
+        for (const dayKey in calendarData[monthKey]) {
+            const d = new Date(`${dayKey} ${cleanMonthKey}`);
+            if (!isNaN(d) && d > maxDate) {
+                maxDate = d;
+            }
+        }
+    }
+
+    if (maxDate.getTime() > 0) {
+        // Format to YYYY-MM-DD cleanly using local time
+        const yyyy = maxDate.getFullYear();
+        const mm = String(maxDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(maxDate.getDate()).padStart(2, '0');
+        maxDateStr = `${yyyy}-${mm}-${dd}`;
+    }
 
     // Keyframe styles — injected once
     if (!document.getElementById('unfugly-predict-styles')) {
@@ -281,12 +307,14 @@ function openPredictModal(netId) {
     header.appendChild(closeBtn);
 
     // ── Date pickers ──
-    const today = new Date().toISOString().split('T')[0];
+    // Create 'today' formatted properly in local timezone to avoid weird UTC offset jumps
+    const todayObj = new Date();
+    const today = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
 
     const dateRow = document.createElement('div');
     dateRow.style.cssText = `display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;`;
 
-    function makeField(labelText, inputId, defaultVal) {
+    function makeField(labelText, inputId, defaultVal, maxVal) {
         const wrap = document.createElement('div');
         wrap.style.cssText = `display:flex; flex-direction:column; gap:0.3rem;`;
 
@@ -299,7 +327,15 @@ function openPredictModal(netId) {
         inp.type  = 'date';
         inp.id    = inputId;
         inp.value = defaultVal;
-        inp.min   = today;
+        
+        // Setup safety rails: Min is today, Max is the last day scraped from calendar
+        inp.min = today; 
+        if (maxVal) {
+            inp.max = maxVal;
+            // Edge case: If the calendar data is completely out of date and ends before "today"
+            if (today > maxVal) inp.min = maxVal; 
+        }
+
         inp.style.cssText = `
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
@@ -322,8 +358,8 @@ function openPredictModal(netId) {
         return wrap;
     }
 
-    dateRow.appendChild(makeField('From', 'predict-start-date', today));
-    dateRow.appendChild(makeField('To',   'predict-end-date',   today));
+    dateRow.appendChild(makeField('From', 'predict-start-date', today, maxDateStr));
+    dateRow.appendChild(makeField('To',   'predict-end-date',   today, maxDateStr));
 
     // ── Run button ──
     const runBtn = document.createElement('button');
