@@ -23,12 +23,17 @@ Unfugly is a Chrome extension that enhances the SRM Academia portal experience b
 - Component-wise marks breakdown
 - Attendance trend indicators
 
+
+### 📈 Analytics & Predictions
+- Usage analytics via `analytics.js`
+- Attendance and marks predictions via `predict.js`
+
 ## Installation
 
 ### From Source
 1. Go to Chrome Web Store and add [Unfugly](https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb)
 
-2. Click add to chrome (or whichever browser you are currently on)
+2. Click **Add to Chrome** (or whichever Chromium-based browser you are using)
 
 3. Yaa, that's it
 ## Usage
@@ -44,7 +49,7 @@ Unfugly is a Chrome extension that enhances the SRM Academia portal experience b
 1. Click on any unallocated (grey) slot in your timetable
 2. Enter the course title and classroom (optional) when prompted
 3. Changes are automatically saved to your browser storage
-4. Use the "Hide" button to toggle visibility of custom edits
+4. Use the **Hide** button to toggle visibility of custom edits
 
 ### Downloading Your Timetable
 1. Look for the download button in the timetable section
@@ -57,12 +62,18 @@ Unfugly/
 ├── manifest.json              # Extension configuration
 ├── content.js                 # Main content script
 ├── editTimetable.js           # Timetable editing functionality
+├── analytics.js               # Usage analytics
+├── predict.js                 # Attendance & marks prediction logic
+├── background.js              # Background service worker
 ├── styles.css                 # Custom styling
-├── background.js              # Background worker
 ├── imageURLScript.js          # Image handling utilities
+├── version.txt                # Version tracking
+├── plans.txt                  # Roadmap / planned features
+├── .gitignore
 ├── lib/
 │   └── html2canvas.min.js     # Screenshot library
-├── images/                    # Extension icons and assets
+│   └── captcha-solver/        # Standalone captcha-solving microservice
+├── images/                    # Extension icons and UI assets
 ├── version.txt                # To track latest verion
 └── README.md                  # This file
 ```
@@ -73,18 +84,30 @@ The extension requires the following permissions:
 - `activeTab`: To interact with the current SRM Academia page
 - `storage`: To save your timetable edits and preferences
 
+---
+
 ## Development
 
 ### Key Files
-- **content.js**: Handles DOM manipulation, data extraction, and UI enhancements
-- **editTimetable.js**: Manages timetable editing, saving, and loading functionality
-- **styles.css**: Custom styles for the enhanced interface
+
+| File | Purpose |
+|---|---|
+| `content.js` | DOM manipulation, data extraction, UI enhancements |
+| `editTimetable.js` | Timetable editing, saving, and loading |
+| `analytics.js` | Tracks extension usage events |
+| `predict.js` | Predicts attendance percentage if absent |
+| `background.js` | Background service worker |
+| `styles.css` | Custom styles for the enhanced interface |
+
+---
 
 ## Browser Compatibility
 
 - Google Chrome (recommended)
 - Microsoft Edge
 - Other Chromium-based browsers
+
+---
 
 ## Contributing
 
@@ -94,21 +117,26 @@ Contributions are welcome! Feel free to:
 3. Make your changes
 4. Submit a pull request
 
+---
+
 ## Known Issues
 
 - Some features may require the page to fully load before becoming active
 
+---
+
 ## Support
 
 If you encounter any issues or have suggestions:
-1. Check if you're on the latest version (v1.07.*)
+1. Check you're on the latest version (`v1.08.*`)
 2. Try refreshing the page
 3. Check the browser console for error messages
 4. Open an issue on GitHub with details about the problem
+
+---
 
 ## License
 
 This project is intended for personal and educational use by SRM students.
 
-
-**Note**: This extension is not officially affiliated with SRM Institute of Science and Technology. It is a student-created tool to enhance the user experience of the Academia portal.
+> **Note**: This extension is not officially affiliated with SRM Institute of Science and Technology. It is a student-created tool to enhance the user experience of the Academia portal.
