@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unfugly Web App — Build Checklist for Antigravity</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3347;
+    --accent: #6c8ef7;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --yellow: #facc15;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --tag-bg: #1e2540;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 40px 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1e2540 0%, #2a1f4e 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 40px;
+    margin-bottom: 36px;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .header p { color: var(--muted); font-size: 15px; }
+  .header .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .tag {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .progress-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .progress-text { font-size: 14px; color: var(--muted); white-space: nowrap; }
+  #progress-count { font-weight: 700; color: var(--text); }
+
+  /* Section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 24px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { background: #2c3050; }
+  .section-icon { font-size: 20px; }
+  .section-title { font-size: 16px; font-weight: 600; flex: 1; }
+  .section-count {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--bg);
+    border-radius: 20px;
+    padding: 2px 10px;
+  }
+  .section-chevron { color: var(--muted); transition: transform 0.2s; font-size: 12px; }
+  .section-body { padding: 0; }
+  .section.collapsed .section-body { display: none; }
+  .section.collapsed .section-chevron { transform: rotate(-90deg); }
+
+  /* Items */
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .item:last-child { border-bottom: none; }
+  .item:hover { background: rgba(108, 142, 247, 0.05); }
+  .item.done { opacity: 0.55; }
+  .item.done .item-text { text-decoration: line-through; color: var(--muted); }
+  .checkbox {
+    width: 20px; height: 20px; min-width: 20px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+    transition: all 0.2s;
+  }
+  .item.done .checkbox {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .checkbox-tick { display: none; color: #0f1117; font-weight: 700; font-size: 12px; }
+  .item.done .checkbox-tick { display: block; }
+
+  .item-content { flex: 1; min-width: 0; }
+  .item-text { font-size: 14px; color: var(--text); }
+  .item-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .item-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-new    { background: #1c3a2a; color: var(--green); }
+  .badge-port   { background: #1c2a3a; color: #60c0f0; }
+  .badge-extend { background: #2a1c3a; color: var(--accent2); }
+  .badge-crit   { background: #3a1c1c; color: var(--red); }
+  .badge-db     { background: #2a2a1c; color: var(--yellow); }
+
+  /* Notes / warnings */
+  .note {
+    margin: 0 24px 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .note-warn  { background: #2a2010; border-left: 3px solid var(--yellow); color: #d4b96e; }
+  .note-info  { background: #101a30; border-left: 3px solid var(--accent); color: #8db4f4; }
+  .note-crit  { background: #2a1010; border-left: 3px solid var(--red);    color: #f4a0a0; }
+
+  /* Print */
+  @media print {
+    body { background: white; color: black; }
+    .section { border: 1px solid #ccc; break-inside: avoid; }
+    .section-header { background: #f5f5f5; }
+    .note { color: #333; }
+    .progress-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>🚀 Unfugly Web App — Build Checklist</h1>
+    <p>Comprehensive task list for porting the Unfugly browser extension to a server-side-scraped web application. Hand this to Antigravity.</p>
+    <div class="tags">
+      <span class="tag">SRM Academia Portal</span>
+      <span class="tag">Playwright / Headless</span>
+      <span class="tag">Express + Supabase</span>
+      <span class="tag">React Frontend</span>
+      <span class="tag">Shared DB</span>
+      <span>I want the webapp to maintain the jwt so that users don't have to re-authenticate frequently, even if user logs in from multiple devives on my website same jwt would be used, unless user explicity logs out</span>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+    <div class="progress-text"><span id="progress-count">0</span> / <span id="progress-total">0</span> done</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 1 -->
+  <div class="section" id="s1">
+    <div class="section-header" onclick="toggleSection('s1')">
+      <span class="section-icon">🗺️</span>
+      <span class="section-title">1 — Architecture & Tech Stack Decisions</span>
+      <span class="section-count" id="s1-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 Decide these first. Every downstream task depends on them.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Confirm frontend framework — React (Vite) or Next.js</div><div class="item-sub">Next.js is recommended: SSR, API routes in one repo, easier deployment on Vercel/Railway \n Answer - Use Next.js</div><div class="item-badges"><span class="badge badge-new">decision</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Confirm scraper approach — Playwright (recommended) or Puppeteer</div><div class="item-sub">Playwright handles SPA navigation better; can run chromium/firefox; better for SRM's Zoho-based SPA Answer- Playwright</div><div class="item-badges"><span class="badge badge-new">decision</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Decide: extend existing Express backend OR keep scraper as a separate microservice</div><div class="item-sub">Separate scraper service is cleaner — extension backend stays untouched, scraper scales independently Answer- for now use the exiting one itself</div><div class="item-badges"><span class="badge badge-new">decision</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Decide credential handling strategy — never store plaintext passwords</div><div class="item-sub">Only store session token / cookies in-memory on scraper; use short-lived JWTs for web app sessions; these are value website stores, store anything/everything from to maintain session (10086580621_frequent_smileys	{"work":[":smile:",":happy:",":joy:",":love:",":thinking:",":surprise:",":thumbsup:",":thumbsdown:",":namaste:",":tensed:",":biceps:",":doubt:",":super:",":clap:",":fireworks:",":food:",":gift-box:"],"emoji":[":grinning:",":blush:",":wink:",":stuck-out-tongue-winking-eye:",":flushed:",":sob:",":sweat-smile:",":scream:",":sunglasses:",":raised-hands:",":wave:",":house-with-garden:",":point-up-2:",":dancer:",":bouquet:",":round-pushpin:",":heavy-plus-sign:"],"animated":[":smile!:",":happy!:",":joy!:",":love!:",":thinking!:",":surprise!:",":thumbsup!:",":thumbsdown!:",":namaste!:",":tensed!:",":biceps!:",":doubt!:",":super!:",":clap!:",":fireworks!:",":food!:",":gift-box!:"],"customemoji":[],"sticker":[]}
+bannerloadtime	{}
+listReportMainContainer__persistentStateKeys	["manualColumnWidths"]
+listReportMainContainer_manualColumnWidths	[30,30]
+micsTabSwitchTime	1773593493675
+micslastpolltime	1773593493670
+micsnotificationtime307	1773593493675
+micssdkstorage	{"banner":{"49910842":[]}}
+wms_firstloaded	1771187362876
+zcPortalWMSTimer	{"all":{"1773593493633":1773597012819},"registered":{"1773593493633":1773597012819}}
+)</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Decide caching strategy — always-fresh scrape vs serve from Supabase cache</div><div class="item-sub">Recommended: scrape on first login, cache in Supabase (same /v2/save-data), allow manual refresh</div><div class="item-badges"><span class="badge badge-new">decision</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Create monorepo or separate repos: <code>unfugly-scraper/</code>, <code>unfugly-web/</code>, <code>unfugly-backend/</code> (existing)   Answer- monerepo for extension and webapp (create seperate folders in root of direct itself) but seperate repo for backend </div><div class="item-badges"><span class="badge badge-new">setup</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 2 -->
+  <div class="section" id="s2">
+    <div class="section-header" onclick="toggleSection('s2')">
+      <span class="section-icon">🔐</span>
+      <span class="section-title">2 — Authentication & Session Flow</span>
+      <span class="section-count" id="s2-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-crit">🚨 Academia credentials must NEVER be stored on disk or in DB. They are forwarded once, a scrape session is obtained, then discarded.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build <code>POST /auth/login</code> endpoint on scraper service</div><div class="item-sub">Accepts { username, password } — forwards to Playwright, completes Academia login, returns net_id + a signed JWT</div><div class="item-badges"><span class="badge badge-new">new</span><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Handle Academia CAPTCHA during login in Playwright</div><div class="item-sub">The extension already has a Go-based Tesseract captcha solver (<code>lib/captcha-solver/</code>). Port this logic to Node or call the Go service. The captcha is an image at login — screenshot it, send to solver, fill in the field.</div><div class="item-badges"><span class="badge badge-crit">critical</span><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Implement JWT-based session for the web app</div><div class="item-sub">After scrape completes, issue a JWT containing { net_id }. All subsequent API calls use this token. No Academia credentials are stored.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build login page UI</div><div class="item-sub">NetID + password fields. Show Academia login style note: "your SRM portal credentials". HTTPS only. Clear password from state after submit.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Handle login failure states</div><div class="item-sub">Wrong credentials, CAPTCHA solver failure, Academia down / rate limit. Show meaningful error messages.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Implement logout — invalidate JWT client-side, no Academia session to kill</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 3 -->
+  <div class="section" id="s3">
+    <div class="section-header" onclick="toggleSection('s3')">
+      <span class="section-icon">🤖</span>
+      <span class="section-title">3 — Headless Scraper Service</span>
+      <span class="section-count" id="s3-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 The scraper replicates what the extension's <code>backgroundFetchAllData()</code> does — but server-side with Playwright instead of hidden iframes.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Set up Playwright in Node.js scraper service</div><div class="item-sub"><code>npm install playwright</code>. Use <code>chromium</code> headed-less. Set a realistic user-agent string.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Scrape: Registration / Profile page (<code>/#Page:My_Profile</code>)</div><div class="item-sub">Extract: name, registrationNo, programmeBranch, schoolDepartment, section, semester, batch. Port <code>extractProfileDataFromDocument()</code> and <code>extractCourseDataFromDocument()</code> selectors.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Scrape: Attendance + Marks page (<code>/#Page:My_Attendance</code>)</div><div class="item-sub">Port <code>extractAttendanceDataFromDocument()</code> and <code>extractMarksDataFromDocument()</code>. Note: both data types are on the same page in the portal.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Scrape: Timetable page — both Unified Timetable URLs (batch 1 and batch 2)</div><div class="item-sub">Port <code>extractUnifiedTimetableHTML()</code> and <code>extractCourseDataFromDocument()</code>. The timetable is at <code>/#Page:Unified_Time_Table_2025_Batch_1</code> or <code>_batch_2</code> depending on student batch.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Scrape: Academic Planner / Calendar page (<code>/#Page:Academic_Planner</code> or equivalent Zoho URL)</div><div class="item-sub">Port <code>handleAcademicPlannerPage()</code> — extracts day orders per date (used for attendance prediction). This page is under <code>creatorapp.zoho.com/srm_university/</code>.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build <code>POST /scrape/all</code> endpoint — runs all scrapes in sequence after login</div><div class="item-sub">Accepts JWT. Returns full payload: { profileData, attendanceData, marksData, timetableHTML, calendarData, courseSlotMap }. Then calls existing backend <code>/v2/save-data</code> to persist.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build <code>POST /scrape/refresh</code> endpoint — re-scrapes with stored session or forces re-login</div><div class="item-sub">If Academia session cookie is still valid (Playwright session kept in memory), skip login step. Otherwise prompt user to re-enter credentials.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Handle SPA loading waits — Academia is a Zoho Creator SPA that loads data asynchronously</div><div class="item-sub">Use <code>page.waitForSelector()</code> for specific table elements rather than <code>networkidle</code>. Mirror the <code>waitForElement()</code> + retry logic from the extension (up to 20 retries, 1s delay).</div><div class="item-badges"><span class="badge badge-crit">critical</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add scrape timeout and error handling per page section</div><div class="item-sub">If one section fails (e.g. timetable), still return the rest. Log which sections failed. Don't crash the whole scrape.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add a scrape progress/status streaming endpoint (Server-Sent Events or WebSocket)</div><div class="item-sub">Scraping takes 15–30s. Frontend should show step-by-step progress: "Logged in → Fetching profile → Fetching attendance → Done". Port the toast message logic into SSE events.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Limit concurrency — one Playwright browser instance per active user session</div><div class="item-sub">Use a queue or semaphore. Running unlimited headless browsers will OOM the server.</div><div class="item-badges"><span class="badge badge-crit">critical</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 4 -->
+  <div class="section" id="s4">
+    <div class="section-header" onclick="toggleSection('s4')">
+      <span class="section-icon">🗄️</span>
+      <span class="section-title">4 — Database (Supabase — Shared with Extension)</span>
+      <span class="section-count" id="s4-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 The existing schema covers most needs. Only minor additions required. Do NOT change existing column names — the extension depends on them.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Verify existing Supabase tables: <code>users</code>, <code>user_logs</code>, <code>academic_calendar</code></div><div class="item-sub">users: net_id, name, registration_no, programme_branch, school_department, section, semester<br>user_logs: net_id, attendance_json, marks_json, edited_slots_json, timetable_html, sync_count, last_synced_ist</div><div class="item-badges"><span class="badge badge-db">db</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add <code>course_slot_map_json</code> column to <code>user_logs</code> (if not already present)</div><div class="item-sub">The extension stores the slot→course mapping locally in chrome.storage. The web app needs this persisted in Supabase so attendance prediction works on the web app too.</div><div class="item-badges"><span class="badge badge-db">db</span><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add <code>source</code> column to <code>user_logs</code> — value: 'extension' | 'webapp'</div><div class="item-sub">Useful for analytics and debugging. Non-breaking addition.</div><div class="item-badges"><span class="badge badge-db">db</span><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add RLS (Row Level Security) policies if not already set</div><div class="item-sub">Ensure users can only read/write their own row. The backend server uses the service key, so it bypasses RLS — but direct Supabase access from frontend must not be used.</div><div class="item-badges"><span class="badge badge-crit">security</span><span class="badge badge-db">db</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build <code>GET /v2/get-data?net_id=xxx</code> endpoint on existing backend</div><div class="item-sub">Web app needs to load cached data from Supabase on page load (rather than always re-scraping). Returns full user_logs row. Validate JWT before returning.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 5 -->
+  <div class="section" id="s5">
+    <div class="section-header" onclick="toggleSection('s5')">
+      <span class="section-icon">🖥️</span>
+      <span class="section-title">5 — Frontend Web App</span>
+      <span class="section-count" id="s5-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 Port the extension's <code>content.js</code> render functions into React components. The data shapes (attendance, marks, timetable) are identical.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Scaffold frontend app (Next.js or React + Vite)</div><div class="item-sub">Pages: <code>/login</code>, <code>/dashboard</code>, <code>/timetable</code>, <code>/attendance</code>, <code>/marks</code>, <code>/predict</code>. Or single-page with tab navigation matching the extension layout.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Port extension's CSS theme / styles into global CSS / Tailwind</div><div class="item-sub">Port <code>styles.css</code>. The extension uses a clean card-based dark/light theme. Keep visual consistency between extension and web app.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Profile panel component</div><div class="item-sub">Port <code>renderProfilePanel()</code> — shows name, reg no, programme, section, semester, current day order.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Attendance table component with delta highlights</div><div class="item-sub">Port <code>formatAttendanceTable()</code>. Shows per-course attendance %, colour-coded (≥75% green, 65–74% yellow, &lt;65% red). Delta vs previous sync shown as +/- badge.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Marks table component</div><div class="item-sub">Port <code>formatMarksTable()</code>. Shows CAT1, CAT2, model exam, assignment scores per course. Inline totals row. Handle absent (NaN fix mentioned in plans.txt).</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Timetable display component with slot→course substitution</div><div class="item-sub">Port <code>replaceSlotsWithCourseTitles()</code>. Render the timetable HTML from Supabase. Highlight current day order column (port <code>highlightCurrentDayOrder()</code>).</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Timetable download button (PNG/image)</div><div class="item-sub">Port <code>addDownloadTimetableButton()</code>. The extension uses <code>html2canvas</code>. Use the same library on the web — it works in browsers.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Editable timetable slots component</div><div class="item-sub">Port <code>editTimetable.js</code> logic — allow users to add/override course names in specific slots. Save <code>edited_slots_json</code> to Supabase via <code>/v2/save-data</code>. Same data key as extension so edits are shared.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Marks total / inline marks summary component</div><div class="item-sub">Port <code>marksTotalReport()</code> — the "total marks" accordion/report panel showing aggregated scores per course.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Loading skeleton / progress screen during initial scrape</div><div class="item-sub">Show step-by-step status via SSE from the scraper. "Logging in... Fetching attendance... Done." Better UX than a spinner for a 20–30s wait.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Toast notification system</div><div class="item-sub">Port <code>displayInfoMessage()</code> into a React toast component. Types: info / success / error / critical. Used across the whole app.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Manual refresh button</div><div class="item-sub">Triggers <code>POST /scrape/refresh</code>. If Academia session expired, show re-login modal (don't navigate away, keep state). Show last synced timestamp (from <code>last_synced_ist</code>).</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Mobile-responsive layout</div><div class="item-sub">This is the primary motivation for the web app (Android). Ensure all tables, timetable, and modals are usable on 360–430px viewport widths. Fix the responsiveness issue mentioned in plans.txt for predict styling.</div><div class="item-badges"><span class="badge badge-new">new</span><span class="badge badge-crit">priority</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 6 -->
+  <div class="section" id="s6">
+    <div class="section-header" onclick="toggleSection('s6')">
+      <span class="section-icon">📅</span>
+      <span class="section-title">6 — Attendance Prediction Feature</span>
+      <span class="section-count" id="s6-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 All logic is in <code>predict.js</code> — pure JS, no DOM dependencies. Port as-is to a utility module.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Port <code>predict.js</code> as a standalone utility (<code>predict.ts</code> or <code>predict.js</code>)</div><div class="item-sub">Functions: <code>getDayOrderForDate()</code>, <code>countSlotsInRange()</code>, <code>predictAttendance()</code>. No browser dependencies — just date math + calendar data.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build Attendance Prediction UI component</div><div class="item-sub">Date range picker (from today → end of semester). Per-course predicted attendance %. Needs: attendanceData + slotMap + calendarData from Supabase.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="badge badge-port">port</span></div></div><div class="item-content"><div class="item-text">Fix colour mismatch between prediction table and attendance table (noted in plans.txt)</div><div class="item-sub">Unify the colour scheme across <code>formatAttendanceTable</code> and prediction panel when porting both to React.</div><div class="item-badges"><span class="badge badge-port">port</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Ensure <code>course_slot_map_json</code> is saved to Supabase (needed for prediction)</div><div class="item-sub">The scraper must build and save the slot map (slot → course title, including lab slots). Extension saves this in chrome.storage; web app must save it in user_logs.</div><div class="item-badges"><span class="badge badge-crit">critical</span><span class="badge badge-db">db</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Ensure academic calendar is available in Supabase for prediction</div><div class="item-sub">The calendar sync already exists (<code>/calendar</code> endpoint + <code>academic_calendar</code> table). Web app should fetch from <code>GET /calendar</code> and use it for prediction — same as extension.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 7 -->
+  <div class="section" id="s7">
+    <div class="section-header" onclick="toggleSection('s7')">
+      <span class="section-icon">📝</span>
+      <span class="section-title">7 — Feedback Filler Feature</span>
+      <span class="section-count" id="s7-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-warn">⚠️ This feature requires automating form interaction on Academia — Playwright makes this possible from the server, but it requires an active session and careful handling of Select2 dropdowns.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Build <code>POST /scrape/feedback</code> endpoint</div><div class="item-sub">Port <code>handleFeedbackPage()</code> — navigates to feedback page, fills all select2 dropdowns using <code>fillSelect2Dropdown()</code> and <code>fillSubject()</code> logic. Submits each form. Returns a report of what was filled.</div><div class="item-badges"><span class="badge badge-port">port</span><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Feedback filler UI — rating config + trigger button</div><div class="item-sub">Let user pick default rating (e.g. "Excellent" / "Good") before running. Show progress as each subject is submitted. Show final success/fail report.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 8 -->
+  <div class="section" id="s8">
+    <div class="section-header" onclick="toggleSection('s8')">
+      <span class="section-icon">🔧</span>
+      <span class="section-title">8 — Backend API Extensions</span>
+      <span class="section-count" id="s8-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-info">📌 Extend the existing Express backend (<code>unfugly-backend</code>). Do not break the extension's existing endpoints.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add <code>GET /v2/get-data</code> — fetch cached data for a net_id (web app only)</div><div class="item-sub">Returns full <code>user_logs</code> row. Validate JWT. Returns: attendanceData, marksData, timetableHTML, editedSlots, courseSlotMap, profileData, lastSynced.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Update <code>POST /v2/save-data</code> to accept <code>course_slot_map_json</code> and <code>source</code> fields</div><div class="item-sub">Backward compatible addition. Extension doesn't send these fields, which is fine — they'll just be null for extension syncs.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add JWT middleware to all web-app-facing endpoints</div><div class="item-sub">Extension uses no auth on the existing endpoints (relies on knowing the net_id). New endpoints for the web app should validate a JWT. Keep existing extension endpoints open (don't break them).</div><div class="item-badges"><span class="badge badge-crit">security</span><span class="badge badge-extend">extend</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add <code>PUT /v2/update-edited-slots</code> — save timetable edits without re-scraping</div><div class="item-sub">When user edits a slot on the web app, save only the edited_slots_json. Extension already does this via full sync; web app needs a lightweight dedicated endpoint.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add rate limiting to all endpoints (express-rate-limit)</div><div class="item-sub">Especially on scraper endpoints — to prevent abuse. 5 scrapes/hour per net_id is reasonable.</div><div class="item-badges"><span class="badge badge-crit">security</span><span class="badge badge-new">new</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 9 -->
+  <div class="section" id="s9">
+    <div class="section-header" onclick="toggleSection('s9')">
+      <span class="section-icon">🔒</span>
+      <span class="section-title">9 — Security Checklist</span>
+      <span class="section-count" id="s9-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">HTTPS everywhere — enforce on web app and scraper service</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">NEVER log or store user passwords anywhere (not in DB, not in server logs)</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Playwright session cookies stored only in-memory, cleared after scrape completes or on logout</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Set CORS on backend to only allow your web app domain (not wildcard *)</div><div class="item-sub">Extension uses wildcard CORS currently — keep that, but add a separate origin whitelist for web app origin.</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add Content Security Policy headers on web app</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Add Terms of Service / Privacy Policy page on website</div><div class="item-sub">Important: you are handling student credentials and academic data. Be transparent about what is stored and what isn't (passwords). This also protects you legally.</div><div class="item-badges"><span class="badge badge-crit">legal</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Supabase service key must NEVER be exposed to the frontend</div><div class="item-sub">All Supabase access goes through your Express backend. The frontend only talks to your API, never directly to Supabase.</div><div class="item-badges"><span class="badge badge-crit">security</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 10 -->
+  <div class="section" id="s10">
+    <div class="section-header" onclick="toggleSection('s10')">
+      <span class="section-icon">🚢</span>
+      <span class="section-title">10 — Deployment & Infrastructure</span>
+      <span class="section-count" id="s10-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-warn">⚠️ Playwright with a headless Chromium requires at least 1–2 GB RAM. Render free tier won't work. Use a VPS or Railway/Fly.io with sufficient resources.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Choose scraper hosting: Railway / Fly.io / DigitalOcean Droplet (min 1GB RAM)</div><div class="item-sub">Render free tier kills idle processes — bad for Playwright. Railway or Fly.io has persistent containers. A $5/mo Droplet also works.</div><div class="item-badges"><span class="badge badge-new">infra</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Dockerize the scraper service</div><div class="item-sub">Playwright requires specific Chromium dependencies. Use the official <code>mcr.microsoft.com/playwright</code> Docker image or install deps via <code>playwright install-deps</code> in Dockerfile. Reference the existing <code>lib/captcha-solver/Dockerfile</code> as an example.</div><div class="item-badges"><span class="badge badge-new">infra</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Deploy frontend (Vercel recommended for Next.js, or Netlify for plain React)</div><div class="item-badges"><span class="badge badge-new">infra</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Keep existing backend deployed on Render (extension already uses it — do not migrate)</div><div class="item-sub">Only add new endpoints to it. Don't break backward compat with extension.</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Set up environment variables for all services</div><div class="item-sub">Scraper: <code>JWT_SECRET</code>, <code>BACKEND_URL</code>. Backend: existing <code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code> + new <code>JWT_SECRET</code>. Frontend: <code>NEXT_PUBLIC_SCRAPER_URL</code>, <code>NEXT_PUBLIC_BACKEND_URL</code>.</div><div class="item-badges"><span class="badge badge-new">infra</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Update extension <code>host_permissions</code> in manifest if any new API URLs are added</div><div class="item-badges"><span class="badge badge-extend">extend</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 11 -->
+  <div class="section" id="s11">
+    <div class="section-header" onclick="toggleSection('s11')">
+      <span class="section-icon">🧪</span>
+      <span class="section-title">11 — Testing & QA</span>
+      <span class="section-count" id="s11-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test scraper with real Academia credentials end-to-end</div><div class="item-sub">Verify all 4 data types come back: profile, attendance, marks, timetable. Compare output to what the extension shows for the same account.</div><div class="item-badges"><span class="badge badge-crit">critical</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test CAPTCHA solver success rate</div><div class="item-sub">The Go Tesseract solver had known success rate issues. Test on 20+ logins. If unreliable, consider a fallback: show captcha image to user in the login form so they can type it manually.</div><div class="item-badges"><span class="badge badge-crit">critical</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test that extension still works after backend changes (no regressions)</div><div class="item-badges"><span class="badge badge-crit">critical</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test on Android Chrome (primary motivation)</div><div class="item-sub">Test on 360px and 390px viewport. Test timetable table horizontal scroll. Test all tap targets ≥ 44px.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test attendance prediction against extension output for same account</div><div class="item-sub">The slot map and calendar data must match. Cross-check predicted values.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Test concurrent scrape requests (2–3 simultaneous users)</div><div class="item-sub">Ensure concurrency limit works and requests are queued rather than failing.</div><div class="item-badges"><span class="badge badge-new">new</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ 12 -->
+  <div class="section" id="s12">
+    <div class="section-header" onclick="toggleSection('s12')">
+      <span class="section-icon">⚠️</span>
+      <span class="section-title">12 — Open Questions (Needs Your Input)</span>
+      <span class="section-count" id="s12-count">0/0</span>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="note note-crit">🚨 These need to be answered before or during development. They affect core architectural decisions.</div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: What happens if Academia changes their portal structure?</div><div class="item-sub">Answer this for Antigravity: the scraper selectors will need maintenance just like the extension does now. Plan for a way to quickly push scraper updates. </div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: CAPTCHA fallback strategy — manual entry or always automated?</div><div class="item-sub">If the captcha solver fails (it sometimes does), should the user be shown the captcha image and asked to type it manually? This is the most reliable fallback. - Answer captcha is only showed when user enters a id that does not exist for 5 times; show captcha to user to mnually solve</div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: Does the web app need to work while the user is offline (PWA / service worker)?</div><div class="item-sub">If yes, cache last-synced data in IndexedDB so students can check their timetable/attendance without internet. Answer- no it does not need to update when user is offline, only when user manually refreshes</div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: Should the web app support "Add to Home Screen" (PWA)?</div><div class="item-sub">A PWA with a manifest gives a near-native app experience on Android — no Play Store needed. High value, low effort addition.Answer - yes add 'add to home screen' option</div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: Do you want the OD/ML attendance logic in the web app?</div><div class="item-sub">plans.txt mentions "od/ml saving and considering (selectively per hour od)". This is a partially built feature. Confirm if it should be included in the web app from the start.Answer - leave it for later version</div></div></div>
+      <div class="item" onclick="toggleItem(this)"><div class="checkbox"><span class="checkbox-tick">✓</span></div><div class="item-content"><div class="item-text">Q: Combined J-course attendance support needed from day one?</div><div class="item-sub">plans.txt mentions "combined attnd for J course" as a pending item. Include in scope or defer to v2?Answer - leave it for later version</div></div></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+function toggleItem(el) {
+  el.classList.toggle('done');
+  updateProgress();
+  saveState();
+}
+
+function updateProgress() {
+  const all = document.querySelectorAll('.item');
+  const done = document.querySelectorAll('.item.done');
+  const pct = all.length ? (done.length / all.length * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-count').textContent = done.length;
+  document.getElementById('progress-total').textContent = all.length;
+
+  // per-section counts
+  document.querySelectorAll('.section').forEach(sec => {
+    const id = sec.id;
+    const sAll = sec.querySelectorAll('.item').length;
+    const sDone = sec.querySelectorAll('.item.done').length;
+    const cnt = document.getElementById(id + '-count');
+    if (cnt) cnt.textContent = sDone + '/' + sAll;
+  });
+}
+
+function saveState() {
+  const state = [];
+  document.querySelectorAll('.item').forEach((el, i) => {
+    state.push(el.classList.contains('done') ? 1 : 0);
+  });
+  try { localStorage.setItem('unfugly_checklist', JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const state = JSON.parse(localStorage.getItem('unfugly_checklist') || '[]');
+    document.querySelectorAll('.item').forEach((el, i) => {
+      if (state[i] === 1) el.classList.add('done');
+    });
+  } catch(e) {}
+}
+
+window.addEventListener('load', () => {
+  loadState();
+  updateProgress();
+});
+</script>
+</body>
+</html>
