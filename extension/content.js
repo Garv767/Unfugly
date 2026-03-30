@@ -606,12 +606,14 @@ function extractMarksDataFromDocument(doc) {
                         if (infoMatch) {
                             const componentName = infoMatch[1];
                             const maxM = parseFloat(infoMatch[2]);
-                            const obtainedM = parseFloat(obtainedVal);
+                            
+                            const isAbsent = obtainedVal.toLowerCase() === 'absent';
+                            const obtainedM = isAbsent ? 0 : parseFloat(obtainedVal);
 
                             components.push({
                                 ComponentName: componentName,
                                 MaxMarks: maxM,
-                                ObtainedMarks: obtainedM
+                                ObtainedMarks: isAbsent ? 'Absent' : obtainedM
                             });
 
                             totalMaxMarks += maxM;
@@ -627,6 +629,7 @@ function extractMarksDataFromDocument(doc) {
 
             marksData.push({
                 CourseCode: courseCode,
+                CourseTitle: courseMap[courseCode] ? courseMap[courseCode].courseTitle : 'Unknown Course',
                 CourseType: courseType,
                 Components: components,
                 TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
@@ -912,7 +915,8 @@ async function checkAndSyncCalendar() {
     // Fallback or Update: Fetch both semester URLs
     const urls = [
         "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD", 
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN"
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN",
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2026_27_ODD"
     ];
 
     for (const url of urls) {
@@ -1172,222 +1176,193 @@ async function handleAttendancePage() {
 //Feedback functions
 
 async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
-    const field = sub.querySelector(`.select2-container.${fieldIdentifier} > a`);
-    if (field) {
-        //field.scrollIntoView({ block: 'center', behavior: 'instant' });
-        field.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        // Wait for the dropdown animation to finish
-        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                        await delay(300);
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        const resultField = field.querySelector('span.select2-chosen');              
-        const select2Id = resultField.getAttribute('id').replace('select2-chosen-', '');
-
-        const select2Result = document.getElementById(`select2-results-${select2Id}`);
-
-        const options = select2Result.querySelectorAll('li.select2-results-dept-0');
-
-        for( const opt of options) {
-            if(opt.textContent.trim() === targetValue) {
-                // Click it
-                            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                            // Fallback click
-                            opt.click();
-                            break;
-            }
-        }
+    // The opener anchor is the child of the select2-container that has the fieldIdentifier class.
+    // Class format on container: "select2-container zc-Enter_Your_Feedback_Here_Theory-Punctuality ..."
+    const container = sub.querySelector(`.select2-container.${fieldIdentifier}`);
+    if (!container) {
+        //console.warn(`fillSelect2Dropdown: container not found for field: ${fieldIdentifier}`);
         return;
     }
 
-    /*const searchInput = field.querySelector(`input[name*='${fieldIdentifier}']`);
-    console.log("Search Input:", searchInput);
-                    
-                    if (searchInput) {
-                        // Type the value
-                        searchInput.value = targetValue;
-                        console.log("Search Input after value set:", searchInput.value);
-                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                    }
-
-    console.log("Field:", field);*/
-
-    /*// 1. Scroll into view (helps with lazy loading)
-            button.scrollIntoView({ block: 'center', behavior: 'instant' });
-
-            // 2. Open Dropdown
-            // We use mousedown as established previously
-            button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    */
-}
-
-async function fillSubject(targetValue) {
-    const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
-    //zc-Enter_Your_Feedback_Here_Theory subform-custom-width
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    for (const sub of subs) {
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Punctuality', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Sincerity', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills', targetValue);
-
-        await delay(5300);
-
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions', targetValue);
-
-
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Punctuality', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Sincerity', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course', targetValue);
-        /*zc-Enter_Your_Feedback_Here_Theory-Punctuality-group
-        zc-Enter_Your_Feedback_Here_Theory-Sincerity-group
-
-        
-        */
-        //console.log(subs);
-
+    // The clickable anchor that opens the dropdown
+    const opener = container.querySelector('a.select2-choice');
+    if (!opener) {
+        console.warn(`fillSelect2Dropdown: opener anchor not found for ${fieldIdentifier}`);
+        return;
     }
 
-    
-}
+    // Open the dropdown by firing the events Select2 listens to
+    opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    await delay(400); // Wait for dropdown animation to finish
 
+    // The chosen span holds the numeric Select2 ID needed to find the results list
+    const chosenSpan = opener.querySelector('span.select2-chosen');
+    if (!chosenSpan) {
+        console.warn(`fillSelect2Dropdown: select2-chosen span not found for ${fieldIdentifier}`);
+        return;
+    }
+    const select2Id = chosenSpan.id.replace('select2-chosen-', '');
 
+    // Select2 renders its results list globally on document.body — NOT inside the container
+    const resultsList = document.getElementById(`select2-results-${select2Id}`);
+    if (!resultsList) {
+        console.warn(`fillSelect2Dropdown: results list not found for id select2-results-${select2Id}`);
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close it
+        return;
+    }
 
-/**Handles the feedback page
- * to be added in next version
- */
-async function handleFeedbackPage() {
-    // console.log("handleFeedbackPage: Starting process for Feedback page.");
-
-    // Helper: A simple delay function to let UI animations finish
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Helper: The logic to handle the specific Select2 dropdowns
-    async function fillFeedback() {
-        // 1. Define the unique parts of the names for the dropdowns you want to fill
-        const feedbackFields = [
-            "Communication_Presentation_Skills",
-            "Standard_of_Test_Questions",
-            "Punctuality",
-            "Sincerity"
-            // Add other unique identifier strings here as you find them
-        ];
-
-        // 2. The value you want to select (e.g., "5", "Excellent", "Good")
-        // Adjust this string to match exactly what appears in the dropdown options.
-        const targetValue = "Excellent"; 
-
-        for (const field of feedbackFields) {
-            try {
-                // A. Find the "Opener" (the box you click to open the dropdown)
-                // We look for a container that matches the field name but is NOT the hidden dropdown itself
-                // Select2 containers usually have 'select2-container' class.
-                // We try to find one that likely corresponds to our field.
-                // (This selector looks for the row/group containing the field name, then finds the select2 container inside it)
-                const container = document.querySelector(`div[class*='${field}'] .select2-container`) || 
-                                  document.querySelector(`.select2-container[id*='${field}']`) ||
-                                  // Fallback: search for the generic container if the specific class is on the parent
-                                  document.evaluate(`//div[contains(@class, '${field}')]//div[contains(@class, 'select2-container')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-
-                if (container) { 
-                    // Click to open    
-                    const choice = container.querySelector('.select2-choice') || container;
-                    choice.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                    
-                    // Wait for the dropdown animation to finish
-                    await delay(300); 
-
-                    // B. Find the specific input box using the pattern we analyzed
-                    // We look for the input inside the now-visible dropdown
-                    const searchInput = document.querySelector(`input[name*='${field}']`);
-                    
-                    if (searchInput) {
-                        // Type the value
-                        searchInput.value = targetValue;
-                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                        //searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        // Wait a tiny bit for the filter to run
-                        await delay(100);
-
-                        // Press Enter to select the top result
-                        //searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-                        
-                        console.log(`Filled ${field} with ${targetValue}`);
-                    }
-                } else {
-                    console.warn(`Could not find opener for field: ${field}`);
-                }
-                
-                // Small pause between fields to look natural and prevent freezing
-                await delay(200);
-
-            } catch (err) {
-                console.error(`Error filling ${field}:`, err);
-            }
+    const options = resultsList.querySelectorAll('li.select2-results-dept-0');
+    let matched = false;
+    for (const opt of options) {
+        if (opt.textContent.trim() === targetValue) {
+            // Fire both mouseup (what Select2 uses) and click as fallback
+            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
+            opt.click();
+            matched = true;
+            break;
         }
     }
 
+    if (!matched) {
+        console.warn(`fillSelect2Dropdown: option "${targetValue}" not found for ${fieldIdentifier}`);
+        // Close the dropdown cleanly
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    }
+
+    await delay(200); // Small buffer after selection
+}
+
+async function fillSubject(targetValue) {
+    // All subject sub-form blocks on the page
+    const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Theory fields — fill sequentially with a small gap between each
+    // to avoid opening multiple dropdowns at once (Zoho Select2 cannot handle concurrent opens)
+    const theoryFields = [
+        'zc-Enter_Your_Feedback_Here_Theory-Punctuality',
+        'zc-Enter_Your_Feedback_Here_Theory-Sincerity',
+        'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge',
+        'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation',
+        'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills',
+        'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule',
+        'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes',
+        'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions',
+    ];
+
+    const practicalFields = [
+        'zc-Enter_Your_Feedback_Here_Practical-Punctuality',
+        'zc-Enter_Your_Feedback_Here_Practical-Sincerity',
+        'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course',
+    ];
+
+    for (const sub of subs) {
+        console.log('fillSubject: processing subject block...');
+
+        for (const field of theoryFields) {
+            await fillSelect2Dropdown(sub, field, targetValue);
+            await delay(600); // Give Zoho time to register the selection and reset state
+        }
+
+        // Pause between theory and practical sections
+        await delay(800);
+
+        for (const field of practicalFields) {
+            await fillSelect2Dropdown(sub, field, targetValue);
+            await delay(600);
+        }
+
+        // Pause between each subject row
+        await delay(1000);
+    }
+
+    console.log('fillSubject: all subjects processed.');
+}
+
+
+
+/**Handles the feedback page */
+async function handleFeedbackPage() {
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     try {
         await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
-        const targetValue = "Excellent"; // The value to autofill (temprorary hardcoded)
+
+        const targetValue = "Excellent";
+
+        // Banner + Autofill button
         const notice = document.createElement('div');
         notice.style.cssText = `
-            background-color: palegreen;
-            color: #000;
-            padding: 10px;
-            border-radius: 5px;
-            width: 400px;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            padding: 10px 16px;
+            border-radius: 6px;
+            border-left: 4px solid #6c63ff;
+            width: fit-content;
+            min-width: 320px;
             margin-bottom: 15px;
             font-weight: bold;
+            font-family: sans-serif;
+            font-size: 13px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         `;
-        
-        // Create the text span
+
         const textSpan = document.createElement('span');
-        textSpan.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
-        //textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
+        textSpan.textContent = '✦ Unfugly Feedback Fast-Track';
         notice.appendChild(textSpan);
 
-        /*
-        // Create the button
+        // Autofill button — fills fields only, no submit
         const btn = document.createElement('button');
-        btn.textContent = "Autofill (beta)";
+        btn.id = 'unfugly-autofill-btn';
+        btn.textContent = 'Autofill (beta)';
         btn.style.cssText = `
-            background-color: #28a745;
+            background-color: #6c63ff;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 5px 12px;
+            border-radius: 4px;
             cursor: pointer;
-            font-weight: normal;
+            font-weight: bold;
+            font-size: 12px;
+            transition: background 0.2s;
         `;
-        
-        // Attach the click event to our new function
-        btn.onclick = (e) => {
-            e.preventDefault(); // Prevent form submission if inside a form tag
-            btn.textContent = "Filling...";
-            fillSubject(targetValue).then(() => {
-                btn.textContent = "Done!";
-            });
+        btn.onmouseenter = () => btn.style.backgroundColor = '#574fd6';
+        btn.onmouseleave = () => btn.style.backgroundColor = '#6c63ff';
+
+        btn.onclick = async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.textContent = 'Filling...';
+            textSpan.textContent = '⏳ Filling fields, please wait...';
+            try {
+                await fillSubject(targetValue);
+                btn.textContent = 'Done ✓';
+                btn.style.backgroundColor = '#28a745';
+                textSpan.textContent = '✦ Unfugly: All fields filled! Review and submit manually.';
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Retry';
+                textSpan.textContent = '✦ Unfugly: Error filling fields. Check console.';
+                console.error('handleFeedbackPage: autofill error', err);
+            }
         };
         notice.appendChild(btn);
-        */
 
         const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
             formContainer.prepend(notice);
         } else {
-            console.error("handleFeedbackPage: Form container not found.");
+            console.error('handleFeedbackPage: form container not found for banner insertion.');
         }
     } catch (error) {
-        console.error("handleFeedbackPage: Error processing Feedback page:", error);
-        displayInfoMessage("An error occurred while enhancing Feedback page.", 5000, 'error');
+        console.error('handleFeedbackPage: Error processing Feedback page:', error);
+        displayInfoMessage('An error occurred while enhancing Feedback page.', 5000, 'error');
     }
 }
 
