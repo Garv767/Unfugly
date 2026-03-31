@@ -1175,49 +1175,57 @@ async function handleAttendancePage() {
 
 //Feedback functions
 
+// Stop flag — set to true to halt automation mid-fill
+const unfuglyFill = { stopped: false };
+
+const FEEDBACK_BATCH_SIZE = 5; // Number of subject rows to process concurrently
+
 async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // The opener anchor is the child of the select2-container that has the fieldIdentifier class.
-    // Class format on container: "select2-container zc-Enter_Your_Feedback_Here_Theory-Punctuality ..."
+    if (unfuglyFill.stopped) return;
+
     const container = sub.querySelector(`.select2-container.${fieldIdentifier}`);
-    if (!container) {
-        //console.warn(`fillSelect2Dropdown: container not found for field: ${fieldIdentifier}`);
-        return;
-    }
+    if (!container) return;
 
-    // The clickable anchor that opens the dropdown
     const opener = container.querySelector('a.select2-choice');
-    if (!opener) {
-        console.warn(`fillSelect2Dropdown: opener anchor not found for ${fieldIdentifier}`);
-        return;
-    }
+    if (!opener) return;
 
-    // Open the dropdown by firing the events Select2 listens to
-    opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    await delay(400); // Wait for dropdown animation to finish
-
-    // The chosen span holds the numeric Select2 ID needed to find the results list
+    // Read the select2 numeric ID from the already-rendered span BEFORE opening.
+    // This avoids any risk of the span disappearing after mousedown.
     const chosenSpan = opener.querySelector('span.select2-chosen');
-    if (!chosenSpan) {
-        console.warn(`fillSelect2Dropdown: select2-chosen span not found for ${fieldIdentifier}`);
-        return;
-    }
+    if (!chosenSpan) return;
     const select2Id = chosenSpan.id.replace('select2-chosen-', '');
 
-    // Select2 renders its results list globally on document.body — NOT inside the container
-    const resultsList = document.getElementById(`select2-results-${select2Id}`);
-    if (!resultsList) {
-        console.warn(`fillSelect2Dropdown: results list not found for id select2-results-${select2Id}`);
-        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close it
+    // Open the dropdown
+    opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    // Poll until Select2 renders the results list AND populates it with options.
+    // Fixed delays are unreliable on slow machines — polling is the correct approach.
+    let resultsList = null;
+    let options = [];
+    for (let attempt = 0; attempt < 30; attempt++) {
+        if (unfuglyFill.stopped) {
+            opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
+            return;
+        }
+        resultsList = document.getElementById(`select2-results-${select2Id}`);
+        if (resultsList) {
+            options = resultsList.querySelectorAll('li.select2-results-dept-0');
+            if (options.length > 0) break;
+        }
+        await delay(100); // check every 100ms, up to 3s total
+    }
+
+    if (!resultsList || options.length === 0) {
+        console.warn(`fillSelect2Dropdown: results never loaded for ${fieldIdentifier}`);
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
         return;
     }
 
-    const options = resultsList.querySelectorAll('li.select2-results-dept-0');
     let matched = false;
     for (const opt of options) {
         if (opt.textContent.trim() === targetValue) {
-            // Fire both mouseup (what Select2 uses) and click as fallback
             opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
             opt.click();
             matched = true;
@@ -1226,22 +1234,18 @@ async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
     }
 
     if (!matched) {
-        console.warn(`fillSelect2Dropdown: option "${targetValue}" not found for ${fieldIdentifier}`);
-        // Close the dropdown cleanly
-        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        console.warn(`fillSelect2Dropdown: "${targetValue}" not in options for ${fieldIdentifier}`);
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
     }
 
-    await delay(200); // Small buffer after selection
+    await delay(150); // brief settle time after selection
 }
 
-async function fillSubject(targetValue) {
-    // All subject sub-form blocks on the page
-    const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+// Fill all fields for a single subject block (called in parallel across subjects)
+async function fillSubjectBlock(sub, targetValue, onFieldDone) {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // Theory fields — fill sequentially with a small gap between each
-    // to avoid opening multiple dropdowns at once (Zoho Select2 cannot handle concurrent opens)
-    const theoryFields = [
+    const allFields = [
         'zc-Enter_Your_Feedback_Here_Theory-Punctuality',
         'zc-Enter_Your_Feedback_Here_Theory-Sincerity',
         'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge',
@@ -1250,49 +1254,45 @@ async function fillSubject(targetValue) {
         'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule',
         'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes',
         'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions',
-    ];
-
-    const practicalFields = [
         'zc-Enter_Your_Feedback_Here_Practical-Punctuality',
         'zc-Enter_Your_Feedback_Here_Practical-Sincerity',
         'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course',
     ];
 
-    for (const sub of subs) {
-        console.log('fillSubject: processing subject block...');
-
-        for (const field of theoryFields) {
-            await fillSelect2Dropdown(sub, field, targetValue);
-            await delay(600); // Give Zoho time to register the selection and reset state
-        }
-
-        // Pause between theory and practical sections
-        await delay(800);
-
-        for (const field of practicalFields) {
-            await fillSelect2Dropdown(sub, field, targetValue);
-            await delay(600);
-        }
-
-        // Pause between each subject row
-        await delay(1000);
+    for (const field of allFields) {
+        if (unfuglyFill.stopped) return;
+        await fillSelect2Dropdown(sub, field, targetValue);
+        if (onFieldDone) onFieldDone();
+        // Small gap between fields within the same subject to let Zoho settle
+        await delay(300);
     }
-
-    console.log('fillSubject: all subjects processed.');
 }
 
+async function fillSubject(targetValue, batchSize, onProgress) {
+    const subs = [...document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column')];
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+    // Process subjects in chunks of batchSize concurrently.
+    // Each subject has its own Select2 instances (unique IDs), so they don't interfere.
+    for (let i = 0; i < subs.length; i += batchSize) {
+        if (unfuglyFill.stopped) break;
+        const batch = subs.slice(i, i + batchSize);
+        await Promise.all(batch.map(sub => fillSubjectBlock(sub, targetValue, () => {
+            if (onProgress) onProgress();
+        })));
+        // Small gap between batches
+        if (!unfuglyFill.stopped) await delay(400);
+    }
+}
 
 /**Handles the feedback page */
 async function handleFeedbackPage() {
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
     try {
         await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
 
-        const targetValue = "Excellent";
+        const targetValue = 'Excellent';
 
-        // Banner + Autofill button
+        // ── Banner ────────────────────────────────────────────────────────────
         const notice = document.createElement('div');
         notice.style.cssText = `
             background-color: #1a1a2e;
@@ -1301,28 +1301,31 @@ async function handleFeedbackPage() {
             border-radius: 6px;
             border-left: 4px solid #6c63ff;
             width: fit-content;
-            min-width: 320px;
+            min-width: 380px;
             margin-bottom: 15px;
-            font-weight: bold;
             font-family: sans-serif;
             font-size: 13px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
+            flex-direction: column;
+            gap: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         `;
 
-        const textSpan = document.createElement('span');
-        textSpan.textContent = '✦ Unfugly Feedback Fast-Track';
-        notice.appendChild(textSpan);
+        // Title row
+        const titleRow = document.createElement('div');
+        titleRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px;';
 
-        // Autofill button — fills fields only, no submit
-        const btn = document.createElement('button');
-        btn.id = 'unfugly-autofill-btn';
-        btn.textContent = 'Autofill (beta)';
-        btn.style.cssText = `
-            background-color: #6c63ff;
+        const textSpan = document.createElement('span');
+        textSpan.style.fontWeight = 'bold';
+        textSpan.textContent = '✦ Unfugly Feedback Fast-Track';
+        titleRow.appendChild(textSpan);
+
+        // Button row
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex; gap:8px; align-items:center;';
+
+        const btnStyle = (bg) => `
+            background-color: ${bg};
             color: white;
             border: none;
             padding: 5px 12px;
@@ -1330,29 +1333,81 @@ async function handleFeedbackPage() {
             cursor: pointer;
             font-weight: bold;
             font-size: 12px;
-            transition: background 0.2s;
         `;
-        btn.onmouseenter = () => btn.style.backgroundColor = '#574fd6';
-        btn.onmouseleave = () => btn.style.backgroundColor = '#6c63ff';
+
+        // Autofill button
+        const btn = document.createElement('button');
+        btn.id = 'unfugly-autofill-btn';
+        btn.textContent = 'Autofill (beta)';
+        btn.style.cssText = btnStyle('#6c63ff');
+
+        // Stop button (hidden initially)
+        const stopBtn = document.createElement('button');
+        stopBtn.id = 'unfugly-stop-btn';
+        stopBtn.textContent = '⛔ Stop';
+        stopBtn.style.cssText = btnStyle('#c0392b') + 'display:none;';
+
+        // Progress text
+        const progressSpan = document.createElement('span');
+        progressSpan.style.cssText = 'font-size:11px; color:#aaa;';
+
+        titleRow.appendChild(btnRow);
+        btnRow.appendChild(btn);
+        btnRow.appendChild(stopBtn);
+        notice.appendChild(titleRow);
+        notice.appendChild(progressSpan);
+
+        // Total field count for progress tracking
+        const FIELDS_PER_SUB = 11;
+        let fieldsDone = 0;
+        let totalFields = 0;
+
+        stopBtn.onclick = (e) => {
+            e.preventDefault();
+            unfuglyFill.stopped = true;
+            stopBtn.style.display = 'none';
+            textSpan.textContent = '✦ Unfugly: Stopping after current batch...';
+        };
 
         btn.onclick = async (e) => {
             e.preventDefault();
+            unfuglyFill.stopped = false;
             btn.disabled = true;
-            btn.textContent = 'Filling...';
-            textSpan.textContent = '⏳ Filling fields, please wait...';
+            stopBtn.style.display = '';
+            textSpan.textContent = '⏳ Filling fields... Do not navigate away.';
+
+            const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+            fieldsDone = 0;
+            totalFields = subs.length * FIELDS_PER_SUB;
+            progressSpan.textContent = `0 / ${totalFields} fields filled`;
+
             try {
-                await fillSubject(targetValue);
-                btn.textContent = 'Done ✓';
-                btn.style.backgroundColor = '#28a745';
-                textSpan.textContent = '✦ Unfugly: All fields filled! Review and submit manually.';
+                await fillSubject(targetValue, FEEDBACK_BATCH_SIZE, () => {
+                    fieldsDone++;
+                    progressSpan.textContent = unfuglyFill.stopped
+                        ? `Stopped at ${fieldsDone} / ${totalFields} fields`
+                        : `${fieldsDone} / ${totalFields} fields filled`;
+                });
+
+                stopBtn.style.display = 'none';
+                if (unfuglyFill.stopped) {
+                    btn.disabled = false;
+                    btn.textContent = 'Resume';
+                    textSpan.textContent = '✦ Unfugly: Stopped. Review filled fields or click Resume.';
+                } else {
+                    btn.textContent = 'Done ✓';
+                    btn.style.backgroundColor = '#28a745';
+                    textSpan.textContent = '✦ Unfugly: All fields filled! Review and submit manually.';
+                    progressSpan.textContent = `${totalFields} / ${totalFields} fields filled ✓`;
+                }
             } catch (err) {
+                stopBtn.style.display = 'none';
                 btn.disabled = false;
                 btn.textContent = 'Retry';
-                textSpan.textContent = '✦ Unfugly: Error filling fields. Check console.';
+                textSpan.textContent = '✦ Unfugly: Error — check console for details.';
                 console.error('handleFeedbackPage: autofill error', err);
             }
         };
-        notice.appendChild(btn);
 
         const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
         if (formContainer) {
@@ -1365,6 +1420,8 @@ async function handleFeedbackPage() {
         displayInfoMessage('An error occurred while enhancing Feedback page.', 5000, 'error');
     }
 }
+
+
 
 /*Handles academic planner page*/
 function handleAcademicPlannerPage(doc = document) {
