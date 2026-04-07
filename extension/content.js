@@ -1180,6 +1180,37 @@ const unfuglyFill = { stopped: false };
 
 const FEEDBACK_BATCH_SIZE = 10; // Number of subject rows to process concurrently
 
+const FEEDBACK_FIELDS = [
+    'zc-Enter_Your_Feedback_Here_Theory-Punctuality',                                                       //T01
+    'zc-Enter_Your_Feedback_Here_Theory-Sincerity',                                                         //T02
+    'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge',                                                 //T03
+    'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation',                                               //T04
+    'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills',                                 //T05
+    'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule',                              //T06
+    'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes',                                        //T07
+    'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions',                                        //T08
+    'zc-Enter_Your_Feedback_Here_Theory-Discussion_of_Test_Questions',                                      //T09
+    'zc-Enter_Your_Feedback_Here_Theory-Fairness_in_valuation',                                             //T10
+    'zc-Enter_Your_Feedback_Here_Theory-Interaction_Approachability',                                       //T11
+    'zc-Enter_Your_Feedback_Here_Theory-Helping_for_Clarification_of_Doubts',                               //T12
+    'zc-Enter_Your_Feedback_Here_Theory-Knowledge_Gained_at_Present_on_the_Subject',                        //T13
+    'zc-Enter_Your_Feedback_Here_Theory-Overall_Rating_of_the_Teacher',                                     //T14
+
+    'zc-Enter_Your_Feedback_Here_Practical-Punctuality',                                                    //P01
+    'zc-Enter_Your_Feedback_Here_Practical-Sincerity',                                                      //P02
+    'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course',                                 //P03
+    'zc-Enter_Your_Feedback_Here_Practical-Skills_for_Explanation_Demonstration_of_the_Experiments',        //P04
+    'zc-Enter_Your_Feedback_Here_Practical-Coverage_of_Experiments_as_per_Schedule',                        //P05
+    'zc-Enter_Your_Feedback_Here_Practical-Controlling_of_the_Classes',                                     //P06
+    'zc-Enter_Your_Feedback_Here_Practical-Discussion_on_Experiments_Procedure_Results_Analysis',           //P07
+    'zc-Enter_Your_Feedback_Here_Practical-Fairness_in_Evaluation_of_Observation_Record',                   //P08
+    'zc-Enter_Your_Feedback_Here_Practical-Interaction_Approachability',                                    //P09
+    'zc-Enter_Your_Feedback_Here_Practical-Helping_for_Clarification_of_Doubts',                            //P10
+    'zc-Enter_Your_Feedback_Here_Practical-Availability_During_Practical_Periods',                          //P11
+    'zc-Enter_Your_Feedback_Here_Practical-Knowledge_Gained_at_Present_on_the_Laboratory_Course',           //P12
+    'zc-Enter_Your_Feedback_Here_Practical-Overall_Rating_of_the_Teacher',                                  //P13
+];
+
 async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1245,39 +1276,7 @@ async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
 async function fillSubjectBlock(sub, targetValue, onFieldDone) {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    const allFields = [
-        'zc-Enter_Your_Feedback_Here_Theory-Punctuality',                                                       //T01
-        'zc-Enter_Your_Feedback_Here_Theory-Sincerity',                                                         //T02
-        'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge',                                                 //T03
-        'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation',                                               //T04
-        'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills',                                 //T05
-        'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule',                              //T06
-        'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes',                                        //T07
-        'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions',                                        //T08
-        'zc-Enter_Your_Feedback_Here_Theory-Discussion_of_Test_Questions',                                      //T09
-        'zc-Enter_Your_Feedback_Here_Theory-Fairness_in_valuation',                                             //T10
-        'zc-Enter_Your_Feedback_Here_Theory-Interaction_Approachability',                                       //T11
-        'zc-Enter_Your_Feedback_Here_Theory-Helping_for_Clarification_of_Doubts',                               //T12
-        'zc-Enter_Your_Feedback_Here_Theory-Knowledge_Gained_at_Present_on_the_Subject',                        //T13
-        'zc-Enter_Your_Feedback_Here_Theory-Overall_Rating_of_the_Teacher',                                     //T14
-
-
-        'zc-Enter_Your_Feedback_Here_Practical-Punctuality',                                                    //P01
-        'zc-Enter_Your_Feedback_Here_Practical-Sincerity',                                                      //P02
-        'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course',                                 //P03
-        'zc-Enter_Your_Feedback_Here_Practical-Skills_for_Explanation_Demonstration_of_the_Experiments',        //P04
-        'zc-Enter_Your_Feedback_Here_Practical-Coverage_of_Experiments_as_per_Schedule',                        //P05
-        'zc-Enter_Your_Feedback_Here_Practical-Controlling_of_the_Classes',                                     //P06
-        'zc-Enter_Your_Feedback_Here_Practical-Discussion_on_Experiments_Procedure_Results_Analysis',           //P07
-        'zc-Enter_Your_Feedback_Here_Practical-Fairness_in_Evaluation_of_Observation_Record',                   //P08
-        'zc-Enter_Your_Feedback_Here_Practical-Interaction_Approachability',                                    //P09
-        'zc-Enter_Your_Feedback_Here_Practical-Helping_for_Clarification_of_Doubts',                            //P10
-        'zc-Enter_Your_Feedback_Here_Practical-Availability_During_Practical_Periods',                          //P11
-        'zc-Enter_Your_Feedback_Here_Practical-Knowledge_Gained_at_Present_on_the_Laboratory_Course',           //P12
-        'zc-Enter_Your_Feedback_Here_Practical-Overall_Rating_of_the_Teacher',                                  //P13
-    ];
-
-    for (const field of allFields) {
+    for (const field of FEEDBACK_FIELDS) {
         if (unfuglyFill.stopped) return;
         await fillSelect2Dropdown(sub, field, targetValue);
         if (onFieldDone) onFieldDone();
@@ -1376,9 +1375,6 @@ async function handleFeedbackPage() {
         btnRow.appendChild(stopBtn);
         notice.appendChild(titleRow);
         notice.appendChild(progressSpan);
-
-        // Total field count for progress tracking
-        const FIELDS_PER_SUB = 27; // 14 Theory + 13 Practical
         let fieldsDone = 0;
         let totalFields = 0;
 
@@ -1398,7 +1394,17 @@ async function handleFeedbackPage() {
 
             const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
             fieldsDone = 0;
-            totalFields = subs.length * FIELDS_PER_SUB;
+            
+            // Calculate totalFields dynamically by checking which fields exist in each subject row
+            totalFields = 0;
+            subs.forEach(sub => {
+                FEEDBACK_FIELDS.forEach(field => {
+                    if (sub.querySelector(`.select2-container.${field}`)) {
+                        totalFields++;
+                    }
+                });
+            });
+
             progressSpan.textContent = `0 / ${totalFields} fields filled`;
 
             try {
