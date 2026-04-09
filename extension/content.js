@@ -1211,6 +1211,11 @@ const FEEDBACK_FIELDS = [
     'zc-Enter_Your_Feedback_Here_Practical-Overall_Rating_of_the_Teacher',                                  //P13
 ];
 
+const COMMENT_FIELDS = [
+    'zc-Enter_Your_Feedback_Here_Theory-Comments',
+    'zc-Enter_Your_Feedback_Here_Practical-Comments'
+];
+
 async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1280,25 +1285,45 @@ async function fillSubjectBlock(sub, targetValue, onFieldDone) {
         if (unfuglyFill.stopped) return;
         await fillSelect2Dropdown(sub, field, targetValue);
         if (onFieldDone) onFieldDone();
-        // Small gap between fields within the same subject to let Zoho settle
         await delay(300);
     }
 }
 
-async function fillSubject(targetValue, batchSize, onProgress) {
+async function fillCommentsBlock(sub, commentText, onFieldDone) {
+    if (unfuglyFill.stopped || !commentText) return;
+
+    for (const field of COMMENT_FIELDS) {
+        if (unfuglyFill.stopped) return;
+        const textarea = sub.querySelector(`textarea.${field}`);
+        if (textarea) {
+            textarea.value = commentText;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+            if (onFieldDone) onFieldDone();
+        }
+    }
+}
+
+async function fillSubject(targetValue, commentText, batchSize, onProgress) {
     const subs = [...document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column')];
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // Process subjects in chunks of batchSize concurrently.
-    // Each subject has its own Select2 instances (unique IDs), so they don't interfere.
+    // Phase 1: Select2 Dropdowns
     for (let i = 0; i < subs.length; i += batchSize) {
         if (unfuglyFill.stopped) break;
         const batch = subs.slice(i, i + batchSize);
-        await Promise.all(batch.map(sub => fillSubjectBlock(sub, targetValue, () => {
-            if (onProgress) onProgress();
-        })));
-        // Small gap between batches
+        await Promise.all(batch.map(sub => fillSubjectBlock(sub, targetValue, onProgress)));
         if (!unfuglyFill.stopped) await delay(400);
+    }
+
+    // Phase 2: Comments (after all dropdowns in previous batches are likely done)
+    if (!unfuglyFill.stopped && commentText) {
+        for (let i = 0; i < subs.length; i += batchSize) {
+            if (unfuglyFill.stopped) break;
+            const batch = subs.slice(i, i + batchSize);
+            await Promise.all(batch.map(sub => fillCommentsBlock(sub, commentText, onProgress)));
+            if (!unfuglyFill.stopped) await delay(200);
+        }
     }
 }
 
@@ -1307,37 +1332,82 @@ async function handleFeedbackPage() {
     try {
         await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
 
-        const targetValue = 'Excellent';
-
-        // ── Banner ────────────────────────────────────────────────────────────
+        // ── Banner (Fixed to top right) ──────────────────────────────────────
         const notice = document.createElement('div');
+        notice.id = 'unfugly-feedback-panel';
         notice.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2147483647;
             background-color: #1a1a2e;
             color: #e0e0e0;
-            padding: 10px 16px;
-            border-radius: 6px;
-            border-left: 4px solid #6c63ff;
-            width: fit-content;
-            min-width: 380px;
-            margin-bottom: 15px;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 5px solid #6c63ff;
+            width: 380px;
             font-family: sans-serif;
             font-size: 13px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-            z-index: 2147483647;
-            position: relative;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
         `;
 
         // Title row
         const titleRow = document.createElement('div');
-        titleRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px;';
+        titleRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        
+        const titleText = document.createElement('span');
+        titleText.style.fontWeight = 'bold';
+        titleText.style.fontSize = '14px';
+        titleText.textContent = '✦ Feedback Fast-Track';
+        titleRow.appendChild(titleText);
 
-        const textSpan = document.createElement('span');
-        textSpan.style.fontWeight = 'bold';
-        textSpan.textContent = '✦ Unfugly Feedback Fast-Track';
-        titleRow.appendChild(textSpan);
+        const closeBtn = document.createElement('span');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.onclick = () => notice.remove();
+        titleRow.appendChild(closeBtn);
+        notice.appendChild(titleRow);
+
+        // Inputs Section
+        const inputGrid = document.createElement('div');
+        inputGrid.style.cssText = 'display:grid; gap:8px;';
+
+        // Rating Select
+        const ratingLabel = document.createElement('label');
+        ratingLabel.textContent = 'Target Rating:';
+        ratingLabel.style.fontSize = '11px';
+        inputGrid.appendChild(ratingLabel);
+
+        const ratingSelect = document.createElement('select');
+        ratingSelect.style.cssText = 'background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:4px; font-size:12px;';
+        ['Excellent', 'Very Good', 'Good', 'Average', 'Poor'].forEach(val => {
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = val;
+            ratingSelect.appendChild(opt);
+        });
+        inputGrid.appendChild(ratingSelect);
+
+        // Comment Input
+        const commentLabel = document.createElement('label');
+        commentLabel.textContent = 'Comments:';
+        commentLabel.style.fontSize = '11px';
+        inputGrid.appendChild(commentLabel);
+
+        const commentInput = document.createElement('textarea');
+        commentInput.placeholder = 'Type feedback comments here...';
+        commentInput.rows = 2;
+        commentInput.style.cssText = 'background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; resize:none;';
+        inputGrid.appendChild(commentInput);
+
+        notice.appendChild(inputGrid);
+
+        // Progress text
+        const progressSpan = document.createElement('span');
+        progressSpan.style.cssText = 'font-size:11px; color:#aaa;';
+        notice.appendChild(progressSpan);
 
         // Button row
         const btnRow = document.createElement('div');
@@ -1347,34 +1417,26 @@ async function handleFeedbackPage() {
             background-color: ${bg};
             color: white;
             border: none;
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
+            flex: 1;
         `;
 
-        // Autofill button
-        const btn = document.createElement('button');
-        btn.id = 'unfugly-autofill-btn';
-        btn.textContent = 'Autofill (beta)';
-        btn.style.cssText = btnStyle('#6c63ff');
+        const autoBtn = document.createElement('button');
+        autoBtn.textContent = '🚀 Start Autofill';
+        autoBtn.style.cssText = btnStyle('#6c63ff');
 
-        // Stop button (hidden initially)
         const stopBtn = document.createElement('button');
-        stopBtn.id = 'unfugly-stop-btn';
         stopBtn.textContent = '⛔ Stop';
         stopBtn.style.cssText = btnStyle('#c0392b') + 'display:none;';
 
-        // Progress text
-        const progressSpan = document.createElement('span');
-        progressSpan.style.cssText = 'font-size:11px; color:#aaa;';
-
-        titleRow.appendChild(btnRow);
-        btnRow.appendChild(btn);
+        btnRow.appendChild(autoBtn);
         btnRow.appendChild(stopBtn);
-        notice.appendChild(titleRow);
-        notice.appendChild(progressSpan);
+        notice.appendChild(btnRow);
+
         let fieldsDone = 0;
         let totalFields = 0;
 
@@ -1382,68 +1444,57 @@ async function handleFeedbackPage() {
             e.preventDefault();
             unfuglyFill.stopped = true;
             stopBtn.style.display = 'none';
-            textSpan.textContent = '✦ Unfugly: Stopping after current batch...';
         };
 
-        btn.onclick = async (e) => {
+        autoBtn.onclick = async (e) => {
             e.preventDefault();
             unfuglyFill.stopped = false;
-            btn.disabled = true;
+            autoBtn.disabled = true;
             stopBtn.style.display = '';
-            textSpan.textContent = '⏳ Filling fields... Do not navigate away.';
-
-            const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
-            fieldsDone = 0;
             
-            // Calculate totalFields dynamically by checking which fields exist in each subject row
+            const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+            const ratingValue = ratingSelect.value;
+            const commentValue = commentInput.value;
+
+            // Calculate totalFields dynamically (Select2 fields + Comment fields)
             totalFields = 0;
             subs.forEach(sub => {
-                FEEDBACK_FIELDS.forEach(field => {
-                    if (sub.querySelector(`.select2-container.${field}`)) {
-                        totalFields++;
-                    }
+                [...FEEDBACK_FIELDS, ...COMMENT_FIELDS].forEach(field => {
+                    if (sub.querySelector(`.${field}`)) totalFields++;
                 });
             });
 
+            fieldsDone = 0;
             progressSpan.textContent = `0 / ${totalFields} fields filled`;
 
             try {
-                await fillSubject(targetValue, FEEDBACK_BATCH_SIZE, () => {
+                await fillSubject(ratingValue, commentValue, FEEDBACK_BATCH_SIZE, () => {
                     fieldsDone++;
                     progressSpan.textContent = unfuglyFill.stopped
                         ? `Stopped at ${fieldsDone} / ${totalFields} fields`
-                        : `${fieldsDone} / ${totalFields} fields filled`;
+                        : `${fieldsDone} / ${totalFields} fields filled...`;
                 });
 
                 stopBtn.style.display = 'none';
                 if (unfuglyFill.stopped) {
-                    btn.disabled = false;
-                    btn.textContent = 'Resume';
-                    textSpan.textContent = '✦ Unfugly: Stopped. Review filled fields or click Resume.';
+                    autoBtn.disabled = false;
+                    autoBtn.textContent = '🚀 Resume';
                 } else {
-                    btn.textContent = 'Done ✓';
-                    btn.style.backgroundColor = '#28a745';
-                    textSpan.textContent = '✦ Unfugly: All fields filled! Review and submit manually.';
-                    progressSpan.textContent = `${totalFields} / ${totalFields} fields filled ✓`;
+                    autoBtn.textContent = 'Done ✓';
+                    autoBtn.style.backgroundColor = '#28a745';
+                    progressSpan.textContent = `${totalFields} / ${totalFields} fields filled successfully!`;
                 }
             } catch (err) {
                 stopBtn.style.display = 'none';
-                btn.disabled = false;
-                btn.textContent = 'Retry';
-                textSpan.textContent = '✦ Unfugly: Error — check console for details.';
+                autoBtn.disabled = false;
+                autoBtn.textContent = 'Retry';
                 console.error('handleFeedbackPage: autofill error', err);
             }
         };
 
-        const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
-        if (formContainer) {
-            formContainer.prepend(notice);
-        } else {
-            console.error('handleFeedbackPage: form container not found for banner insertion.');
-        }
+        document.body.appendChild(notice);
     } catch (error) {
         console.error('handleFeedbackPage: Error processing Feedback page:', error);
-        displayInfoMessage('An error occurred while enhancing Feedback page.', 5000, 'error');
     }
 }
 
