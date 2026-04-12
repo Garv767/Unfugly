@@ -606,12 +606,14 @@ function extractMarksDataFromDocument(doc) {
                         if (infoMatch) {
                             const componentName = infoMatch[1];
                             const maxM = parseFloat(infoMatch[2]);
-                            const obtainedM = parseFloat(obtainedVal);
+                            
+                            const isAbsent = obtainedVal.toLowerCase() === 'absent';
+                            const obtainedM = isAbsent ? 0 : parseFloat(obtainedVal);
 
                             components.push({
                                 ComponentName: componentName,
                                 MaxMarks: maxM,
-                                ObtainedMarks: obtainedM
+                                ObtainedMarks: isAbsent ? 'Absent' : obtainedM
                             });
 
                             totalMaxMarks += maxM;
@@ -627,6 +629,7 @@ function extractMarksDataFromDocument(doc) {
 
             marksData.push({
                 CourseCode: courseCode,
+                CourseTitle: courseMap[courseCode] ? courseMap[courseCode].courseTitle : 'Unknown Course',
                 CourseType: courseType,
                 Components: components,
                 TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
@@ -912,7 +915,8 @@ async function checkAndSyncCalendar() {
     // Fallback or Update: Fetch both semester URLs
     const urls = [
         "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD", 
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN"
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN",
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2026_27_ODD"
     ];
 
     for (const url of urls) {
@@ -1171,225 +1175,439 @@ async function handleAttendancePage() {
 
 //Feedback functions
 
+// Stop flag — set to true to halt automation mid-fill
+const unfuglyFill = { stopped: false };
+
+const FEEDBACK_BATCH_SIZE = 10; // Number of subject rows to process concurrently
+
+const FEEDBACK_FIELDS = [
+    'zc-Enter_Your_Feedback_Here_Theory-Punctuality',                                                       //T01
+    'zc-Enter_Your_Feedback_Here_Theory-Sincerity',                                                         //T02
+    'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge',                                                 //T03
+    'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation',                                               //T04
+    'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills',                                 //T05
+    'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule',                              //T06
+    'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes',                                        //T07
+    'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions',                                        //T08
+    'zc-Enter_Your_Feedback_Here_Theory-Discussion_of_Test_Questions',                                      //T09
+    'zc-Enter_Your_Feedback_Here_Theory-Fairness_in_valuation',                                             //T10
+    'zc-Enter_Your_Feedback_Here_Theory-Interaction_Approachability',                                       //T11
+    'zc-Enter_Your_Feedback_Here_Theory-Helping_for_Clarification_of_Doubts',                               //T12
+    'zc-Enter_Your_Feedback_Here_Theory-Knowledge_Gained_at_Present_on_the_Subject',                        //T13
+    'zc-Enter_Your_Feedback_Here_Theory-Overall_Rating_of_the_Teacher',                                     //T14
+
+    'zc-Enter_Your_Feedback_Here_Practical-Punctuality',                                                    //P01
+    'zc-Enter_Your_Feedback_Here_Practical-Sincerity',                                                      //P02
+    'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course',                                 //P03
+    'zc-Enter_Your_Feedback_Here_Practical-Skills_for_Explanation_Demonstration_of_the_Experiments',        //P04
+    'zc-Enter_Your_Feedback_Here_Practical-Coverage_of_Experiments_as_per_Schedule',                        //P05
+    'zc-Enter_Your_Feedback_Here_Practical-Controlling_of_the_Classes',                                     //P06
+    'zc-Enter_Your_Feedback_Here_Practical-Discussion_on_Experiments_Procedure_Results_Analysis',           //P07
+    'zc-Enter_Your_Feedback_Here_Practical-Fairness_in_Evaluation_of_Observation_Record',                   //P08
+    'zc-Enter_Your_Feedback_Here_Practical-Interaction_Approachability',                                    //P09
+    'zc-Enter_Your_Feedback_Here_Practical-Helping_for_Clarification_of_Doubts',                            //P10
+    'zc-Enter_Your_Feedback_Here_Practical-Availability_During_Practical_Periods',                          //P11
+    'zc-Enter_Your_Feedback_Here_Practical-Knowledge_Gained_at_Present_on_the_Laboratory_Course',           //P12
+    'zc-Enter_Your_Feedback_Here_Practical-Overall_Rating_of_the_Teacher',                                  //P13
+];
+
+const COMMENT_FIELDS = [
+    'zc-Enter_Your_Feedback_Here_Theory-Comments',
+    'zc-Enter_Your_Feedback_Here_Practical-Comments'
+];
+
 async function fillSelect2Dropdown(sub, fieldIdentifier, targetValue) {
-    const field = sub.querySelector(`.select2-container.${fieldIdentifier} > a`);
-    if (field) {
-        //field.scrollIntoView({ block: 'center', behavior: 'instant' });
-        field.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        // Wait for the dropdown animation to finish
-        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                        await delay(300);
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        const resultField = field.querySelector('span.select2-chosen');              
-        const select2Id = resultField.getAttribute('id').replace('select2-chosen-', '');
+    if (unfuglyFill.stopped) return;
 
-        const select2Result = document.getElementById(`select2-results-${select2Id}`);
+    const container = sub.querySelector(`.select2-container.${fieldIdentifier}`);
+    if (!container) return;
 
-        const options = select2Result.querySelectorAll('li.select2-results-dept-0');
+    const opener = container.querySelector('a.select2-choice');
+    if (!opener) return;
 
-        for( const opt of options) {
-            if(opt.textContent.trim() === targetValue) {
-                // Click it
-                            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                            // Fallback click
-                            opt.click();
-                            break;
-            }
+    // Read the select2 numeric ID from the already-rendered span BEFORE opening.
+    // This avoids any risk of the span disappearing after mousedown.
+    const chosenSpan = opener.querySelector('span.select2-chosen');
+    if (!chosenSpan) return;
+    const select2Id = chosenSpan.id.replace('select2-chosen-', '');
+
+    // Open the dropdown
+    opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    // Poll until Select2 renders the results list AND populates it with options.
+    // Fixed delays are unreliable on slow machines — polling is the correct approach.
+    let resultsList = null;
+    let options = [];
+    for (let attempt = 0; attempt < 30; attempt++) {
+        if (unfuglyFill.stopped) {
+            opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
+            return;
         }
+        resultsList = document.getElementById(`select2-results-${select2Id}`);
+        if (resultsList) {
+            options = resultsList.querySelectorAll('li.select2-results-dept-0');
+            if (options.length > 0) break;
+        }
+        await delay(100); // check every 100ms, up to 3s total
+    }
+
+    if (!resultsList || options.length === 0) {
+        console.warn(`fillSelect2Dropdown: results never loaded for ${fieldIdentifier}`);
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
         return;
     }
 
-    /*const searchInput = field.querySelector(`input[name*='${fieldIdentifier}']`);
-    console.log("Search Input:", searchInput);
-                    
-                    if (searchInput) {
-                        // Type the value
-                        searchInput.value = targetValue;
-                        console.log("Search Input after value set:", searchInput.value);
-                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                    }
-
-    console.log("Field:", field);*/
-
-    /*// 1. Scroll into view (helps with lazy loading)
-            button.scrollIntoView({ block: 'center', behavior: 'instant' });
-
-            // 2. Open Dropdown
-            // We use mousedown as established previously
-            button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    */
-}
-
-async function fillSubject(targetValue) {
-    const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
-    //zc-Enter_Your_Feedback_Here_Theory subform-custom-width
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    for (const sub of subs) {
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Punctuality', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Sincerity', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Subject_Knowledge', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Lecture_Preparation', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Communication_Presentation_Skills', targetValue);
-
-        await delay(5300);
-
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Coverage_of_Syllabus_as_per_Schedule', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Controlling_of_the_Classes', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Theory-Standard_of_Test_Questions', targetValue);
-
-
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Punctuality', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Sincerity', targetValue);
-        fillSelect2Dropdown(sub, 'zc-Enter_Your_Feedback_Here_Practical-Knowledge_on_Laboratory_Course', targetValue);
-        /*zc-Enter_Your_Feedback_Here_Theory-Punctuality-group
-        zc-Enter_Your_Feedback_Here_Theory-Sincerity-group
-
-        
-        */
-        //console.log(subs);
-
-    }
-
-    
-}
-
-
-
-/**Handles the feedback page
- * to be added in next version
- */
-async function handleFeedbackPage() {
-    // console.log("handleFeedbackPage: Starting process for Feedback page.");
-
-    // Helper: A simple delay function to let UI animations finish
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Helper: The logic to handle the specific Select2 dropdowns
-    async function fillFeedback() {
-        // 1. Define the unique parts of the names for the dropdowns you want to fill
-        const feedbackFields = [
-            "Communication_Presentation_Skills",
-            "Standard_of_Test_Questions",
-            "Punctuality",
-            "Sincerity"
-            // Add other unique identifier strings here as you find them
-        ];
-
-        // 2. The value you want to select (e.g., "5", "Excellent", "Good")
-        // Adjust this string to match exactly what appears in the dropdown options.
-        const targetValue = "Excellent"; 
-
-        for (const field of feedbackFields) {
-            try {
-                // A. Find the "Opener" (the box you click to open the dropdown)
-                // We look for a container that matches the field name but is NOT the hidden dropdown itself
-                // Select2 containers usually have 'select2-container' class.
-                // We try to find one that likely corresponds to our field.
-                // (This selector looks for the row/group containing the field name, then finds the select2 container inside it)
-                const container = document.querySelector(`div[class*='${field}'] .select2-container`) || 
-                                  document.querySelector(`.select2-container[id*='${field}']`) ||
-                                  // Fallback: search for the generic container if the specific class is on the parent
-                                  document.evaluate(`//div[contains(@class, '${field}')]//div[contains(@class, 'select2-container')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-
-                if (container) { 
-                    // Click to open    
-                    const choice = container.querySelector('.select2-choice') || container;
-                    choice.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                    
-                    // Wait for the dropdown animation to finish
-                    await delay(300); 
-
-                    // B. Find the specific input box using the pattern we analyzed
-                    // We look for the input inside the now-visible dropdown
-                    const searchInput = document.querySelector(`input[name*='${field}']`);
-                    
-                    if (searchInput) {
-                        // Type the value
-                        searchInput.value = targetValue;
-                        searchInput.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
-                        //searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        // Wait a tiny bit for the filter to run
-                        await delay(100);
-
-                        // Press Enter to select the top result
-                        //searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-                        
-                        console.log(`Filled ${field} with ${targetValue}`);
-                    }
-                } else {
-                    console.warn(`Could not find opener for field: ${field}`);
-                }
-                
-                // Small pause between fields to look natural and prevent freezing
-                await delay(200);
-
-            } catch (err) {
-                console.error(`Error filling ${field}:`, err);
-            }
+    let matched = false;
+    for (const opt of options) {
+        if (opt.textContent.trim() === targetValue) {
+            opt.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, view: window }));
+            opt.click();
+            matched = true;
+            break;
         }
     }
 
+    if (!matched) {
+        console.warn(`fillSelect2Dropdown: "${targetValue}" not in options for ${fieldIdentifier}`);
+        opener.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // close
+    }
+
+    await delay(150); // brief settle time after selection
+}
+
+// Fill all fields for a single subject block (called in parallel across subjects)
+async function fillSubjectBlock(sub, targetValue, onFieldDone) {
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    for (const field of FEEDBACK_FIELDS) {
+        if (unfuglyFill.stopped) return;
+        await fillSelect2Dropdown(sub, field, targetValue);
+        // Wait for Select2 selection to be reflected in DOM before counting
+        await delay(100);
+        if (onFieldDone) onFieldDone();
+        await delay(200);
+    }
+}
+
+async function fillCommentsBlock(sub, commentText, onFieldDone) {
+    if (unfuglyFill.stopped || !commentText) return;
+
+    for (const field of COMMENT_FIELDS) {
+        if (unfuglyFill.stopped) return;
+        const textarea = sub.querySelector(`textarea.${field}`);
+        if (textarea) {
+            textarea.value = commentText;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+            if (onFieldDone) onFieldDone();
+        }
+    }
+}
+
+async function fillSubject(targetValue, commentText, batchSize, onProgress) {
+    const subs = [...document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column')];
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Phase 1: Select2 Dropdowns
+    for (let i = 0; i < subs.length; i += batchSize) {
+        if (unfuglyFill.stopped) break;
+        const batch = subs.slice(i, i + batchSize);
+        await Promise.all(batch.map(sub => fillSubjectBlock(sub, targetValue, onProgress)));
+        if (!unfuglyFill.stopped) await delay(400);
+    }
+
+    // Phase 2: Comments (after all dropdowns in previous batches are likely done)
+    if (!unfuglyFill.stopped && commentText) {
+        for (let i = 0; i < subs.length; i += batchSize) {
+            if (unfuglyFill.stopped) break;
+            const batch = subs.slice(i, i + batchSize);
+            await Promise.all(batch.map(sub => fillCommentsBlock(sub, commentText, onProgress)));
+            if (!unfuglyFill.stopped) await delay(200);
+        }
+    }
+}
+
+function removeUnfuglyFeedbackPanel() {
+    const panel = document.getElementById('unfugly-feedback-panel');
+    if (panel) panel.remove();
+}
+
+/**Handles the feedback page */
+async function handleFeedbackPage() {
+    if (document.getElementById('unfugly-feedback-panel')) return;
     try {
         await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
-        const targetValue = "Excellent"; // The value to autofill (temprorary hardcoded)
-        const notice = document.createElement('div');
-        notice.style.cssText = `
-            background-color: palegreen;
-            color: #000;
-            padding: 10px;
-            border-radius: 5px;
-            width: 400px;
-            margin-bottom: 15px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        `;
-        
-        // Create the text span
-        const textSpan = document.createElement('span');
-        textSpan.textContent = "Unfugly Feedback Fast-Track is in development. Stay tuned for updates!";
-        //textSpan.textContent = "Unfugly Feedback Fast-Track (Dev Mode)";
-        notice.appendChild(textSpan);
+        // Give Zoho a moment to initialize all Select2 dropdowns across the rows
+        await new Promise(r => setTimeout(r, 1000));
 
-        /*
-        // Create the button
-        const btn = document.createElement('button');
-        btn.textContent = "Autofill (beta)";
-        btn.style.cssText = `
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: normal;
-        `;
-        
-        // Attach the click event to our new function
-        btn.onclick = (e) => {
-            e.preventDefault(); // Prevent form submission if inside a form tag
-            btn.textContent = "Filling...";
-            fillSubject(targetValue).then(() => {
-                btn.textContent = "Done!";
-            });
+        const COLORS = {
+            bg: '#1a1a2e',
+            accent: '#337ab7',
+            yellow: '#FBC02D',
+            red: '#E57373',
+            green: '#81C784',
+            text: '#e0e0e0',
+            muted: '#aaa'
         };
-        notice.appendChild(btn);
-        */
 
-        const formContainer = document.querySelector('div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-plain1-group.zc-addnote-fld');
-        if (formContainer) {
-            formContainer.prepend(notice);
-        } else {
-            console.error("handleFeedbackPage: Form container not found.");
-        }
+        const panel = document.createElement('div');
+        panel.id = 'unfugly-feedback-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2147483647;
+            background-color: ${COLORS.bg};
+            color: ${COLORS.text};
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 5px solid ${COLORS.accent};
+            width: 360px;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        `;
+
+        // HEADER
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        header.innerHTML = `<span style="font-weight:bold; font-size:15px; letter-spacing:0.5px;">FEEDBACK FAST-TRACK</span>`;
+        
+        const closeBtn = document.createElement('span');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'cursor:pointer; padding:4px; opacity:0.7; transition:opacity 0.2s;';
+        closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
+        closeBtn.onmouseout = () => closeBtn.style.opacity = '0.7';
+        closeBtn.onclick = () => removeUnfuglyFeedbackPanel();
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // CONFIG SECTION
+        const configGrid = document.createElement('div');
+        configGrid.style.cssText = 'display:grid; grid-template-columns: 1fr 1fr; gap:12px;';
+
+        // Rating
+        const ratingCol = document.createElement('div');
+        ratingCol.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+        ratingCol.innerHTML = `<label style="font-size:11px; color:${COLORS.muted}; font-weight:bold; text-transform:uppercase;">Rating</label>`;
+        const ratingSelect = document.createElement('select');
+        ratingSelect.style.cssText = `background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; outline:none;`;
+        ['Excellent', 'Very Good', 'Good', 'Average', 'Poor'].forEach(v => {
+            const o = document.createElement('option');
+            o.value = o.textContent = v;
+            ratingSelect.appendChild(o);
+        });
+        ratingCol.appendChild(ratingSelect);
+        configGrid.appendChild(ratingCol);
+
+        panel.appendChild(configGrid);
+
+        // Comment
+        const commentBox = document.createElement('div');
+        commentBox.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+        commentBox.innerHTML = `<label style="font-size:11px; color:${COLORS.muted}; font-weight:bold; text-transform:uppercase;">Comments</label>`;
+        const commentInput = document.createElement('textarea');
+        commentInput.placeholder = 'Automated feedback comments...';
+        commentInput.rows = 2;
+        commentInput.style.cssText = `background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:8px; font-size:12px; resize:none; outline:none;`;
+        commentBox.appendChild(commentInput);
+        panel.appendChild(commentBox);
+
+        // STATUS SECTION
+        const statusRow = document.createElement('div');
+        statusRow.style.cssText = 'display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #333; padding-top:12px;';
+        
+        const progContainer = document.createElement('div');
+        progContainer.style.cssText = 'display:flex; flex-direction:column; gap:2px;';
+        const progLabel = document.createElement('span');
+        progLabel.textContent = 'Ready';
+        progLabel.style.cssText = `font-size:12px; font-weight:bold; color:${COLORS.muted};`;
+        progContainer.appendChild(progLabel);
+        statusRow.appendChild(progContainer);
+        panel.appendChild(statusRow);
+
+        // ACTION BUTTONS
+        const actionRow = document.createElement('div');
+        actionRow.style.cssText = 'display:flex; gap:8px;';
+
+        const createBtn = (text, bg, textColor = '#1a1a2e') => {
+            const b = document.createElement('button');
+            b.textContent = text;
+            b.style.cssText = `background:${bg}; color:${textColor}; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px; flex:1; transition:filter 0.2s;`;
+            b.onmouseover = () => b.style.filter = 'brightness(1.1)';
+            b.onmouseout = () => b.style.filter = 'brightness(1)';
+            return b;
+        };
+
+        const startBtn = createBtn('Start Autofill', '#d1d1e0'); 
+        startBtn.style.color = '#1a1a2e'; 
+        const stopBtn = createBtn('Stop', COLORS.red);
+        const resetBtn = createBtn('Reset', COLORS.red);
+        
+        stopBtn.style.display = 'none';
+        resetBtn.style.display = 'none';
+
+        actionRow.appendChild(startBtn);
+        actionRow.appendChild(stopBtn);
+        actionRow.appendChild(resetBtn);
+        panel.appendChild(actionRow);
+
+        // STATE LOGIC
+        let currentSubjectIndex = 0;
+        let isCommentPhase = false;
+
+        const setUIState = (state) => {
+            switch(state) {
+                case 'idle':
+                    startBtn.style.display = 'block';
+                    startBtn.textContent = 'Start Autofill';
+                    startBtn.style.background = '#d1d1e0';
+                    startBtn.style.color = '#1a1a2e';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'none';
+                    panel.style.borderLeftColor = COLORS.accent;
+                    progLabel.textContent = 'Ready';
+                    progLabel.style.color = COLORS.muted;
+                    break;
+                case 'running':
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'block';
+                    resetBtn.style.display = 'none';
+                    panel.style.borderLeftColor = COLORS.yellow;
+                    progLabel.textContent = 'Running';
+                    progLabel.style.color = COLORS.yellow;
+                    break;
+                case 'stopped':
+                    startBtn.style.display = 'block';
+                    startBtn.textContent = 'Resume';
+                    startBtn.style.background = COLORS.yellow;
+                    startBtn.style.color = '#1a1a2e';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'block';
+                    panel.style.borderLeftColor = COLORS.yellow;
+                    progLabel.textContent = 'Paused';
+                    progLabel.style.color = COLORS.yellow;
+                    break;
+                case 'finished':
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'block';
+                    panel.style.borderLeftColor = COLORS.green;
+                    progLabel.textContent = 'Finished';
+                    progLabel.style.color = COLORS.green;
+                    break;
+            }
+        };
+
+        const generateTaskList = () => {
+            const tasks = [];
+            const allSubs = document.querySelectorAll('div.subformRow');
+            
+            allSubs.forEach(sub => {
+                // Dropdowns
+                FEEDBACK_FIELDS.forEach(f => {
+                    const container = sub.querySelector(`.select2-container.${f}`);
+                    if (container) {
+                        const chosenSpan = container.querySelector('.select2-chosen');
+                        const isFilled = chosenSpan && chosenSpan.textContent.trim() !== 'Select' && chosenSpan.textContent.trim() !== '';
+                        if (!isFilled) {
+                            tasks.push({ sub, field: f, type: 'dropdown' });
+                        }
+                    }
+                });
+                
+                // Comments
+                COMMENT_FIELDS.forEach(f => {
+                    const textarea = sub.querySelector(`textarea.${f}`);
+                    if (textarea && textarea.value.trim() === '') {
+                        tasks.push({ sub, field: f, type: 'comment' });
+                    }
+                });
+            });
+            return tasks;
+        };
+
+        stopBtn.onclick = (e) => {
+            e.preventDefault();
+            unfuglyFill.stopped = true;
+            setUIState('stopped');
+        };
+
+        resetBtn.onclick = (e) => {
+            e.preventDefault();
+            unfuglyFill.stopped = false;
+            setUIState('idle');
+        };
+
+        startBtn.onclick = async (e) => {
+            e.preventDefault();
+            unfuglyFill.stopped = false;
+            setUIState('running');
+
+            const ratingValue = ratingSelect.value;
+            const commentValue = commentInput.value;
+            const batchSize = 16;
+            const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+            try {
+                // SUBJECT-BASED BATCHING (Stable)
+                let allSubs = Array.from(document.querySelectorAll('div.subformRow'));
+                
+                // Resume logic: Only process subjects that have at least one empty field
+                allSubs = allSubs.filter(sub => {
+                    const hasEmptyDropdown = FEEDBACK_FIELDS.some(f => {
+                        const c = sub.querySelector(`.select2-container.${f}`);
+                        const chosen = c?.querySelector('.select2-chosen')?.textContent.trim();
+                        return !chosen || chosen === 'Select' || chosen === '';
+                    });
+                    const hasEmptyComment = commentValue && COMMENT_FIELDS.some(f => {
+                        const t = sub.querySelector(`textarea.${f}`);
+                        return t && t.value.trim() === '';
+                    });
+                    return hasEmptyDropdown || hasEmptyComment;
+                });
+
+                for (let i = 0; i < allSubs.length; i += batchSize) {
+                    if (unfuglyFill.stopped) break;
+                    const batch = allSubs.slice(i, i + batchSize);
+                    
+                    // Process a batch of subjects in parallel
+                    await Promise.all(batch.map(async (sub) => {
+                        // Start comments filling in parallel with dropdowns (Comments don't use Select2)
+                        const commentsPromise = commentValue ? fillCommentsBlock(sub, commentValue) : Promise.resolve();
+                        
+                        // Dropdowns must be sequential within a single row to avoid Select2 conflicts
+                        await fillSubjectBlock(sub, ratingValue);
+                        await commentsPromise;
+                    }));
+
+                    if (!unfuglyFill.stopped && i + batchSize < allSubs.length) {
+                        await delay(400);
+                    }
+                }
+
+                if (!unfuglyFill.stopped) {
+                    setUIState('finished');
+                }
+            } catch (err) {
+                console.error('Autofill Error:', err);
+                setUIState('stopped');
+                progLabel.textContent = 'Error Occurred';
+                progLabel.style.color = COLORS.red;
+            }
+        };
+
+        document.body.appendChild(panel);
     } catch (error) {
-        console.error("handleFeedbackPage: Error processing Feedback page:", error);
-        displayInfoMessage("An error occurred while enhancing Feedback page.", 5000, 'error');
+        console.error('handleFeedbackPage init error:', error);
     }
 }
+
+
 
 /*Handles academic planner page*/
 function handleAcademicPlannerPage(doc = document) {
@@ -2462,6 +2680,7 @@ function highlightCurrentDayOrder(container) {
  */
 function handleCurrentPage() {
     const hash = window.location.hash;
+    removeUnfuglyFeedbackPanel();
     console.log(`handleCurrentPage: Current hash is: ${hash}`);
     if(!window.location.href.includes('creatorapp.zoho.com/srm_university/')){
         const tittle = document.querySelector('#tab_WELCOME > div > span');
