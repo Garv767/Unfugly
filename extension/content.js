@@ -1284,8 +1284,10 @@ async function fillSubjectBlock(sub, targetValue, onFieldDone) {
     for (const field of FEEDBACK_FIELDS) {
         if (unfuglyFill.stopped) return;
         await fillSelect2Dropdown(sub, field, targetValue);
+        // Wait for Select2 selection to be reflected in DOM before counting
+        await delay(100);
         if (onFieldDone) onFieldDone();
-        await delay(300);
+        await delay(200);
     }
 }
 
@@ -1327,174 +1329,281 @@ async function fillSubject(targetValue, commentText, batchSize, onProgress) {
     }
 }
 
+function removeUnfuglyFeedbackPanel() {
+    const panel = document.getElementById('unfugly-feedback-panel');
+    if (panel) panel.remove();
+}
+
 /**Handles the feedback page */
 async function handleFeedbackPage() {
+    if (document.getElementById('unfugly-feedback-panel')) return;
     try {
         await waitForElement(document, 'div.row > form > div.formContainer > div > div.mono-column.column-block > div.formColumn.first-column > div.form-group.clearfix.zc-Registration_Number-group');
+        // Give Zoho a moment to initialize all Select2 dropdowns across the rows
+        await new Promise(r => setTimeout(r, 1000));
 
-        // ── Banner (Fixed to top right) ──────────────────────────────────────
-        const notice = document.createElement('div');
-        notice.id = 'unfugly-feedback-panel';
-        notice.style.cssText = `
+        const COLORS = {
+            bg: '#1a1a2e',
+            accent: '#337ab7',
+            yellow: '#FBC02D',
+            red: '#E57373',
+            green: '#81C784',
+            text: '#e0e0e0',
+            muted: '#aaa'
+        };
+
+        const panel = document.createElement('div');
+        panel.id = 'unfugly-feedback-panel';
+        panel.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 2147483647;
-            background-color: #1a1a2e;
-            color: #e0e0e0;
-            padding: 16px;
-            border-radius: 8px;
-            border-left: 5px solid #6c63ff;
-            width: 380px;
+            background-color: ${COLORS.bg};
+            color: ${COLORS.text};
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 5px solid ${COLORS.accent};
+            width: 360px;
             font-family: sans-serif;
-            font-size: 13px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            gap: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
         `;
 
-        // Title row
-        const titleRow = document.createElement('div');
-        titleRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        // HEADER
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        header.innerHTML = `<span style="font-weight:bold; font-size:15px; letter-spacing:0.5px;">FEEDBACK FAST-TRACK</span>`;
         
-        const titleText = document.createElement('span');
-        titleText.style.fontWeight = 'bold';
-        titleText.style.fontSize = '14px';
-        titleText.textContent = '✦ Feedback Fast-Track';
-        titleRow.appendChild(titleText);
-
         const closeBtn = document.createElement('span');
         closeBtn.textContent = '✕';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.onclick = () => notice.remove();
-        titleRow.appendChild(closeBtn);
-        notice.appendChild(titleRow);
+        closeBtn.style.cssText = 'cursor:pointer; padding:4px; opacity:0.7; transition:opacity 0.2s;';
+        closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
+        closeBtn.onmouseout = () => closeBtn.style.opacity = '0.7';
+        closeBtn.onclick = () => removeUnfuglyFeedbackPanel();
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
 
-        // Inputs Section
-        const inputGrid = document.createElement('div');
-        inputGrid.style.cssText = 'display:grid; gap:8px;';
+        // CONFIG SECTION
+        const configGrid = document.createElement('div');
+        configGrid.style.cssText = 'display:grid; grid-template-columns: 1fr 1fr; gap:12px;';
 
-        // Rating Select
-        const ratingLabel = document.createElement('label');
-        ratingLabel.textContent = 'Target Rating:';
-        ratingLabel.style.fontSize = '11px';
-        inputGrid.appendChild(ratingLabel);
-
+        // Rating
+        const ratingCol = document.createElement('div');
+        ratingCol.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+        ratingCol.innerHTML = `<label style="font-size:11px; color:${COLORS.muted}; font-weight:bold; text-transform:uppercase;">Rating</label>`;
         const ratingSelect = document.createElement('select');
-        ratingSelect.style.cssText = 'background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:4px; font-size:12px;';
-        ['Excellent', 'Very Good', 'Good', 'Average', 'Poor'].forEach(val => {
-            const opt = document.createElement('option');
-            opt.value = opt.textContent = val;
-            ratingSelect.appendChild(opt);
+        ratingSelect.style.cssText = `background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; outline:none;`;
+        ['Excellent', 'Very Good', 'Good', 'Average', 'Poor'].forEach(v => {
+            const o = document.createElement('option');
+            o.value = o.textContent = v;
+            ratingSelect.appendChild(o);
         });
-        inputGrid.appendChild(ratingSelect);
+        ratingCol.appendChild(ratingSelect);
+        configGrid.appendChild(ratingCol);
 
-        // Comment Input
-        const commentLabel = document.createElement('label');
-        commentLabel.textContent = 'Comments:';
-        commentLabel.style.fontSize = '11px';
-        inputGrid.appendChild(commentLabel);
+        panel.appendChild(configGrid);
 
+        // Comment
+        const commentBox = document.createElement('div');
+        commentBox.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+        commentBox.innerHTML = `<label style="font-size:11px; color:${COLORS.muted}; font-weight:bold; text-transform:uppercase;">Comments</label>`;
         const commentInput = document.createElement('textarea');
-        commentInput.placeholder = 'Type feedback comments here...';
+        commentInput.placeholder = 'Automated feedback comments...';
         commentInput.rows = 2;
-        commentInput.style.cssText = 'background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:6px; font-size:12px; resize:none;';
-        inputGrid.appendChild(commentInput);
+        commentInput.style.cssText = `background:#2d2d44; color:white; border:1px solid #444; border-radius:4px; padding:8px; font-size:12px; resize:none; outline:none;`;
+        commentBox.appendChild(commentInput);
+        panel.appendChild(commentBox);
 
-        notice.appendChild(inputGrid);
+        // STATUS SECTION
+        const statusRow = document.createElement('div');
+        statusRow.style.cssText = 'display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #333; padding-top:12px;';
+        
+        const progContainer = document.createElement('div');
+        progContainer.style.cssText = 'display:flex; flex-direction:column; gap:2px;';
+        const progLabel = document.createElement('span');
+        progLabel.textContent = 'Ready';
+        progLabel.style.cssText = `font-size:12px; font-weight:bold; color:${COLORS.muted};`;
+        progContainer.appendChild(progLabel);
+        statusRow.appendChild(progContainer);
+        panel.appendChild(statusRow);
 
-        // Progress text
-        const progressSpan = document.createElement('span');
-        progressSpan.style.cssText = 'font-size:11px; color:#aaa;';
-        notice.appendChild(progressSpan);
+        // ACTION BUTTONS
+        const actionRow = document.createElement('div');
+        actionRow.style.cssText = 'display:flex; gap:8px;';
 
-        // Button row
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex; gap:8px; align-items:center;';
+        const createBtn = (text, bg, textColor = '#1a1a2e') => {
+            const b = document.createElement('button');
+            b.textContent = text;
+            b.style.cssText = `background:${bg}; color:${textColor}; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px; flex:1; transition:filter 0.2s;`;
+            b.onmouseover = () => b.style.filter = 'brightness(1.1)';
+            b.onmouseout = () => b.style.filter = 'brightness(1)';
+            return b;
+        };
 
-        const btnStyle = (bg) => `
-            background-color: ${bg};
-            color: white;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            flex: 1;
-        `;
+        const startBtn = createBtn('Start Autofill', '#d1d1e0'); 
+        startBtn.style.color = '#1a1a2e'; 
+        const stopBtn = createBtn('Stop', COLORS.red);
+        const resetBtn = createBtn('Reset', COLORS.red);
+        
+        stopBtn.style.display = 'none';
+        resetBtn.style.display = 'none';
 
-        const autoBtn = document.createElement('button');
-        autoBtn.textContent = '🚀 Start Autofill';
-        autoBtn.style.cssText = btnStyle('#6c63ff');
+        actionRow.appendChild(startBtn);
+        actionRow.appendChild(stopBtn);
+        actionRow.appendChild(resetBtn);
+        panel.appendChild(actionRow);
 
-        const stopBtn = document.createElement('button');
-        stopBtn.textContent = '⛔ Stop';
-        stopBtn.style.cssText = btnStyle('#c0392b') + 'display:none;';
+        // STATE LOGIC
+        let currentSubjectIndex = 0;
+        let isCommentPhase = false;
 
-        btnRow.appendChild(autoBtn);
-        btnRow.appendChild(stopBtn);
-        notice.appendChild(btnRow);
+        const setUIState = (state) => {
+            switch(state) {
+                case 'idle':
+                    startBtn.style.display = 'block';
+                    startBtn.textContent = 'Start Autofill';
+                    startBtn.style.background = '#d1d1e0';
+                    startBtn.style.color = '#1a1a2e';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'none';
+                    panel.style.borderLeftColor = COLORS.accent;
+                    progLabel.textContent = 'Ready';
+                    progLabel.style.color = COLORS.muted;
+                    break;
+                case 'running':
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'block';
+                    resetBtn.style.display = 'none';
+                    panel.style.borderLeftColor = COLORS.yellow;
+                    progLabel.textContent = 'Running';
+                    progLabel.style.color = COLORS.yellow;
+                    break;
+                case 'stopped':
+                    startBtn.style.display = 'block';
+                    startBtn.textContent = 'Resume';
+                    startBtn.style.background = COLORS.yellow;
+                    startBtn.style.color = '#1a1a2e';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'block';
+                    panel.style.borderLeftColor = COLORS.yellow;
+                    progLabel.textContent = 'Paused';
+                    progLabel.style.color = COLORS.yellow;
+                    break;
+                case 'finished':
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'none';
+                    resetBtn.style.display = 'block';
+                    panel.style.borderLeftColor = COLORS.green;
+                    progLabel.textContent = 'Finished';
+                    progLabel.style.color = COLORS.green;
+                    break;
+            }
+        };
 
-        let fieldsDone = 0;
-        let totalFields = 0;
+        const generateTaskList = () => {
+            const tasks = [];
+            const allSubs = document.querySelectorAll('div.subformRow');
+            
+            allSubs.forEach(sub => {
+                // Dropdowns
+                FEEDBACK_FIELDS.forEach(f => {
+                    const container = sub.querySelector(`.select2-container.${f}`);
+                    if (container) {
+                        const chosenSpan = container.querySelector('.select2-chosen');
+                        const isFilled = chosenSpan && chosenSpan.textContent.trim() !== 'Select' && chosenSpan.textContent.trim() !== '';
+                        if (!isFilled) {
+                            tasks.push({ sub, field: f, type: 'dropdown' });
+                        }
+                    }
+                });
+                
+                // Comments
+                COMMENT_FIELDS.forEach(f => {
+                    const textarea = sub.querySelector(`textarea.${f}`);
+                    if (textarea && textarea.value.trim() === '') {
+                        tasks.push({ sub, field: f, type: 'comment' });
+                    }
+                });
+            });
+            return tasks;
+        };
 
         stopBtn.onclick = (e) => {
             e.preventDefault();
             unfuglyFill.stopped = true;
-            stopBtn.style.display = 'none';
+            setUIState('stopped');
         };
 
-        autoBtn.onclick = async (e) => {
+        resetBtn.onclick = (e) => {
             e.preventDefault();
             unfuglyFill.stopped = false;
-            autoBtn.disabled = true;
-            stopBtn.style.display = '';
-            
-            const subs = document.querySelectorAll('div.subformRow.clearfix > div.mono-column.column-block > div.formColumn.first-column');
+            setUIState('idle');
+        };
+
+        startBtn.onclick = async (e) => {
+            e.preventDefault();
+            unfuglyFill.stopped = false;
+            setUIState('running');
+
             const ratingValue = ratingSelect.value;
             const commentValue = commentInput.value;
-
-            // Calculate totalFields dynamically (Select2 fields + Comment fields)
-            totalFields = 0;
-            subs.forEach(sub => {
-                [...FEEDBACK_FIELDS, ...COMMENT_FIELDS].forEach(field => {
-                    if (sub.querySelector(`.${field}`)) totalFields++;
-                });
-            });
-
-            fieldsDone = 0;
-            progressSpan.textContent = `0 / ${totalFields} fields filled`;
+            const batchSize = 16;
+            const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
             try {
-                await fillSubject(ratingValue, commentValue, FEEDBACK_BATCH_SIZE, () => {
-                    fieldsDone++;
-                    progressSpan.textContent = unfuglyFill.stopped
-                        ? `Stopped at ${fieldsDone} / ${totalFields} fields`
-                        : `${fieldsDone} / ${totalFields} fields filled...`;
+                // SUBJECT-BASED BATCHING (Stable)
+                let allSubs = Array.from(document.querySelectorAll('div.subformRow'));
+                
+                // Resume logic: Only process subjects that have at least one empty field
+                allSubs = allSubs.filter(sub => {
+                    const hasEmptyDropdown = FEEDBACK_FIELDS.some(f => {
+                        const c = sub.querySelector(`.select2-container.${f}`);
+                        const chosen = c?.querySelector('.select2-chosen')?.textContent.trim();
+                        return !chosen || chosen === 'Select' || chosen === '';
+                    });
+                    const hasEmptyComment = commentValue && COMMENT_FIELDS.some(f => {
+                        const t = sub.querySelector(`textarea.${f}`);
+                        return t && t.value.trim() === '';
+                    });
+                    return hasEmptyDropdown || hasEmptyComment;
                 });
 
-                stopBtn.style.display = 'none';
-                if (unfuglyFill.stopped) {
-                    autoBtn.disabled = false;
-                    autoBtn.textContent = '🚀 Resume';
-                } else {
-                    autoBtn.textContent = 'Done ✓';
-                    autoBtn.style.backgroundColor = '#28a745';
-                    progressSpan.textContent = `${totalFields} / ${totalFields} fields filled successfully!`;
+                for (let i = 0; i < allSubs.length; i += batchSize) {
+                    if (unfuglyFill.stopped) break;
+                    const batch = allSubs.slice(i, i + batchSize);
+                    
+                    // Process a batch of subjects in parallel
+                    await Promise.all(batch.map(async (sub) => {
+                        // Start comments filling in parallel with dropdowns (Comments don't use Select2)
+                        const commentsPromise = commentValue ? fillCommentsBlock(sub, commentValue) : Promise.resolve();
+                        
+                        // Dropdowns must be sequential within a single row to avoid Select2 conflicts
+                        await fillSubjectBlock(sub, ratingValue);
+                        await commentsPromise;
+                    }));
+
+                    if (!unfuglyFill.stopped && i + batchSize < allSubs.length) {
+                        await delay(400);
+                    }
+                }
+
+                if (!unfuglyFill.stopped) {
+                    setUIState('finished');
                 }
             } catch (err) {
-                stopBtn.style.display = 'none';
-                autoBtn.disabled = false;
-                autoBtn.textContent = 'Retry';
-                console.error('handleFeedbackPage: autofill error', err);
+                console.error('Autofill Error:', err);
+                setUIState('stopped');
+                progLabel.textContent = 'Error Occurred';
+                progLabel.style.color = COLORS.red;
             }
         };
 
-        document.body.appendChild(notice);
+        document.body.appendChild(panel);
     } catch (error) {
-        console.error('handleFeedbackPage: Error processing Feedback page:', error);
+        console.error('handleFeedbackPage init error:', error);
     }
 }
 
@@ -2571,6 +2680,7 @@ function highlightCurrentDayOrder(container) {
  */
 function handleCurrentPage() {
     const hash = window.location.hash;
+    removeUnfuglyFeedbackPanel();
     console.log(`handleCurrentPage: Current hash is: ${hash}`);
     if(!window.location.href.includes('creatorapp.zoho.com/srm_university/')){
         const tittle = document.querySelector('#tab_WELCOME > div > span');
