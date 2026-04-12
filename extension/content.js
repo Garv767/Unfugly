@@ -119,42 +119,96 @@ function displayInfoMessage(message, duration = 3000, type = 'info') {
  */
 function waitForElement(doc, selector, timeoutMs = 10000) {
     return new Promise((resolve, reject) => {
-        const startTime = Date.now();
         let observer = null;
+        let pollInterval = null;
+
+        const timeout = setTimeout(() => {
+            if (observer) observer.disconnect();
+            if (pollInterval) clearInterval(pollInterval);
+            reject(new Error(`waitForElement: Timeout waiting for element with selector: ${selector}`));
+        }, timeoutMs);
+
         const checkElement = () => {
+            // Check if doc and doc.querySelector are available (relevant for iframes)
+            if (!doc || !doc.querySelector) return false;
+
             const element = doc.querySelector(selector);
             if (element) {
+                clearTimeout(timeout);
                 if (observer) observer.disconnect();
+                if (pollInterval) clearInterval(pollInterval);
                 resolve(element);
                 return true;
-            }
-            if (Date.now() - startTime > timeoutMs) {
-                if (observer) observer.disconnect();
-                reject(new Error(`waitForElement: Timeout waiting for element with selector: ${selector}`));
-                return false;
             }
             return false;
         };
 
         if (checkElement()) return;
 
-        if (typeof MutationObserver !== 'undefined') {
-            observer = new MutationObserver((mutations, obs) => {
-                if (checkElement()) {
-                    obs.disconnect();
-                }
+        if (typeof MutationObserver !== 'undefined' && doc.body) {
+            observer = new MutationObserver(() => {
+                checkElement();
             });
             observer.observe(doc.body, { childList: true, subtree: true });
         } else {
-            // Fallback to polling if MutationObserver is not available
-            let pollInterval = setInterval(() => {
-                if (checkElement()) {
-                    clearInterval(pollInterval);
-                }
+            // Fallback to polling
+            pollInterval = setInterval(() => {
+                checkElement();
             }, 200);
         }
     });
 }
+
+
+/**
+ * Robustly sets the src of an image element and prevents it from being overwritten.
+ * Fetches the target URL from storage based on the current Net ID.
+ * @param {HTMLImageElement} imgElement The image element to secure.
+ */
+function secureImageSrc(imgElement) {
+    if (!imgElement) return;
+    
+    imgElement.style.border = '3px solid #1E88E5';
+    imgElement.title = "Unfugly: Profile Photo";    
+
+    const netId = getNetId();
+    if (!netId) {
+        console.warn("[Unfugly] secureImageSrc: Could not determine Net ID.");
+        return;
+    }
+
+    const storageKey = `unfuglyData_${netId}`;
+    chrome.storage.local.get(storageKey, (data) => {
+        if (data && data[storageKey] && data[storageKey].profileData && data[storageKey].profileData.profilePhotoUrl) {
+            const targetUrl = data[storageKey].profileData.profilePhotoUrl;
+
+            // Initial set
+            imgElement.src = targetUrl;
+
+            // MutationObserver to detect and revert changes to the 'src' attribute
+            const observer = new MutationObserver((mutations) => {
+                for (let mutation of mutations) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                        if (imgElement.src !== targetUrl) {
+                            //console.log(`[Unfugly] Reverting image reset attempt from ${imgElement.src} back to ${targetUrl}`);
+                            // Disconnect to avoid recursion
+                            observer.disconnect();
+                            imgElement.src = targetUrl;
+                            // Re-observe
+                            observer.observe(imgElement, { attributes: true, attributeFilter: ['src'] });
+                        }
+                    }
+                }
+            });
+
+            observer.observe(imgElement, { attributes: true, attributeFilter: ['src'] });
+
+            // Optional: Store observer reference to prevent garbage collection or allow manual cleanup
+            imgElement._unfuglyObserver = observer;
+        }
+    });
+}
+
 
 
 /**
@@ -164,25 +218,20 @@ function waitForElement(doc, selector, timeoutMs = 10000) {
  * @param {string[]} selectorsToWaitFor An array of CSS selectors to wait for within the iframe's document.
  * @returns {Promise<{iframeDoc: Document, iframe: HTMLIFrameElement}>} A promise that resolves with the iframe's document and the iframe element.
  */
-async function createHiddenIframe(url, selectorsToWaitFor = ['body']) { // Default to body, more specific selectors can be passed
+async function createHiddenIframe(url, selectorsToWaitFor = ['body']) {
     return new Promise((resolve, reject) => {
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
 
         iframe.onload = async () => {
             try {
                 const iframeDoc = iframe.contentWindow.document;
-                //console.log("createHiddenIframe: iframe loaded. Waiting for dynamic content inside...", url);
+                // console.log("createHiddenIframe: iframe loaded. Waiting for dynamic content inside...", url);
 
-                // Waiting for each essential selector to appear
                 for (const selector of selectorsToWaitFor) {
                     await waitForElement(iframeDoc, selector);
-                    //console.log(`createHiddenIframe: Element '${selector}' found in iframe for URL: ${url}.`);
                 }
 
-                //console.log("createHiddenIframe: All required elements found in iframe. Resolving promise.");
                 resolve({ iframeDoc, iframe });
             } catch (error) {
                 console.error("createHiddenIframe: Error waiting for iframe content for URL:", url, error);
@@ -194,6 +243,9 @@ async function createHiddenIframe(url, selectorsToWaitFor = ['body']) { // Defau
             console.error("createHiddenIframe: Iframe failed to load.", e);
             reject(new Error("Iframe failed to load."));
         };
+
+        iframe.src = url;
+        document.body.appendChild(iframe);
     });
 }
 
@@ -217,7 +269,7 @@ function getNetId() {
  * If a new version is available, it calls a function to display a notification to the user.
  * @returns {number} Returns 1 if fetching the latest version fails, otherwise returns nothing.
  */
-async function checkVersion(){
+async function checkVersion() {
     const currentVersion = chrome.runtime.getManifest().version;
     const response = await fetch('https://raw.githubusercontent.com/Garv767/Unfugly/refs/heads/main/version.txt')
     if (!response.ok) {
@@ -229,7 +281,7 @@ async function checkVersion(){
     const latestParts = latestVersion.split(".").map(Number);
 
     const maxLength = Math.max(currentParts.length, latestParts.length);
-     for (let i = 0; i < maxLength; i++) {
+    for (let i = 0; i < maxLength; i++) {
         const currentPart = currentParts[i] || 0;
         const latestPart = latestParts[i] || 0;
         if (currentPart < latestPart) {
@@ -239,8 +291,8 @@ async function checkVersion(){
             displayInfoMessage(`A new Version is available, updating...`, 5000, 'critical');//Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>
             return;
         }
-     }
-     
+    }
+
 }
 
 //Data Extraction Functions
@@ -322,16 +374,16 @@ function extractCourseDataFromDocument(doc_context) {
         // Extract Batch
         /*const batchRow = infoTable.querySelector('tbody tr:nth-child(2)');
         if (batchRow) {*/
-            const batchCell = infoTable.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(2) > td:nth-child(2) > strong > font');//batchRow.querySelectorAll('td')[1];
-            if (batchCell) {
-                const batchText = batchCell.textContent.trim();
-                //const batchMatch = batchText.match(/Batch - (\d+)/);
-                if (batchText) {
-                    studentBatch = batchText;
-                    //console.log("Batch explicitly set to 2 for testing purposes.", studentBatch);
-                }
+        const batchCell = infoTable.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(2) > td:nth-child(2) > strong > font');//batchRow.querySelectorAll('td')[1];
+        if (batchCell) {
+            const batchText = batchCell.textContent.trim();
+            //const batchMatch = batchText.match(/Batch - (\d+)/);
+            if (batchText) {
+                studentBatch = batchText;
+                //console.log("Batch explicitly set to 2 for testing purposes.", studentBatch);
             }
-        
+        }
+
     } else {
         console.warn("extractCourseDataFromDocument: Student info table not found in document context.");
     }
@@ -357,13 +409,13 @@ function extractCourseDataFromDocument(doc_context) {
                 if (slot.includes('L')) extraSlotFlag = true;
                 const rawTitle = courseTitleCell.textContent.trim();
 
-                    let truncatedTitle = ''; // Declare a variable to store the truncated title
+                let truncatedTitle = ''; // Declare a variable to store the truncated title
 
-                    if (rawTitle.length > 38) {
-                        truncatedTitle = rawTitle.slice(0, 38) + '...'; // If longer than 38 characters, truncate and add ellipsis
-                    } else {
-                        truncatedTitle = rawTitle; // Otherwise, use the original title
-                    }
+                if (rawTitle.length > 38) {
+                    truncatedTitle = rawTitle.slice(0, 38) + '...'; // If longer than 38 characters, truncate and add ellipsis
+                } else {
+                    truncatedTitle = rawTitle; // Otherwise, use the original title
+                }
                 const courseTitle = truncatedTitle; // Use the truncated title
 
                 const clsRoom = clsRoomCell.textContent.trim();
@@ -449,11 +501,11 @@ function extractAttendanceDataFromDocument(doc) {
             const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
             //console.log("extractAttendanceDataFromDocument: Fetched raw course code:",courseCodeTrail) ;
             //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeRaw);
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
-            const courseCode = courseCodeMatch ;//? courseCodeMatch[1] : courseCodeRaw;
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
+            const courseCode = courseCodeMatch;//? courseCodeMatch[1] : courseCodeRaw;
 
             const courseTitle = cells[1].textContent.trim();
-            const courseType  = cells[2].textContent.trim(); // "Theory" or "Practical"
+            const courseType = cells[2].textContent.trim(); // "Theory" or "Practical"
             const hoursConductedText = cells[6].textContent.trim();
             const absentHoursText = cells[7].textContent.trim();
             const percentageText = cells[8].textContent.trim();
@@ -491,7 +543,7 @@ function extractAttendanceDataFromDocument(doc) {
             attendanceData.push({
                 courseCode: courseCode,
                 courseTitle: courseTitle,
-                courseType: courseType, 
+                courseType: courseType,
                 hoursConducted: totalClasses,
                 absentHours: absentClasses,
                 attendedClasses: attendedClasses,
@@ -512,10 +564,10 @@ function extractAttendanceDataFromDocument(doc) {
             const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
             //console.log("extractAttendanceDataFromDocument: Fetched raw course code:",courseCodeTrail) ;
             //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeRaw);
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
-            const courseCode = courseCodeMatch ;//? courseCodeMatch[1] : courseCodeRaw;
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
+            const courseCode = courseCodeMatch;//? courseCodeMatch[1] : courseCodeRaw;
             const courseTitle = cells[1].textContent.trim();
-            const courseType  = cells[2].textContent.trim(); // "Theory" or "Practical"
+            const courseType = cells[2].textContent.trim(); // "Theory" or "Practical"
             const percentageText = cells[6].textContent.trim();
             const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
             const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
@@ -523,7 +575,7 @@ function extractAttendanceDataFromDocument(doc) {
             attendanceData.push({
                 courseCode: courseCode,
                 courseTitle: courseTitle,
-                courseType: courseType, 
+                courseType: courseType,
                 percentage: currentPercentage,
                 totalClasses: 'N/A',
                 attendedClasses: 'N/A',
@@ -562,8 +614,8 @@ function extractMarksDataFromDocument(doc) {
         const cellText = cells[0].textContent.trim();
         const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
         const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
-        const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
-        const courseCode = courseCodeMatch ;
+        const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');
+        const courseCode = courseCodeMatch;
         //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
         //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
         let courseTitle = cells[1].textContent.trim();
@@ -591,7 +643,7 @@ function extractMarksDataFromDocument(doc) {
             totalRow.style.backgroundColor = '#E6E6FA';
             const totalPerSub = componentMarksCell.querySelector('table > tbody')
             totalPerSub.appendChild(totalRow);
-            
+
             if (innerMarksTableRows.length > 0) {
                 const componentCells = innerMarksTableRows[0].querySelectorAll('td');
                 componentCells.forEach(compCell => {
@@ -606,7 +658,7 @@ function extractMarksDataFromDocument(doc) {
                         if (infoMatch) {
                             const componentName = infoMatch[1];
                             const maxM = parseFloat(infoMatch[2]);
-                            
+
                             const isAbsent = obtainedVal.toLowerCase() === 'abs';
                             const obtainedM = isAbsent ? 0 : parseFloat(obtainedVal);
 
@@ -622,7 +674,7 @@ function extractMarksDataFromDocument(doc) {
                     }
                 });
                 totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
-                if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                if (totalObtainedMarks / totalMaxMarks < 0.5) {
                     totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
                 };
             }
@@ -642,8 +694,8 @@ function extractMarksDataFromDocument(doc) {
 
 //Fallback function to display total marks
 async function inlineMarksTotal() {
-    try{
-    
+    try {
+
         await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
 
         //const marksData = [];
@@ -662,20 +714,20 @@ async function inlineMarksTotal() {
         const courseTableHeader = courseTable.querySelector('tbody tr:first-child');
         let courseCodeIndexHeader;
         if (courseTableHeader) {
-        // Select all the cells (td or th) within that first row as an Array
-        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+            // Select all the cells (td or th) within that first row as an Array
+            const cells = Array.from(courseTableHeader.querySelectorAll('td'));
 
-        // Iterate through the cells to find the one containing 'Course Code'
-        cells.forEach((cell, index) => {
-            // Use trim() to handle leading/trailing whitespace and check inclusion
-            if (cell.textContent.trim().includes('Course Code')) {
-                courseCodeIndexHeader = index; // Store the 0-based index
+            // Iterate through the cells to find the one containing 'Course Code'
+            cells.forEach((cell, index) => {
+                // Use trim() to handle leading/trailing whitespace and check inclusion
+                if (cell.textContent.trim().includes('Course Code')) {
+                    courseCodeIndexHeader = index; // Store the 0-based index
+                }
+            });
+            if (courseCodeIndexHeader === undefined) {
+                courseCodeIndexHeader = 0; // Default to the first column
             }
-        });
-        if (courseCodeIndexHeader === undefined) {
-            courseCodeIndexHeader = 0; // Default to the first column
         }
-    }
 
         const courseMap = {};
         courseRows.forEach(row => {
@@ -683,11 +735,11 @@ async function inlineMarksTotal() {
             const cellText = cells[courseCodeIndexHeader].textContent.trim();
             const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
             const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
-            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch;
             //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
             //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
-            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            let courseTitle = cells[courseCodeIndexHeader + 1].textContent.trim();
             courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
             courseMap[courseCode] = { courseTitle: courseTitle };
             //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
@@ -712,7 +764,7 @@ async function inlineMarksTotal() {
                 totalRow.style.backgroundColor = '#E6E6FA';
                 const totalPerSub = componentMarksCell.querySelector('table > tbody')
                 totalPerSub.appendChild(totalRow);
-                
+
                 if (innerMarksTableRows.length > 0) {
                     const componentCells = innerMarksTableRows[0].querySelectorAll('td');
                     componentCells.forEach(compCell => {
@@ -741,7 +793,7 @@ async function inlineMarksTotal() {
                         }
                     });
                     totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
-                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                    if (totalObtainedMarks / totalMaxMarks < 0.5) {
                         totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
                     };
                 }
@@ -765,8 +817,8 @@ async function inlineMarksTotal() {
 
 //Function to show total marks of students in Student Academic Status page
 async function marksTotalReport() {
-    try{
-    
+    try {
+
         await waitForElement(document, 'div > div.cntdDiv > div > table:nth-child(1)');
 
         //const marksData = [];
@@ -785,22 +837,22 @@ async function marksTotalReport() {
         const courseTableHeader = courseTable.querySelector('tbody tr:nth-child(2)');
         let courseCodeIndexHeader;
         if (courseTableHeader) {
-        // Select all the cells (td or th) within that first row as an Array
-        const cells = Array.from(courseTableHeader.querySelectorAll('td'));
+            // Select all the cells (td or th) within that first row as an Array
+            const cells = Array.from(courseTableHeader.querySelectorAll('td'));
 
-        // Iterate through the cells to find the one containing 'Course Code'
-        cells.forEach((cell, index) => {
-            // Use trim() to handle leading/trailing whitespace and check inclusion
-            if (cell.textContent.trim().includes('Course Code')) {
-                courseCodeIndexHeader = index; // Store the 0-based index
-                //console.log("marksTotalReport: Found 'Course Code' header at index:", courseCodeIndexHeader);
+            // Iterate through the cells to find the one containing 'Course Code'
+            cells.forEach((cell, index) => {
+                // Use trim() to handle leading/trailing whitespace and check inclusion
+                if (cell.textContent.trim().includes('Course Code')) {
+                    courseCodeIndexHeader = index; // Store the 0-based index
+                    //console.log("marksTotalReport: Found 'Course Code' header at index:", courseCodeIndexHeader);
+                }
+            });
+            if (courseCodeIndexHeader === undefined) {
+                courseCodeIndexHeader = 0; // Default to the first column
+                console.log("marksTotalReport: 'Course Code' header not found, defaulting to index 0.");
             }
-        });
-        if (courseCodeIndexHeader === undefined) {
-            courseCodeIndexHeader = 0; // Default to the first column
-            console.log("marksTotalReport: 'Course Code' header not found, defaulting to index 0.");
         }
-    }
 
         const courseMap = {};
         courseRows.forEach(row => {
@@ -809,12 +861,12 @@ async function marksTotalReport() {
             const courseCodeRaw = cells[courseCodeIndexHeader].textContent.trim();//.indexOf('\n');
             //console.log("marksTotalReport: Processing course code raw:", courseCodeRaw);
             const courseCodeTrail = cells[courseCodeIndexHeader].querySelector('font').textContent.trim();
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail,'');
-            const courseCode = /*courseCodeRaw;*/courseCodeMatch ;
+            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');
+            const courseCode = /*courseCodeRaw;*/courseCodeMatch;
             //console.log("marksTotalReport: Processed course code:", courseCode);
             //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
             //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
-            let courseTitle = cells[courseCodeIndexHeader+1].textContent.trim();
+            let courseTitle = cells[courseCodeIndexHeader + 1].textContent.trim();
             courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
             courseMap[courseCode] = { courseTitle: courseTitle };
             //console.log("inlineMarksTotal: Mapped course code to title:", courseCode, courseTitle);
@@ -841,7 +893,7 @@ async function marksTotalReport() {
                 totalRow.style.backgroundColor = '#E6E6FA';
                 const totalPerSub = componentMarksCell.querySelector('table > tbody')
                 totalPerSub.appendChild(totalRow);
-                
+
                 if (innerMarksTableRows.length > 0) {
                     const componentCells = innerMarksTableRows[0].querySelectorAll('td');
                     componentCells.forEach(compCell => {
@@ -876,7 +928,7 @@ async function marksTotalReport() {
                         }
                     });
                     totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
-                    if(totalObtainedMarks/totalMaxMarks < 0.5) {
+                    if (totalObtainedMarks / totalMaxMarks < 0.5) {
                         totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
                     };
                 }
@@ -914,7 +966,7 @@ async function checkAndSyncCalendar() {
 
     // Fallback or Update: Fetch both semester URLs
     const urls = [
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD", 
+        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD",
         "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN",
         "https://academia.srmist.edu.in/#Page:Academic_Planner_2026_27_ODD"
     ];
@@ -1028,7 +1080,7 @@ async function handleWelcomePage() {
             if (cachedData.profileData && cachedData.replacedTimetableHTML && cachedData.attendanceData && cachedData.marksData) {
                 //console.log("handleWelcomePage: Complete cached data found. Displaying immediately.");
                 renderProfilePanel(cachedData.profileData, appWrapper, dayOrderInfo);
-            renderAccordionPanels(cachedData, previousAttendanceData, appWrapper, currentNetId);
+                renderAccordionPanels(cachedData, previousAttendanceData, appWrapper, currentNetId);
                 if (titleElement) {
                     titleElement.textContent = "Unfugly: Data loaded from cache!";
                 }
@@ -1376,7 +1428,7 @@ async function handleFeedbackPage() {
         const header = document.createElement('div');
         header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
         header.innerHTML = `<span style="font-weight:bold; font-size:15px; letter-spacing:0.5px;">FEEDBACK FAST-TRACK</span>`;
-        
+
         const closeBtn = document.createElement('span');
         closeBtn.textContent = '✕';
         closeBtn.style.cssText = 'cursor:pointer; padding:4px; opacity:0.7; transition:opacity 0.2s;';
@@ -1420,7 +1472,7 @@ async function handleFeedbackPage() {
         // STATUS SECTION
         const statusRow = document.createElement('div');
         statusRow.style.cssText = 'display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #333; padding-top:12px;';
-        
+
         const progContainer = document.createElement('div');
         progContainer.style.cssText = 'display:flex; flex-direction:column; gap:2px;';
         const progLabel = document.createElement('span');
@@ -1443,11 +1495,11 @@ async function handleFeedbackPage() {
             return b;
         };
 
-        const startBtn = createBtn('Start Autofill', '#d1d1e0'); 
-        startBtn.style.color = '#1a1a2e'; 
+        const startBtn = createBtn('Start Autofill', '#d1d1e0');
+        startBtn.style.color = '#1a1a2e';
         const stopBtn = createBtn('Stop', COLORS.red);
         const resetBtn = createBtn('Reset', COLORS.red);
-        
+
         stopBtn.style.display = 'none';
         resetBtn.style.display = 'none';
 
@@ -1461,7 +1513,7 @@ async function handleFeedbackPage() {
         let isCommentPhase = false;
 
         const setUIState = (state) => {
-            switch(state) {
+            switch (state) {
                 case 'idle':
                     startBtn.style.display = 'block';
                     startBtn.textContent = 'Start Autofill';
@@ -1506,7 +1558,7 @@ async function handleFeedbackPage() {
         const generateTaskList = () => {
             const tasks = [];
             const allSubs = document.querySelectorAll('div.subformRow');
-            
+
             allSubs.forEach(sub => {
                 // Dropdowns
                 FEEDBACK_FIELDS.forEach(f => {
@@ -1519,7 +1571,7 @@ async function handleFeedbackPage() {
                         }
                     }
                 });
-                
+
                 // Comments
                 COMMENT_FIELDS.forEach(f => {
                     const textarea = sub.querySelector(`textarea.${f}`);
@@ -1556,7 +1608,7 @@ async function handleFeedbackPage() {
             try {
                 // SUBJECT-BASED BATCHING (Stable)
                 let allSubs = Array.from(document.querySelectorAll('div.subformRow'));
-                
+
                 // Resume logic: Only process subjects that have at least one empty field
                 allSubs = allSubs.filter(sub => {
                     const hasEmptyDropdown = FEEDBACK_FIELDS.some(f => {
@@ -1574,12 +1626,12 @@ async function handleFeedbackPage() {
                 for (let i = 0; i < allSubs.length; i += batchSize) {
                     if (unfuglyFill.stopped) break;
                     const batch = allSubs.slice(i, i + batchSize);
-                    
+
                     // Process a batch of subjects in parallel
                     await Promise.all(batch.map(async (sub) => {
                         // Start comments filling in parallel with dropdowns (Comments don't use Select2)
                         const commentsPromise = commentValue ? fillCommentsBlock(sub, commentValue) : Promise.resolve();
-                        
+
                         // Dropdowns must be sequential within a single row to avoid Select2 conflicts
                         await fillSubjectBlock(sub, ratingValue);
                         await commentsPromise;
@@ -1612,11 +1664,11 @@ async function handleFeedbackPage() {
 /*Handles academic planner page*/
 function handleAcademicPlannerPage(doc = document) {
     //document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table');
-    waitForElement(doc, 'div.zc-pb-tile-container table').then(() =>{
+    waitForElement(doc, 'div.zc-pb-tile-container table').then(() => {
         //const tableBody = doc.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
         //tableBody.style.display ='none';
         const rows = doc.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
-        console.log(rows);
+        //console.log(rows);
 
         // 1. Scrape the current page into a local object
         const currentUrlCalendar = {};
@@ -1651,7 +1703,7 @@ function handleAcademicPlannerPage(doc = document) {
         // 2. Fetch existing calendar, merge, and save
         chrome.storage.local.get('unfuglyData_calendar', (result) => {
             const oldCalendarWrap = result.unfuglyData_calendar || { data: {}, lastUpdated: null };
-            
+
             // Create the IST timestamp
             const istTime = new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
@@ -1794,7 +1846,7 @@ function renderProfilePanel(profileData, container, dayOrder) {
         //console.log("renderProfilePanel: dayOrderSpan:", dayOnUpdate);
     }
 
-        const dayOrderToday = dayOrder; //|| dayOnUpdate; // Default to 'N/A' if not provided\
+    const dayOrderToday = dayOrder; //|| dayOnUpdate; // Default to 'N/A' if not provided\
     //console.log("renderProfilePanel: dayOrderToday:", dayOrderToday);
     // Check if a profile panel already exists to avoid duplication during refreshes
     let profilePanel = container.querySelector('.profile-panel');
@@ -1821,20 +1873,17 @@ function renderProfilePanel(profileData, container, dayOrder) {
         <p><strong>Section:</strong> ${profileData.section || 'N/A'}</p>
         <p><strong>Semester:</strong> ${profileData.semester || 'N/A'}</p>
         <p><strong>Day Order:</strong> ${dayOrderToday || 'N/A'}</p>
-        <p><strong>Department:</strong> ${profileData.schoolDepartment || 'N/A'}</p>`;
+        <p><strong>Department:</strong> ${profileData.schoolDepartment || 'N/A'}</p>
+        <div class="profile-photo-container" style="margin-top: 15px; text-align: center;">
+            <img id="unfugly-profile-photo" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #1E88E5; box-shadow: 0 4px 8px rgba(0,0,0,0.3); object-fit: cover; background-color: #444;" />
+        </div>`;
 
-    // Add a share button
-    /*const shareButton = document.createElement('button');
-    shareButton.id = 'share-button';
-    shareButton.innerHTML = `<img src="${chrome.runtime.getURL('images/share.png')}" alt="Share" />`;
-    shareButton.title = 'Share this extension';
-
-    shareButton.onclick = () => {
-        shareExtensionLink();
-    };
-
-    profilePanel.appendChild(shareButton);*/
+    const profileImgElement = profilePanel.querySelector('#unfugly-profile-photo');
+    if (profileImgElement) {
+        secureImageSrc(profileImgElement);
+    }
 }
+
 //${dayOrderToday || 'N/A'}
 /**
  * Renders accordion panels for timetable, attendance, and marks on the welcome page.
@@ -1879,7 +1928,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container, ne
         timetableContentContainer.innerHTML = '<p style="color: #fff;">Timetable data not available.</p>';
     }
 
-        initializeEdits();
+    initializeEdits();
 
     // Attendance Panel
     const attendancePanel = document.createElement('div');
@@ -2209,7 +2258,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
 
     // Replace slots with course titles
     let slotId = 1;
- 
+
     // Slot map: built while iterating so it stays in sync with whatever
     // timetable the user's registration page actually returns.
     // dayOrder keys "1"–"5" match the calendar's dayOrder values.
@@ -2218,7 +2267,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     // courseType derived from slot name: P# and L# are Practical, letter slots are Theory
     const slotToCourse = {};
     let dayCounter = -1; // counts only non-removed, real Day rows (1–5)
-    
+
 
     for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
         const row = allTableRows[rowIndex];
@@ -2270,7 +2319,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
             if (courseData[cleanCellText]) {
                 const courseInfo = courseData[cleanCellText];
                 cell.classList.add('replaced-slot');
- 
+
                 // ── Build slot map entry ──
                 if (dayOrderSlotMap[currentDayOrder]) {
                     dayOrderSlotMap[currentDayOrder].push(cleanCellText);
@@ -2278,7 +2327,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 // P# or L# slots are Practical; single letter slots (A–G, X) are Theory
                 const isLabSlot = /^[PL]\d+/.test(cleanCellText);
                 slotToCourse[cleanCellText] = {
-                    title:      courseInfo.title,
+                    title: courseInfo.title,
                     courseType: isLabSlot ? 'Practical' : 'Theory'
                 };
 
@@ -2310,7 +2359,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 cell.style.backgroundColor = '#585b5bff';
                 cell.style.fontSize = '11px';
                 cell.title = `Slot: ${cellText}`;
-                
+
                 const unknownSpan = document.createElement('span');
                 unknownSpan.textContent = cellText;
                 unknownSpan.style.fontWeight = '400';
@@ -2329,7 +2378,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
         }
     }
     //console.log("replaceSlotsWithCourseTitles: Timetable updated with course titles and classrooms.");
- 
+
     // Return the slot map so backgroundFetchAllData can persist it
     return { dayOrder: dayOrderSlotMap, slotToCourse };
 }
@@ -2518,6 +2567,18 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         regIframe.remove();
         console.log("backgroundFetchAllData: Course Registration data fetched.");
 
+        //Fetch the profile photo url
+        console.log("backgroundFetchAllData: Fetching profile photo URL...");
+        const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
+            "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
+            ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
+        );
+        const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
+        fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
+
+        profilePhotoIframe.remove();
+        console.log("backgroundFetchAllData: Profile photo URL fetched.");
+
         //Fetch Unified Timetable HTML based on batch
         //console.log(batch, "batch");
         //let batch = 2;
@@ -2682,7 +2743,7 @@ function handleCurrentPage() {
     const hash = window.location.hash;
     removeUnfuglyFeedbackPanel();
     console.log(`handleCurrentPage: Current hash is: ${hash}`);
-    if(!window.location.href.includes('creatorapp.zoho.com/srm_university/')){
+    if (!window.location.href.includes('creatorapp.zoho.com/srm_university/')) {
         const tittle = document.querySelector('#tab_WELCOME > div > span');
         if (tittle) {
             tittle.textContent = "Unfuglied";
@@ -2695,22 +2756,22 @@ function handleCurrentPage() {
             // STEP 1: Kill the "Ghost" CSS
             // The original icon lives in the ::before of the class "holidays-gift-exchange".
             // By removing the class, we destroy the ::before pseudo-element entirely.
-            iconElement.removeAttribute('class'); 
-            
+            iconElement.removeAttribute('class');
+
             // STEP 2: Clean the container
             iconElement.innerHTML = '';
             iconElement.textContent = '';
 
             // STEP 3: Create your new image (Replaces the CSS background-image logic)
             const newImage = document.createElement('img');
-            
+
             // Use the proper Chrome API to get the URL (replaces __MSG_@@extension_id__)
             newImage.src = chrome.runtime.getURL('images/icon128.png');
 
             // STEP 4: Apply the styles you wanted (Translated from CSS to JS)
             // "width: 0px; height: 0px" in your CSS was likely to hide the old icon.
             // Since we removed the class, we can now set the REAL size we want.
-            newImage.style.width = '24px'; 
+            newImage.style.width = '24px';
             newImage.style.height = '24px';
             newImage.style.display = 'inline-block'; // Matches your "display: inline-block"
             newImage.style.verticalAlign = 'middle'; // Ensures alignment with text
@@ -2720,7 +2781,17 @@ function handleCurrentPage() {
             // STEP 5: Inject
             tittle.prepend(newImage);
             //tittle.parentNode.insertBefore(iconElement, tittle);
-        }   
+
+            const navProfileSelector = '#zc-account-settings > a > img';
+            waitForElement(document, navProfileSelector, 5000)
+                .then(profileImg => {
+                    secureImageSrc(profileImg);
+                    const popoverImg = document.querySelector('#zc-account-dropdown > div.zc-user-details > span.zc-user-img > img');
+                    secureImageSrc(popoverImg);
+                    //console.log("Navbar profile photo secured.");
+                })
+                .catch(err => console.warn("Navbar profile photo not found within timeout."));
+        }
     }
 
     if (hash.includes('#WELCOME')) {
@@ -2736,6 +2807,14 @@ function handleCurrentPage() {
             //console.warn("handleAttendancePage crashed. Running inlineMarksTotal instead.", error);
             inlineMarksTotal();
         }
+        const attendanceProfileImgSelector = '#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(2) > tbody > tr:nth-child(8) > td:nth-child(2) > img';
+        waitForElement(document, attendanceProfileImgSelector, 10000)
+            .then(profileImg => {
+                secureImageSrc(profileImg);
+                profileImg.style.border = '3px solid #1E88E5';
+                //console.log("Attendance profile photo secured.");
+            })
+            .catch(err => console.warn("Attendance profile photo not found within timeout."));
     } else if (hash.includes('#Page:Academic_Status')) {
         marksTotalReport();
     } else if (hash.includes('#Course_Feedback')) {
@@ -2743,7 +2822,7 @@ function handleCurrentPage() {
     } else if (hash.includes('#Page:Academic_Planner_2025_26_EVEN') || hash.includes('#Page:Academic_Planner_2025_26_ODD')) {
         handleAcademicPlannerPage();
     }
-    
+
 }
 
 //Event Listeners
