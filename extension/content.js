@@ -607,7 +607,7 @@ function extractMarksDataFromDocument(doc) {
                             const componentName = infoMatch[1];
                             const maxM = parseFloat(infoMatch[2]);
                             
-                            const isAbsent = obtainedVal.toLowerCase() === 'absent';
+                            const isAbsent = obtainedVal.toLowerCase() === 'abs';
                             const obtainedM = isAbsent ? 0 : parseFloat(obtainedVal);
 
                             components.push({
@@ -2030,9 +2030,9 @@ function formatMarksTable(marksData, container, attendanceData) {
 
     // Helper for colors based on %
     const getColor = (pct) => {
-        if (pct < 50) return '#E57373'; // muted red
-        if (pct < 85) return '#FBC02D'; // muted yellow
-        return '#81C784'; // muted green
+        if (pct > 85) return '#81C784'; // muted green
+        if (pct > 50) return '#FBC02D'; // muted yellow
+        return '#E57373'; // muted red
     };
 
     container.innerHTML = ''; // Clear old content
