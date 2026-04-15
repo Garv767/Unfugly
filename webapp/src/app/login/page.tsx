@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     try {
       const formattedUsername = username.split('@')[0].toLowerCase();
-      const res = await fetch('http://localhost:3000/auth/login', {
+      const res = await fetch('http://localhost:3000/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: formattedUsername, password })
