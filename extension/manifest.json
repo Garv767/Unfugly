@@ -4,19 +4,23 @@
   "version": "1.10.0",
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
-    
+    "cookies",
     "storage"
   ],
   "host_permissions": [
-    "https://academia.srmist.edu.in/*",
+    "https://*.srmist.edu.in/*",
     "https://creatorapp.zoho.com/srm_university/*",
     "https://unfugly-backend.onrender.com/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
-      "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js", "analytics.js", "predict.js", "imageURLScript.js"],
+      "js": ["lib/html2canvas.min.js", "api/courseRegistration.js", "api/unifiedTimetable.js", "api/attendance.js", "api/calendar.js", "analytics.js", "content.js", "editTimetable.js", "predict.js", "imageURLScript.js"],
       "css": ["styles.css"]
+    },
+    {
+      "matches": ["https://www.srmist.edu.in/staff-finder/*"],
+      "js": ["staffFinderAssistant.js"]
     }
   ],
   "background": [

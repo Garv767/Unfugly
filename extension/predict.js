@@ -87,21 +87,31 @@ function predictAttendance(attendanceData, slotMap, calendarData, startDateStr, 
         const key    = `${course.courseTitle}::${course.courseType}`;
         const counts = courseCounts[key] || { gap: 0, skipped: 0 };
 
-        const projectedConducted = course.hoursConducted  + counts.gap;
-        const projectedAttended  = course.attendedClasses + counts.gap;
-        const finalConducted     = projectedConducted + counts.skipped;
-        const finalAttended      = projectedAttended; // absent in range, unchanged
+        const isLocked = course.isLocked || isNaN(course.hoursConducted) || isNaN(course.attendedClasses);
 
-        const predictedPct = finalConducted > 0
-            ? parseFloat(((finalAttended / finalConducted) * 100).toFixed(2))
-            : 0;
-
-        let canSkip      = 0;
+        let finalConducted, finalAttended, predictedPct;
+        let canSkip = 0;
         let needToAttend = 0;
-        if (predictedPct >= 75) {
-            canSkip = Math.max(0, Math.floor((finalAttended / 0.75) - finalConducted));
+
+        if (!isLocked) {
+            const projectedConducted = course.hoursConducted  + counts.gap;
+            const projectedAttended  = course.attendedClasses + counts.gap;
+            finalConducted     = projectedConducted + counts.skipped;
+            finalAttended      = projectedAttended; // absent in range, unchanged
+
+            predictedPct = finalConducted > 0
+                ? parseFloat(((finalAttended / finalConducted) * 100).toFixed(2))
+                : 0;
+
+            if (predictedPct >= 75) {
+                canSkip = Math.max(0, Math.floor((finalAttended / 0.75) - finalConducted));
+            } else {
+                needToAttend = Math.max(0, Math.ceil((0.75 * finalConducted - finalAttended) / 0.25));
+            }
         } else {
-            needToAttend = Math.max(0, Math.ceil((0.75 * finalConducted - finalAttended) / 0.25));
+            finalConducted = course.hoursConducted;
+            finalAttended = course.attendedClasses;
+            predictedPct = course.percentage;
         }
 
         return {
@@ -115,7 +125,8 @@ function predictAttendance(attendanceData, slotMap, calendarData, startDateStr, 
             finalAttended,
             predictedPct,
             canSkip,
-            needToAttend
+            needToAttend,
+            isLocked:        isLocked
         };
     });
 }
@@ -125,13 +136,55 @@ function predictAttendance(attendanceData, slotMap, calendarData, startDateStr, 
 // STORAGE ENTRY POINT
 // ─────────────────────────────────────────────────────────────
 
+// Rebuilds the slotMap dynamically from courseData and timetableJSON
+function rebuildSlotMap(courseData, timetableJSON) {
+    const dayOrderSlotMap = { '1': [], '2': [], '3': [], '4': [], '5': [] };
+    const slotToCourse = {};
+
+    if (!courseData) return { dayOrder: dayOrderSlotMap, slotToCourse };
+
+    // 1. Build slotToCourse directly from courseData
+    for (const [slotName, info] of Object.entries(courseData)) {
+        const isLabSlot = /^[PL]\d+/.test(slotName);
+        slotToCourse[slotName] = {
+            title: info["Course Title"] || info.title || '',
+            courseType: isLabSlot ? 'Practical' : 'Theory'
+        };
+    }
+
+    // 2. Build dayOrderSlotMap from timetableJSON
+    if (timetableJSON && timetableJSON.days) {
+        timetableJSON.days.forEach((day, index) => {
+            const currentDayOrder = String(index + 1);
+            if (day.slots) {
+                day.slots.forEach(slotCell => {
+                    const cellTitle = slotCell.title;
+                    if (!cellTitle) return;
+
+                    // Match this cell's title to a course slot in courseData
+                    for (const [slotName, info] of Object.entries(courseData)) {
+                        const courseTitle = info["Course Title"] || info.title || '';
+                        if (courseTitle && (courseTitle === cellTitle || courseTitle.startsWith(cellTitle) || cellTitle.startsWith(courseTitle))) {
+                            if (dayOrderSlotMap[currentDayOrder] && !dayOrderSlotMap[currentDayOrder].includes(slotName)) {
+                                dayOrderSlotMap[currentDayOrder].push(slotName);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    return { dayOrder: dayOrderSlotMap, slotToCourse };
+}
+
 function runPrediction(netId, startDateStr, endDateStr, callback) {
     chrome.storage.local.get([`unfuglyData_${netId}`, 'unfuglyData_calendar'], (result) => {
         const userData     = result[`unfuglyData_${netId}`];
         const calendarWrap = result['unfuglyData_calendar'];
 
-        if (!userData?.attendanceData || !userData?.slotMap) {
-            callback(null, 'Missing attendance or slot map data. Please refresh your data first.');
+        if (!userData?.attendanceData || !userData?.courseData || !userData?.timetableJSON) {
+            callback(null, 'Missing attendance, course, or timetable data. Please refresh your data first.');
             return;
         }
         if (!calendarWrap?.data || Object.keys(calendarWrap.data).length === 0) {
@@ -139,9 +192,11 @@ function runPrediction(netId, startDateStr, endDateStr, callback) {
             return;
         }
 
+        const slotMap = rebuildSlotMap(userData.courseData, userData.timetableJSON);
+
         const predictions = predictAttendance(
             userData.attendanceData,
-            userData.slotMap,
+            slotMap,
             calendarWrap.data,
             startDateStr,
             endDateStr
@@ -482,9 +537,11 @@ function renderPredictResults(container, results, startDateStr, endDateStr) {
         const borderColor = isOk ? 'rgba(76,175,80,0.22)'   : 'rgba(244,67,54,0.22)';
         const deltaColor  = delta < 0 ? '#E57373' : delta > 0 ? '#81C784' : '#555';
         const deltaLabel  = delta === 0 ? '—' : delta > 0 ? `▲ +${delta}%` : `▼ ${delta}%`;
-        const marginLine  = isOk
-            ? `Can still skip &nbsp;<b style="color:#81C784;">${item.canSkip}</b>`
-            : `Need &nbsp;<b style="color:#E57373;">${item.needToAttend}</b>&nbsp; more to reach 75%`;
+        const marginLine  = item.isLocked
+            ? `<span style="color:#aaa;">Attendance Locked</span>`
+            : (isOk
+                ? `Can still skip &nbsp;<b style="color:#81C784;">${item.canSkip}</b>`
+                : `Need &nbsp;<b style="color:#E57373;">${item.needToAttend}</b>&nbsp; more to reach 75%`);
 
         const card = document.createElement('div');
         card.style.cssText = `

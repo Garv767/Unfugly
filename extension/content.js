@@ -19,17 +19,13 @@ window.isFetchingInBackground = false;
 window.timetableRetryCount = 0;
 
 //Gloabl flag for extra lab slots
-let extraSlotFlag = false;
+window.extraSlotFlag = false;
 
 const MAX_TIMETABLE_RETRIES = 20; // Max attempts
 
 const TIMETABLE_RETRY_DELAY = 1000; // 1 second delay between attempts
 
-// Unified Timetable URLs based on batch
-const UNIFIED_TIMETABLE_URLS = {
-    '1': "https://academia.srmist.edu.in/#Page:Unified_Time_Table_2025_Batch_1",
-    '2': "https://academia.srmist.edu.in/#Page:Unified_Time_Table_2025_batch_2"
-};
+
 
 // Helper Functions
 
@@ -117,7 +113,7 @@ function displayInfoMessage(message, duration = 3000, type = 'info') {
  * @param {number} timeoutMs The maximum time to wait in milliseconds.
  * @returns {Promise<Element>} A promise that resolves with the found element, or rejects if timeout.
  */
-function waitForElement(doc, selector, timeoutMs = 10000) {
+function waitForElement(doc, selector, timeoutMs = 10000, reloadOnTimeout = false) {
     return new Promise((resolve, reject) => {
         let observer = null;
         let pollInterval = null;
@@ -125,6 +121,13 @@ function waitForElement(doc, selector, timeoutMs = 10000) {
         const timeout = setTimeout(() => {
             if (observer) observer.disconnect();
             if (pollInterval) clearInterval(pollInterval);
+            console.error(`waitForElement: Timeout waiting for element with selector: ${selector}.`);
+            if (reloadOnTimeout) {
+                console.log(`Auto-restarting in 3 seconds...`);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
             reject(new Error(`waitForElement: Timeout waiting for element with selector: ${selector}`));
         }, timeoutMs);
 
@@ -297,402 +300,234 @@ async function checkVersion() {
 
 //Data Extraction Functions
 
+
+
 /**
- * Extracts profile data from a given document.
- * @param {Document} doc The document to extract from (e.g., iframe's document for registration page).
- * @returns {object} Profile data including name, registration number, program, and school.
+ * Parses an HTML table element into a JSON representation holding structure and style data.
  */
-function extractProfileDataFromDocument(doc) {
-    const profileData = {};
-    // Extract Name
-    const nameElement = doc.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(1) > td:nth-child(4) > strong');
-    if (nameElement) profileData.name = nameElement.textContent.trim();
-    // Extract Registration Number
-    const regNoElement = doc.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(1) > td:nth-child(2)');
-    if (regNoElement) profileData.registrationNo = regNoElement.textContent.trim();
-    // Extract Programme and Branch
-    const progBranchElement = doc.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(3) > td:nth-child(2) > strong');
-    if (progBranchElement) profileData.programmeBranch = progBranchElement.textContent.trim();
-    // Extract Semester
-    const semElement = doc.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(4) > td:nth-child(2) > strong');
-    if (semElement) profileData.semester = semElement.textContent.trim();
-    // Extract Section and Department
-    const schoolDeptElement = doc.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(3) > td:nth-child(4) > strong');
-    if (schoolDeptElement) {
-        //profileData.schoolDepartment = schoolDeptElement.textContent.trim();
-        const str = schoolDeptElement.textContent.trim();
-        const lastOpenParenIndex = str.lastIndexOf('(');
+function parseTableToJSON(table) {
+    const data = { headers: [], days: [], extraSlotFlag: window.extraSlotFlag};
+    if (!table) return data;
 
-        if (lastOpenParenIndex === -1) {
-            profileData.schoolDepartment = str; // No bracket found, use the whole string
-            //return { schoolDepartment: str, sectionStr: "" }; 
+    const rows = table.querySelectorAll('tr');
+    if (rows.length === 0) return data;
+
+    const firstRowCells = rows[0].querySelectorAll('th, td');
+    firstRowCells[0].textContent = 'Time';
+    firstRowCells.forEach(cell => data.headers.push(cell.textContent.trim()));
+
+    for (let i = 1; i < rows.length; i++) {
+        const tr = rows[i];
+        const cells = tr.querySelectorAll('td, th');
+        if (cells.length === 0) continue;
+
+        const dayName = cells[0].textContent.trim();
+        if (dayName === 'Time' || dayName.includes('Hour/Day Order') || dayName === 'TO') {
+            continue;
         }
 
-        // Extract the first part, excluding the last character if it's a dash
-        let schoolDepartmentStr = str.substring(0, lastOpenParenIndex);
-        if (schoolDepartmentStr.endsWith('-')) { // Checking if the string ends with a '-' character
-            schoolDepartmentStr = schoolDepartmentStr.slice(0, -1); // Remove the trailing '-'
-            profileData.schoolDepartment = schoolDepartmentStr.trim(); // Trim any extra spaces
-        }
+        const dayObj = { 
+            dayName: dayName, 
+            slots: [] 
+        };
+        
+        for (let j = 1; j < cells.length; j++) {
+            const cell = cells[j];
+            const titleEl = cell.querySelector('.editedSlot-originalTitle');
+            const classroomEl = cell.querySelector('.editedSlot-originalClassroom');
+            let slotTitle = '';
+            let slotClassroom = '';
 
-        // Extract the second part and remove the opening and closing bracket
-        let sectionStr = str.substring(lastOpenParenIndex);
-        sectionStr = sectionStr.replace(/[\(\)]/g, ''); // Remove both '(' and ')' globally
-        sectionStr = sectionStr.slice(0, -7); // Remove "section" from the end
-        profileData.section = sectionStr.trim(); // Trim any extra spaces
+            if (titleEl) {
+                slotTitle = titleEl.textContent.trim();
+            } else {
+                slotTitle = cell.textContent.trim();
+            }
+
+            if (classroomEl) {
+                slotClassroom = classroomEl.textContent.trim();
+            }
+
+            dayObj.slots.push({
+                title: slotTitle,
+                classroom: slotClassroom,
+                bgColor: cell.getAttribute('bgcolor') || cell.style.backgroundColor || ''
+            });
+        }
+        data.days.push(dayObj);
     }
-    return profileData;
+    return data;
 }
 
-
 /**
- * Extracts course data (slot to course title/classroom mapping) and student batch from a document.
- * This is primarily for the My_Time_Table_2023_24 page (Course Registration).
- * @param {Document} doc_context The document context to extract from.
- * @returns {object} An object containing courses (slot-to-info map), batch, and registrationNo.
+ * Renders timetable HTML securely and responsively from JSON data.
  */
-function extractCourseDataFromDocument(doc_context) {
-    const courseData = {};
-    let registrationNo = null;
-    let studentBatch = null;
+function renderTableFromJSON(jsonData) {
+    if (!jsonData || !jsonData.headers || !jsonData.days) return '';
+    
+    const table = document.createElement('table');
+    
+    // FIX 1: Removed 'table-layout: fixed' to prevent the strict overflow clipping.
+    // Kept the dark background, borders, and max-width.
+    table.style.cssText = 'width: 100%; max-width: 1200px; margin: 0 auto; border-collapse: separate; border-spacing: 2px; background-color: #000000; font-size: 0.9em;';
 
-    // Find the info table which contains student details like RA and Batch
-    const infoTable = doc_context.querySelector('div.cntdDiv table:not(.course_tbl)');
-    if (infoTable) {
-        // Extract Registration Number
-        const regNoRow = infoTable.querySelector('tbody tr:first-child');
-        if (regNoRow) {
-            const regNoCell = regNoRow.querySelectorAll('td')[1];
-            if (regNoCell) {
-                const regNoMatch = regNoCell.textContent.trim().match(/\d{9,}/);
-                if (regNoMatch) {
-                    registrationNo = regNoMatch[0];
-                }
-            }
+    const caption = document.createElement('caption');
+    caption.className = 't1';
+    caption.textContent = "Your Personalized Timetable by Unfugly";
+    caption.style.cssText = 'display: table-caption; margin-top: 5px; background-color: #2c2c2c; color: #ffffff; padding: 5px; font-weight: normal;';
+    table.appendChild(caption);
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    jsonData.headers.forEach((headerText, index) => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        th.style.padding = '8px 5px'; 
+        th.style.backgroundColor = '#F1948A';
+        th.style.fontWeight = 'normal';
+        th.style.fontSize = "10px";
+        
+        if (index === 0) {
+            // Force the first column to hug the text tightly
+            th.style.width = '1%';
+            th.style.whiteSpace = 'nowrap';
+        } else {
+            // FIX 2: Force all other 12 columns to take exactly the same width (100% / 12 slots ≈ 8.25%)
+            // This guarantees the uniform rectangular look without locking the table rigidly.
+            th.style.width = '8.25%';
+            th.style.whiteSpace = 'normal';
         }
+        
+        headerRow.appendChild(th);
+    });
 
-        // Extract Batch
-        /*const batchRow = infoTable.querySelector('tbody tr:nth-child(2)');
-        if (batchRow) {*/
-        const batchCell = infoTable.querySelector('#zc-viewcontainer_My_Time_Table_2023_24 > div > div.cntdDiv > div > table:nth-child(1) > tbody > tr:nth-child(2) > td:nth-child(2) > strong > font');//batchRow.querySelectorAll('td')[1];
-        if (batchCell) {
-            const batchText = batchCell.textContent.trim();
-            //const batchMatch = batchText.match(/Batch - (\d+)/);
-            if (batchText) {
-                studentBatch = batchText;
-                //console.log("Batch explicitly set to 2 for testing purposes.", studentBatch);
-            }
-        }
-
-    } else {
-        console.warn("extractCourseDataFromDocument: Student info table not found in document context.");
+    if(!jsonData.extraSlotFlag){
+        const thCells = headerRow.querySelectorAll('th');
+        thCells[thCells.length-2].style.display = "none";
+        thCells[thCells.length-1].style.display = "none";
     }
 
-    const tableElement = doc_context.querySelector('table.course_tbl');
-    if (tableElement) {
-        const tableRows = tableElement.querySelectorAll('tbody tr');
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
 
-        const startIndex = 1; // Skip header row
-        for (let i = startIndex; i < tableRows.length; i++) {
-            const row = tableRows[i];
-            if (!row) continue;
-            const cells = row.querySelectorAll('td');
+    const tbody = document.createElement('tbody');
+    let slotId = 1;
+    jsonData.days.forEach(day => {
+        const tr = document.createElement('tr');
+        const thDay = document.createElement('td'); 
+        thDay.innerHTML = `${day.dayName}`;
+        thDay.style.padding = '8px 5px';
+        
+        // Keep the first column rows tight
+        thDay.style.width = '1%';
+        thDay.style.whiteSpace = 'nowrap';
+        thDay.style.backgroundColor = '#F8C471'; 
+        thDay.style.fontSize = '10px';
+        tr.appendChild(thDay);
 
-            if (cells.length > 9) { // Ensure enough cells for slot, title, GCR code
-                const slotCell = cells[8];
-                const courseTitleCell = cells[2];
-                const clsRoomCell = cells[9];
+        day.slots.forEach(slot => {
+            const td = document.createElement('td');
+            if (slot.bgColor) td.style.backgroundColor = slot.bgColor;
+            if (slot.title) td.title = `Slot: ${slot.title}`;
+            td.id = `slot-${slotId++}`;
+            
+            td.style.padding = '8px 5px'; 
+            td.style.overflowWrap = 'anywhere';
+            td.style.wordBreak = 'normal';
+            td.style.whiteSpace = 'normal';
 
-                if (!slotCell || !courseTitleCell || !clsRoomCell) continue;
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = slot.title;
+            titleSpan.style.display = 'block';
 
-                const slot = slotCell.textContent.trim();
-                if (slot.includes('L')) extraSlotFlag = true;
-                const rawTitle = courseTitleCell.textContent.trim();
+            if (slot.title && slot.title !== '') {
+                if (slot.classroom && slot.classroom !== '') {
+                    td.classList.add('replaced-slot');
+                    titleSpan.style.fontWeight = '600';
+                    titleSpan.style.color = '#334';
+                    titleSpan.style.fontSize = '11px';
+                    titleSpan.classList.add('editedSlot-originalTitle');
 
-                let truncatedTitle = ''; // Declare a variable to store the truncated title
+                    const classroomSpan = document.createElement('span');
+                    classroomSpan.textContent = slot.classroom;
+                    classroomSpan.style.fontWeight = 'semi-bold';
+                    classroomSpan.style.color = '#555';
+                    classroomSpan.style.fontSize = '9px';
+                    classroomSpan.style.display = 'block';
+                    classroomSpan.classList.add('editedSlot-originalClassroom');
 
-                if (rawTitle.length > 38) {
-                    truncatedTitle = rawTitle.slice(0, 38) + '...'; // If longer than 38 characters, truncate and add ellipsis
+                    td.appendChild(titleSpan);
+                    td.appendChild(classroomSpan);
                 } else {
-                    truncatedTitle = rawTitle; // Otherwise, use the original title
-                }
-                const courseTitle = truncatedTitle; // Use the truncated title
-
-                const clsRoom = clsRoomCell.textContent.trim();
-
-                if (slot && courseTitle) {
-                    const slots = slot.split('-').filter(s => s !== '');
-                    slots.forEach(s => {
-                        const trimmedSlot = s.trim();
-                        if (trimmedSlot) {
-                            courseData[trimmedSlot] = {
-                                title: courseTitle,
-                                classroom: clsRoom
-                            };
-                        }
-                    });
-                }
-            }
-        }
-    } else {
-        console.warn("extractCourseDataFromDocument: Course table (.course_tbl) not found.");
-    }
-
-    return { courses: courseData, batch: studentBatch, registrationNo: registrationNo };
-}
-
-/**
- * Extracts timetable HTML from the unified timetable page.
- * @param {Document} doc_context The document context (iframe's document) of the unified timetable.
- * @returns {string|null} The outerHTML of the timetable table, or null if not found.
- */
-function extractUnifiedTimetableHTML(doc_context) {
-    const timetableTable = doc_context.querySelector('div > table:nth-child(5)');
-    if (timetableTable) {
-        const captionElement = timetableTable.querySelector('caption.t1');
-        if (!captionElement) {
-            console.warn("addDownloadTimetableButton: Caption element with class 't1' not found.");
-            return;
-        }
-
-        // Apply table-caption to the caption to align its content and the new button
-        captionElement.style.display = 'table-caption'; // Ensure it behaves like a caption
-        //console.log("addDownloadTimetableButton: ", captionElement.style.display);
-        captionElement.textContent = "Your Personalized Timetable by Unfugly";
-        captionElement.style.marginTop = '5px';
-
-        //console.log("extractUnifiedTimetableHTML: Timetable table found in unified timetable page.");
-        return timetableTable.outerHTML;
-    }
-    return null;
-}
-
-
-function extractAttendanceDataFromDocument(doc) {
-    const attendanceData = [];
-    const table = doc.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)');
-
-    if (!table) {
-        console.warn("extractAttendanceDataFromDocument: Attendance table not found.");
-        return attendanceData;
-    }
-
-    const header = table.querySelector('tbody tr:first-child');
-    let marginHeaderAdded = false;
-    const rows = table.querySelectorAll('tbody tr:not(:first-child)');
-
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        let classesToSkip = 0;
-        let classesToAttend = 0;
-        const targetPercentage = 75;
-
-        if (cells.length > 7) {
-            // Only add margin header once
-            if (!marginHeaderAdded && header) {
-                let headcell = document.createElement('th');
-                headcell.innerHTML = '<strong>Margin</strong>';
-                header.append(headcell);
-                marginHeaderAdded = true;
-            }
-            //const courseCodeIndex =/* cells[0].textContent.indexOf('<br>') !== -1 ?*/ cells[0].textContent.split('"')[0] ;//: cells[0].textContent;
-            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeIndex);
-            const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
-            const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
-            //console.log("extractAttendanceDataFromDocument: Fetched raw course code:",courseCodeTrail) ;
-            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeRaw);
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
-            const courseCode = courseCodeMatch;//? courseCodeMatch[1] : courseCodeRaw;
-
-            const courseTitle = cells[1].textContent.trim();
-            const courseType = cells[2].textContent.trim(); // "Theory" or "Practical"
-            const hoursConductedText = cells[6].textContent.trim();
-            const absentHoursText = cells[7].textContent.trim();
-            const percentageText = cells[8].textContent.trim();
-
-            const totalClasses = parseInt(hoursConductedText);
-            const absentClasses = parseInt(absentHoursText);
-            const attendedClasses = totalClasses - absentClasses;
-            const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
-            const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
-
-            const marginCell = document.createElement('td');
-            marginCell.style.textAlign = 'center';
-            marginCell.style.backgroundColor = "#E6E6FA";
-            marginCell.style.fontWeight = 'bold';
-
-            if (!isNaN(totalClasses) && !isNaN(attendedClasses) && totalClasses > 0) {
-                if (currentPercentage >= targetPercentage) {
-                    classesToSkip = Math.floor((attendedClasses / 0.75) - totalClasses);
-                    if (classesToSkip < 0) classesToSkip = 0; // Cannot skip negative classes
-                    marginCell.textContent = `${classesToSkip}`;
-                    marginCell.style.color = "green";
-                    marginCell.title = `Can skip ${classesToSkip} class(es) to maintain >= ${targetPercentage}% attendance.`;
-                } else {
-                    classesToAttend = Math.ceil((0.75 * totalClasses - attendedClasses) / 0.25);
-                    if (classesToAttend < 0) classesToAttend = 0; // Should not happen with current formula, but for safety
-                    marginCell.textContent = `-${classesToAttend}`;
-                    marginCell.title = `Needs to attend ${classesToAttend} class(es) to reach >= ${targetPercentage}% attendance.`;
-                    marginCell.style.color = "red";
+                    const isDarkGrey = slot.bgColor.includes('88') || slot.bgColor.includes('58') || slot.bgColor.toLowerCase().includes('585b5b');
+                    if (isDarkGrey) {
+                        titleSpan.style.fontWeight = '400';
+                        titleSpan.style.color = 'rgb(170,170,170)';
+                        titleSpan.classList.add('editedSlot-originalTitle');
+                        td.appendChild(titleSpan);
+                    } else {
+                        td.classList.add('replaced-slot');
+                        titleSpan.style.fontWeight = '600';
+                        titleSpan.style.color = '#334';
+                        titleSpan.style.fontSize = '11px';
+                        titleSpan.classList.add('editedSlot-originalTitle');
+                        td.appendChild(titleSpan);
+                    }
                 }
             } else {
-                marginCell.textContent = "N/A";
-                marginCell.title = "Could not calculate due to missing or invalid class data.";
+                td.classList.add('empty-slot-mask', 'empty-slot');
             }
 
-            attendanceData.push({
-                courseCode: courseCode,
-                courseTitle: courseTitle,
-                courseType: courseType,
-                hoursConducted: totalClasses,
-                absentHours: absentClasses,
-                attendedClasses: attendedClasses,
-                percentage: currentPercentage,
-                classesToSkip: classesToSkip,
-                classesToAttend: classesToAttend
-            });
+            tr.appendChild(td);
+        });
 
-            // Append margin cell if processing the live page, not for iframe
-            if (doc === document) { // Check if the document is the main window's document
-                row.append(marginCell);
-            }
-        } else if (cells.length === 7) {
-            console.log("extractAttendanceDataFromDocument: Processing 'Attendance locked at sem end' row.");
-            //const courseCodeIndex =/* cells[0].textContent.indexOf('<br>') !== -1 ?*/ cells[0].textContent.split('"')[0] ;//: cells[0].textContent;
-            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeIndex);
-            const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
-            const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
-            //console.log("extractAttendanceDataFromDocument: Fetched raw course code:",courseCodeTrail) ;
-            //console.log("extractAttendanceDataFromDocument: Processing row with course code:", courseCodeRaw);
-            const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');//courseCodeRaw.match(/^([A-Z0-9]+)^/);//(/^([A-Z0-9]+)/)
-            const courseCode = courseCodeMatch;//? courseCodeMatch[1] : courseCodeRaw;
-            const courseTitle = cells[1].textContent.trim();
-            const courseType = cells[2].textContent.trim(); // "Theory" or "Practical"
-            const percentageText = cells[6].textContent.trim();
-            const rawPercentageMatch = percentageText.match(/\d+(\.\d+)?/);
-            const currentPercentage = rawPercentageMatch ? parseFloat(rawPercentageMatch[0]) : 0;
-
-            attendanceData.push({
-                courseCode: courseCode,
-                courseTitle: courseTitle,
-                courseType: courseType,
-                percentage: currentPercentage,
-                totalClasses: 'N/A',
-                attendedClasses: 'N/A',
-                classesToSkip: 0,
-                classesToAttend: 0
-            });
-            // If on live page and it's a locked row, add an N/A margin cell
-            if (doc === document) {
-                const marginCell = document.createElement('td');
-                marginCell.textContent = "Locked";
-                marginCell.style.textAlign = 'center';
-                marginCell.style.backgroundColor = "rgba(128, 128, 128, 0.3)";
-                marginCell.title = "Attendance locked for this course.";
-                row.append(marginCell);
+        if(!jsonData.extraSlotFlag){
+            const cells = tr.querySelectorAll('td');
+            if (cells.length >= 2) {
+                cells[cells.length-2].style.display = "none";
+                cells[cells.length-1].style.display = "none";
             }
         }
-    });
 
-    return attendanceData;
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    
+    return table.outerHTML;
 }
 
-function extractMarksDataFromDocument(doc) {
-    const marksData = [];
-    const table = doc.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(7)');
-    const courseTable = doc.querySelector('#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)');
-    if (!table) {
-        console.warn("extractMarksDataFromDocument: Marks table not found.");
-        return marksData;
-    }
 
-    const rows = table.querySelectorAll('tbody tr:not(:first-child)');
-    const courseRows = courseTable.querySelectorAll('tbody tr:not(:first-child)');
-    const courseMap = {};
-    courseRows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        const cellText = cells[0].textContent.trim();
-        const courseCodeRaw = cells[0].textContent.trim();//.indexOf('\n');
-        const courseCodeTrail = cells[0].querySelector('font').textContent.trim();
-        const courseCodeMatch = courseCodeRaw.replace(courseCodeTrail, '');
-        const courseCode = courseCodeMatch;
-        //const courseCodeMatch = cellText.match(/^([A-Z0-9]+)/);
-        //const courseCode = courseCodeMatch ? courseCodeMatch[1] : cellText;
-        let courseTitle = cells[1].textContent.trim();
-        courseTitle = courseTitle.slice(0, 47) + (courseTitle.length > 47 ? '...' : ''); // Truncate if too long
-        courseMap[courseCode] = { courseTitle: courseTitle };
-        //console.log("extractMarksDataFromDocument: Mapped course code to title:", courseCode, courseTitle);
-    });
 
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 3) {
-            const courseCode = cells[0].textContent.trim();
-            const courseTitle = courseMap[courseCode]?.courseTitle;
-            cells[0].textContent = courseCode in courseMap ? `${courseCode} -${courseTitle}` : courseCode;
-            const courseType = cells[1].textContent.trim();
-            const componentMarksCell = cells[2];
-            const components = [];
-            let totalMaxMarks = 0;
-            let totalObtainedMarks = 0;
-            const innerMarksTableRows = componentMarksCell.querySelectorAll('table tbody tr');
 
-            componentMarksCell.querySelector('table').style.cssText = `width:100%`;
-            const totalRow = document.createElement('tr');
-            totalRow.style.backgroundColor = '#E6E6FA';
-            const totalPerSub = componentMarksCell.querySelector('table > tbody')
-            totalPerSub.appendChild(totalRow);
-
-            if (innerMarksTableRows.length > 0) {
-                const componentCells = innerMarksTableRows[0].querySelectorAll('td');
-                componentCells.forEach(compCell => {
-                    const strongTag = compCell.querySelector('strong');
-                    const fontTag = compCell.querySelector('font > br');
-
-                    if (strongTag && fontTag) {
-                        const compInfo = strongTag.textContent.trim();
-                        const obtainedVal = fontTag.nextSibling ? fontTag.nextSibling.textContent.trim() : ''; // Safely access nextSibling
-                        const infoMatch = compInfo.match(/(.+)\/([\d.]+)/);
-
-                        if (infoMatch) {
-                            const componentName = infoMatch[1];
-                            const maxM = parseFloat(infoMatch[2]);
-
-                            const isAbsent = obtainedVal.toLowerCase() === 'abs';
-                            const obtainedM = isAbsent ? 0 : parseFloat(obtainedVal);
-
-                            components.push({
-                                ComponentName: componentName,
-                                MaxMarks: maxM,
-                                ObtainedMarks: isAbsent ? 'Absent' : obtainedM
-                            });
-
-                            totalMaxMarks += maxM;
-                            totalObtainedMarks += obtainedM;
-                        }
-                    }
-                });
-                totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=green>${totalObtainedMarks.toFixed(2)}</font> /${totalMaxMarks.toFixed(2)}</strong></td>`
-                if (totalObtainedMarks / totalMaxMarks < 0.5) {
-                    totalRow.innerHTML = `<td colspan="10"><strong>Total:<font color=red>${totalObtainedMarks.toFixed(2)}</font> / ${totalMaxMarks.toFixed(2)}</strong></td>`
-                };
-            }
-
-            marksData.push({
-                CourseCode: courseCode,
-                CourseTitle: courseMap[courseCode] ? courseMap[courseCode].courseTitle : 'Unknown Course',
-                CourseType: courseType,
-                Components: components,
-                TotalMaxMarks: parseFloat(totalMaxMarks.toFixed(2)),
-                TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
-            });
-        }
-    }
-    return marksData;
-}
 
 //Fallback function to display total marks
+/**
+ * Wraps faculty name cells in the live table with hyperlinks.
+ * @param {HTMLElement} tableEl The table element to process.
+ * @param {number} facultyColIndex The column index (0-based) of the faculty name cell.
+ */
+function injectFacultyLinksInTable(tableEl, facultyColIndex) {
+    if (!tableEl) return;
+    const rows = tableEl.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        // Skip header rows (rows that contain <th> elements)
+        if (row.querySelector('th')) return;
+        const cells = row.querySelectorAll('td');
+        if (cells.length > facultyColIndex) {
+            const cell = cells[facultyColIndex];
+            const facultyName = cell.textContent.trim();
+            // Skip if it's a header label, empty, or already linked
+            if (!facultyName || cell.querySelector('a')) return;
+            if (facultyName.toLowerCase().includes('faculty')) return; // skip header cells
+            const url = convertFacultyNameToUrl(facultyName);
+            if (url) {
+                cell.innerHTML = `<a href="${url}" target="_blank" style="color:#64b5f6;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${facultyName}</a>`;
+            }
+        }
+    });
+}
+
 async function inlineMarksTotal() {
     try {
 
@@ -806,6 +641,66 @@ async function inlineMarksTotal() {
                     TotalObtainedMarks: parseFloat(totalObtainedMarks.toFixed(2))
                 });*/
             }
+        }
+        // Inject faculty hyperlinks into attendance table rows using cached courseData
+        try {
+            const netId = (await chrome.storage.local.get('unfuglyCurrentNetId'))?.unfuglyCurrentNetId
+                || document.querySelector('[data-netid]')?.dataset?.netid
+                || '';
+            // Try to find any cached unfuglyData_* key by scanning for the attendance data
+            const allStorage = await chrome.storage.local.get(null);
+            let cachedCourseData = null;
+            for (const [key, val] of Object.entries(allStorage)) {
+                if (key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar' && val?.courseData) {
+                    cachedCourseData = val.courseData;
+                    break;
+                }
+            }
+            if (cachedCourseData) {
+                // Build courseCode → faculty map
+                const codeToFaculty = {};
+                Object.values(cachedCourseData).forEach(cd => {
+                    const cc = (cd['Course Code'] || '').trim();
+                    const fn = (cd['Faculty Name'] || '').trim();
+                    if (cc && fn) codeToFaculty[cc] = fn;
+                });
+
+                // Add a Faculty header to the attendance table if not already present
+                const attHeader = courseTable.querySelector('tbody tr:first-child');
+                if (attHeader && !attHeader.querySelector('.unfugly-faculty-header')) {
+                    const th = document.createElement('th');
+                    th.textContent = 'Faculty';
+                    th.className = 'unfugly-faculty-header';
+                    th.style.cssText = 'background:#E6E6FA;font-weight:bold;padding:4px 8px;';
+                    attHeader.appendChild(th);
+                }
+
+                const attRows = courseTable.querySelectorAll('tbody tr:not(:first-child)');
+                attRows.forEach(row => {
+                    if (row.querySelector('.unfugly-faculty-cell')) return;
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length === 0) return;
+                    // Get courseCode from first cell
+                    const fontEl = cells[0].querySelector('font');
+                    const raw = cells[0].textContent.trim();
+                    const trail = fontEl ? fontEl.textContent.trim() : '';
+                    const courseCode = raw.replace(trail, '').trim();
+                    const facultyName = codeToFaculty[courseCode] || '';
+                    const td = document.createElement('td');
+                    td.className = 'unfugly-faculty-cell';
+                    td.style.cssText = 'text-align:center;padding:4px 8px;';
+                    if (facultyName) {
+                        const url = convertFacultyNameToUrl(facultyName);
+                        td.innerHTML = `<a href="${url}" target="_blank" style="color:#64b5f6;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${facultyName}</a>`;
+                    } else {
+                        td.textContent = '—';
+                        td.style.color = '#888';
+                    }
+                    row.appendChild(td);
+                });
+            }
+        } catch(e) {
+            console.warn('inlineMarksTotal: Faculty injection failed:', e);
         }
     } catch (error) {
         console.error("inlineMarksTotal: Error processing attendance/marks page:", error);
@@ -942,6 +837,8 @@ async function marksTotalReport() {
                 });*/
             }
         }
+        // Inject faculty hyperlinks into the course table (col index 7 = faculty)
+        injectFacultyLinksInTable(courseTable, 7);
     } catch (error) {
         console.error("marksTotalReport: Error processing attendance/marks page:", error);
         displayInfoMessage("An error occurred while enhancing attendance/marks.", 5000, 'error');
@@ -964,18 +861,8 @@ async function checkAndSyncCalendar() {
         }
     }
 
-    // Fallback or Update: Fetch both semester URLs
-    const urls = [
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_ODD",
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2025_26_EVEN",
-        "https://academia.srmist.edu.in/#Page:Academic_Planner_2026_27_ODD"
-    ];
-
-    for (const url of urls) {
-        const { iframeDoc, iframe } = await createHiddenIframe(url, ['div.zc-pb-tile-container table']);
-        await handleAcademicPlannerPage(iframeDoc); // Pass the iframe doc to your scraper
-        iframe.remove();
-    }
+    // Use native API interception to fetch and sync all calendars instantly
+    await syncAllCalendars();
 }
 
 //Main Handlers
@@ -1077,7 +964,7 @@ async function handleWelcomePage() {
                 previousAttendanceData = JSON.parse(JSON.stringify(cachedData.attendanceData)); // Deep copy
             }
 
-            if (cachedData.profileData && cachedData.replacedTimetableHTML && cachedData.attendanceData && cachedData.marksData) {
+            if (cachedData.profileData && cachedData.timetableJSON && cachedData.attendanceData && cachedData.marksData) {
                 //console.log("handleWelcomePage: Complete cached data found. Displaying immediately.");
                 renderProfilePanel(cachedData.profileData, appWrapper, dayOrderInfo);
                 renderAccordionPanels(cachedData, previousAttendanceData, appWrapper, currentNetId);
@@ -1088,12 +975,64 @@ async function handleWelcomePage() {
                 backgroundFetchAllData(currentNetId, titleElement, previousAttendanceData, appWrapper, dayOrderInfo);
                 //loadingAnimetion.style.display = 'none';
             } else {
-                console.log("handleWelcomePage: No complete cached data found or new user. Initiating background fetch.");
+                console.log("handleWelcomePage: No complete cached data found locally. Attempting to fetch from DB first...");
                 if (titleElement) {
-                    titleElement.textContent = "Unfugly: Fetching new data...";
+                    titleElement.textContent = "Unfugly: Fetching data from Database...";
                 }
-                backgroundFetchAllData(currentNetId, titleElement, [], appWrapper, dayOrderInfo); // No previous data for new user/incomplete cache
-                //console.log("dayorderInfo passed to backgorundfetchalldata:", dayOrderInfo);
+
+                let fetchedFromDb = false;
+                try {
+                    const BACKEND = 'https://unfugly-backend.onrender.com';
+                    const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+                    if (dbRes.ok) {
+                        const dbData = await dbRes.json();
+                        if (dbData.profileData && dbData.timetableJSON && dbData.attendanceData && dbData.marksData) {
+                            console.log("handleWelcomePage: Fetched initial data from DB. Displaying...");
+                            
+                            const constructedCache = {
+                                profileData: dbData.profileData,
+                                timetableJSON: dbData.timetableJSON,
+                                attendanceData: dbData.attendanceData,
+                                marksData: dbData.marksData,
+                                editedSlots: dbData.editedSlots || {},
+                                courseData: dbData.courseData || dbData.courseSlotMap || {}
+                            };
+
+                            await chrome.storage.local.set({ [storageKey]: constructedCache });
+                            
+                            try {
+                                const calRes = await fetch(`${BACKEND}/calendar`);
+                                if (calRes.ok) {
+                                    const calData = await calRes.json();
+                                    await chrome.storage.local.set({
+                                        unfuglyData_calendar: {
+                                            data: calData.calendar_json,
+                                            lastUpdated: calData.updated_at
+                                        }
+                                    });
+                                }
+                            } catch(e) { console.warn("Failed fetching universal calendar on init", e); }
+
+                            renderProfilePanel(constructedCache.profileData, appWrapper, dayOrderInfo);
+                            renderAccordionPanels(constructedCache, previousAttendanceData, appWrapper, currentNetId);
+                            if (titleElement) {
+                                titleElement.textContent = "Unfugly: Data loaded from cloud!";
+                            }
+                            fetchedFromDb = true;
+                        }
+                    }
+                } catch (dbErr) {
+                    console.log("handleWelcomePage: DB fetch failed or empty.", dbErr.message);
+                }
+
+                if (!fetchedFromDb) {
+                    console.log("handleWelcomePage: No complete data found in cloud. Initiating background fetch.");
+                    if (titleElement) {
+                        titleElement.textContent = "Unfugly: Fetching new data...";
+                    }
+                }
+
+                backgroundFetchAllData(currentNetId, titleElement, previousAttendanceData, appWrapper, dayOrderInfo); 
                 loaded = document.getElementsByClassName('unfugly-panel profile-panel');
 
             }
@@ -1150,22 +1089,23 @@ async function tryToProcessTimetablePage() {
 
     try {
         await waitForElement(document, 'table.course_tbl'); // Wait for the specific course table
-        const { courses, registrationNo, batch } = extractCourseDataFromDocument(document);
+        const { courses, batch } = extractCourseDataFromDocument(document);
+        const netId = getNetId();
 
-        // Save extracted data for persistence (though background fetch is now primary)
-        if (registrationNo && courses) {
-            const netId = getNetId() || registrationNo; // Use Net ID if available, else Reg No
-            const dataToSave = {
-                registrationNo,
-                batch,
-                courses
-            };
-            chrome.storage.local.set({ [`unfuglyCourseData_${netId}`]: dataToSave }, () => {
-                if (chrome.runtime.lastError) {
-                    console.error("handleTimetablePage: Error saving timetable data:", chrome.runtime.lastError);
-                } else {
-                    console.log(`handleTimetablePage: Course data for ${netId} saved to local storage.`);
-                }
+        // Save extracted data to the main unfuglyData storage key
+        if (netId && courses) {
+            const storageKey = `unfuglyData_${netId}`;
+            chrome.storage.local.get(storageKey, (result) => {
+                const existingData = result[storageKey] || {};
+                existingData.courseData = courses;
+                existingData.lastUpdated = new Date().toISOString();
+                chrome.storage.local.set({ [storageKey]: existingData }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error("handleTimetablePage: Error saving timetable data to unfuglyData:", chrome.runtime.lastError);
+                    } else {
+                        console.log(`handleTimetablePage: Course data for ${netId} saved to unfuglyData storage.`);
+                    }
+                });
             });
         }
 
@@ -1195,8 +1135,22 @@ async function handleAttendancePage() {
     try {
         await waitForElement(document, '#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)');
 
+        let previousAttendanceData = [];
+        try {
+            const currentNetId = getNetId();
+            if (currentNetId) {
+                const storageKey = `unfuglyData_${currentNetId}`;
+                const data = await chrome.storage.local.get(storageKey);
+                if (data && data[storageKey] && data[storageKey].attendanceData) {
+                    previousAttendanceData = data[storageKey].attendanceData;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not retrieve previous attendance data for lock row preservation:", e);
+        }
+
         // This will modify the live DOM to add margin column
-        const attendanceData = extractAttendanceDataFromDocument(document);
+        const attendanceData = extractAttendanceDataFromDocument(document, previousAttendanceData);
 
         if (attendanceData && attendanceData.length > 0) {
             displayInfoMessage("Attendance data enhanced!", 3000, 'success');
@@ -1662,156 +1616,466 @@ async function handleFeedbackPage() {
 
 
 /*Handles academic planner page*/
-function handleAcademicPlannerPage(doc = document) {
-    //document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table');
-    waitForElement(doc, 'div.zc-pb-tile-container table').then(() => {
-        //const tableBody = doc.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table >tbody');
-        //tableBody.style.display ='none';
-        const rows = doc.querySelectorAll('div.zc-pb-tile-container table tbody tr');//tableBody.querySelectorAll('tr');
-        //console.log(rows);
+async function handleAcademicPlannerPage() {
+    console.log("handleAcademicPlannerPage: Injecting calendar UI.");
+    
+    const hash = window.location.hash;
+    const pageMatch = hash.match(/Page:([A-Za-z0-9_]+)/);
+    const pageName = pageMatch ? pageMatch[1] : "";
+    console.log("Pagename", pageName);
+    if (!pageName) return;
 
-        // 1. Scrape the current page into a local object
-        const currentUrlCalendar = {};
-        const monthHeaderMap = {};
+    // Fire off storage fetch immediately, in parallel with everything else
+    const calendarDataPromise = chrome.storage.local.get('unfuglyData_calendar');
 
-        rows.forEach((row, index) => {
-            if (index === 0) {
-                const headers = row.querySelectorAll('th');
-                headers.forEach((th, thIndex) => {
-                    if (thIndex % 5 === 2) {
-                        const monthName = th.textContent.trim();
-                        currentUrlCalendar[monthName] = {};
-                        monthHeaderMap[thIndex - 2] = monthName;
-                    }
-                });
-            } else {
-                const cols = row.querySelectorAll('td');
-                for (let i = 0; i < cols.length; i += 5) {
-                    const dateValue = cols[i]?.textContent.trim();
-                    if (dateValue) {
-                        const monthName = monthHeaderMap[i];
-                        currentUrlCalendar[monthName][dateValue] = {
-                            day: cols[i + 1].textContent.trim(),
-                            dayOrder: cols[i + 3].textContent.trim(),
-                            event: cols[i + 2].textContent.trim()
-                        };
-                    }
-                }
+    // Wait for the preloader to hide — this is Zoho's signal that the SPA is ready
+    await new Promise(resolve => {
+        const preloader = document.getElementById('preloader');
+        if (!preloader || preloader.style.display === 'none') {
+            resolve(); // Already hidden or doesn't exist
+            return;
+        }
+        const obs = new MutationObserver(() => {
+            if (preloader.style.display === 'none') {
+                obs.disconnect();
+                resolve();
             }
         });
+        obs.observe(preloader, { attributes: true, attributeFilter: ['style'] });
+        setTimeout(() => { obs.disconnect(); resolve(); }, 8000); // 8s max fallback
+    });
 
-        // 2. Fetch existing calendar, merge, and save
-        chrome.storage.local.get('unfuglyData_calendar', (result) => {
-            const oldCalendarWrap = result.unfuglyData_calendar || { data: {}, lastUpdated: null };
+    // Find the Zoho content div. It looks like "Academic_Planner_2025_26_ODD_ZC_XXXXXX"
+    // Use pageName + "_" to avoid matching unrelated elements (tabs, wrappers, etc.)
+    const container =
+        document.querySelector(`[id^="${pageName}_"]`) ||
+        document.querySelector('div[role="main"]');
 
-            // Create the IST timestamp
-            const istTime = new Date().toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                dateStyle: "medium",
-                timeStyle: "short"
-            });
+    if (!container) {
+        console.error("handleAcademicPlannerPage: No container found after preloader hid.");
+        return;
+    }
 
-            // Merge new months into the 'data' property
-            const updatedCalendarWrap = {
-                data: {
-                    ...oldCalendarWrap.data,
-                    ...currentUrlCalendar // The scraped logic from our previous turn
-                },
-                lastUpdated: istTime
-            };
+    // Core injection logic
+    const doInject = async (reason) => {
+        if (container.querySelector('#unfugly-calendar-main')) return;
+        console.log(`handleAcademicPlannerPage: Injecting (${reason}).`);
 
-            chrome.storage.local.set({ 'unfuglyData_calendar': updatedCalendarWrap }, () => {
-                console.log(`Calendar Updated at ${istTime}`);
-            });
-        });
-
-        /*const calendar = document.createElement('div'); //(`<div id="unfugly-academic-planner-calendar" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">test</div>`);
-        calendar.style.cssText = `
-            margin-top: 20px;
-            box-sizing: border-box;
-            background-color: #333;
+        // Style the container immediately to suppress any Zoho flash
+        container.style.cssText = `
+            display: flex; flex-direction: row; width: 100%;
+            height: calc(100vh - 50px); background-color: #121212;
+            color: #ffffff; font-family: 'Inter', 'Segoe UI', sans-serif;
+            box-sizing: border-box; overflow: hidden;
         `;
-        calendar.id = 'unfugly-academic-planner-calendar';
-        //calendar.innerHTML = 'test';
-        rows.forEach((row, index) => {
-            if(index === 0){
-                const cols =row.querySelectorAll('th');
-                var x =1;
-                for(let i=0;i<cols.length;i+=5){
-                    const monthName = cols[i+2].textContent;
-                    //console.log("Month Name:",monthName);
-                    const monthHeader = document.createElement('div');
-                    monthHeader.id = `month_${x++}`;
-                    monthHeader.innerHTML = `<div style="background-color:#444; padding:5px; border-radius:5px; grid-column: span 7;">${monthName}</div>`;
-                    monthHeader.style.cssText = `
-                        display: grid;
-                        grid-template-columns: repeat(7, 1fr);
-                        gap: 5px;
-                        text-align: center;
-                        font-size: 1.1em;
-                        font-weight: bold;
-                        color: #fff;
-                        margin: 10px;
-                        border: 1px solid #555;
-                    `;
 
-                    const weekHeader = document.createElement('div');
-                    weekHeader.style.cssText = `
-                        grid-column: span 7;
-                        text-align: center;
-                        font-size: 1em;
-                        font-weight: bold;
-                        color: #fff;
-                        margin-bottom: 10px;
-                    `;
-                    weekHeader.innerHTML = `<div style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 5px;">
-                        <div>Mon</div>
-                        <div>Tue</div>
-                        <div>Wed</div>
-                        <div>Thu</div>
-                        <div>Fri</div>
-                        <div>Sat</div>
-                        <div>Sun</div>
-                    </div>`;
-                    calendar.appendChild(monthHeader);
-                    monthHeader.appendChild(weekHeader);
-                }
-            } else {
-                const cols = row.querySelectorAll('td');
-                for(let i=0;i<cols.length;i+=5){
-                    const date = cols[i].textContent;
-                    const day = cols[i+1].textContent;
-                    const event = cols[i+2].textContent;
-                    const dayOrder = cols[i+3].textContent;
+        // Await the already-in-flight storage fetch
+        const result = await calendarDataPromise;
+        let calendarData = result.unfuglyData_calendar?.data || {};
 
-                    if(date.trim() === '') continue;
+        if (Object.keys(calendarData).length === 0) {
+            container.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;
+                    justify-content:center;width:100%;gap:16px;color:#aaa;font-family:'Inter',sans-serif;">
+                    <div style="width:40px;height:40px;border:3px solid #333;
+                        border-top-color:#1E88E5;border-radius:50%;
+                        animation:unfugly-spin 0.8s linear infinite;"></div>
+                    <p style="margin:0;font-size:14px;">Syncing calendar data for the first time…</p>
+                    <style>@keyframes unfugly-spin{to{transform:rotate(360deg)}}</style>
+                </div>
+            `;
+            if (typeof syncAllCalendars === 'function') {
+                await syncAllCalendars();
+                const r2 = await chrome.storage.local.get('unfuglyData_calendar');
+                calendarData = r2.unfuglyData_calendar?.data || {};
+            }
+            if (Object.keys(calendarData).length === 0) {
+                container.innerHTML = '<div style="padding:20px;color:#aaa;"><h2>Failed to load calendar data. Please refresh.</h2></div>';
+                return;
+            }
+        }
 
-                    const monthDiv = calendar.querySelector(`#month_${(i/5)+1}`);
-                    const eventDiv = document.createElement('div');
-                    eventDiv.innerHTML = `<div style = "display:flex; flex-direction: row; justify-content: space-between;"><strong style="color:#00ff00;">${date}</strong>
-                        <div style="font-size:0.8em; color:#ffcc00; align: right;">${dayOrder}</div>
-                        </div>
-                        <br/>
-                        <div style="font-size:0.9em; max-height:50px; overflow: hidden;">${event}</div>
-                        <br/>
-                        
-                    `;
-                    eventDiv.style.padding = "5px";
-                    eventDiv.style.border = "1px solid #444";
-                    eventDiv.style.borderRadius = "5px";
+        container.innerHTML = '';
+        renderCalendarUI(container, calendarData, pageName);
 
-                    if(date == 1 ){
-                    eventDiv.style.gridColumnStart = ((day === 'Mon') ? 1 : (day === 'Tue') ? 2 : (day === 'Wed') ? 3 : (day === 'Thu') ? 4 : (day === 'Fri') ? 5 : (day === 'Sat') ? 6 : 7);                        
-                    }
-
-                    monthDiv.appendChild(eventDiv);
-
-                    console.log(`Date: ${date}, Day: ${day}, Event: ${event}, Day Order: ${dayOrder}`);
-                }
+        // Guard: if Zoho overwrites our UI after injection, re-inject immediately (once)
+        const guard = new MutationObserver(() => {
+            if (!container.querySelector('#unfugly-calendar-main')) {
+                console.log("handleAcademicPlannerPage: Guard triggered — re-injecting.");
+                guard.disconnect();
+                container.innerHTML = '';
+                renderCalendarUI(container, calendarData, pageName);
             }
         });
-        document.querySelector('div > div.zc-pb-tile-container > div > div > div > div > table').after(calendar);*/
-    })
+        guard.observe(container, { childList: true });
+        setTimeout(() => guard.disconnect(), 15000); // Stop guarding after 15s
+    };
+
+    // Zoho injects its content after the preloader. At this point:
+    // - If children already exist: inject now (Zoho already rendered)
+    // - If empty: observe for Zoho's injection and react immediately
+    if (container.children.length > 0) {
+        doInject('container already has children');
+    } else {
+        const waitForContent = new MutationObserver((mutations, obs) => {
+            if (mutations.some(m => m.addedNodes.length > 0)) {
+                obs.disconnect();
+                doInject('Zoho content detected');
+            }
+        });
+        waitForContent.observe(container, { childList: true });
+        // Safety fallback: inject anyway after 4s even if Zoho never fires
+        setTimeout(() => {
+            waitForContent.disconnect();
+            if (!container.querySelector('#unfugly-calendar-main')) {
+                doInject('timeout fallback');
+            }
+        }, 4000);
+    }
+}
+
+function renderCalendarUI(container, calendarData, pageName) {
+
+
+    // Sort months chronologically by temporarily replacing the apostrophe year format (e.g. Jul '25 -> Jul 2025)
+    let months = Object.keys(calendarData).sort((a, b) => {
+        const parseMonth = (str) => new Date(str.replace("'", "20"));
+        return parseMonth(a) - parseMonth(b);
+    });
+
+    // Filter months based on the current planner page name (e.g. Academic_Planner_2025_26_EVEN)
+    if (pageName) {
+        const pageMatch = pageName.match(/Academic_Planner_(\d{4})_(\d{2})_(ODD|EVEN)/i);
+        if (pageMatch) {
+            const startYearStr = pageMatch[1]; // "2025" or "2026"
+            const endYearTwoDigit = pageMatch[2]; // "26" or "27"
+            const startYearTwoDigit = startYearStr.slice(-2); // "25" or "26"
+            const isEven = pageMatch[3].toUpperCase() === 'EVEN';
+            
+            months = months.filter(m => {
+                const parts = m.split(" '");
+                if (parts.length === 2) {
+                    const mName = parts[0].toLowerCase(); // e.g. "jul" or "july"
+                    const mYear = parts[1]; // e.g. "25" or "26"
+                    
+                    if (isEven) {
+                        // EVEN semester: Jan to Jun of the end year (e.g. Jan '26 to Jun '26)
+                        const evenMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'];
+                        return mYear === endYearTwoDigit && evenMonths.some(em => mName.startsWith(em));
+                    } else {
+                        // ODD semester: Jul to Dec of the start year (e.g. Jul '25 to Dec '25)
+                        const oddMonths = ['jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                        return mYear === startYearTwoDigit && oddMonths.some(em => mName.startsWith(em));
+                    }
+                }
+                return true;
+            });
+        }
+    }
+
+    if (months.length === 0) {
+        container.innerHTML = '<div style="padding: 20px;"><h2>Failed to load calendar data. Data is still syncing or unavailable.</h2></div>';
+        return;
+    }
+
+    // Default to the first month or current month
+    const currentDate = new Date();
+    const currentMonthShort = currentDate.toLocaleString('default', { month: 'short' }).toLowerCase();
+    const currentYearTwoDigit = currentDate.getFullYear().toString().slice(-2);
+    
+    // Try to find current month, fallback to first
+    let selectedMonth = months.find(m => m.toLowerCase().includes(currentMonthShort) && m.includes(currentYearTwoDigit)) || months[0];
+
+    // Build minimap container
+    const minimap = document.createElement('div');
+    minimap.id = 'unfugly-calendar-minimap';
+    minimap.style.cssText = `
+        width: 250px;
+        min-width: 250px;
+        height: 100%;
+        background-color: #1e1e1e;
+        border-right: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        transition: transform 0.3s ease;
+        z-index: 10;
+    `;
+
+    // Build main view container
+    const mainView = document.createElement('div');
+    mainView.id = 'unfugly-calendar-main';
+    mainView.style.cssText = `
+        flex-grow: 1;
+        height: 100%;
+        background-color: #121212;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+
+    container.appendChild(minimap);
+    container.appendChild(mainView);
+
+    // Responsive toggle for mobile
+    const toggleBtn = document.createElement('button');
+    toggleBtn.innerHTML = '☰ Months';
+    toggleBtn.style.cssText = `
+        display: none;
+        background: #1E88E5;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        font-weight: bold;
+    `;
+    mainView.appendChild(toggleBtn);
+    
+    // Add toggle logic
+    let minimapOpen = false;
+    toggleBtn.addEventListener('click', () => {
+        minimapOpen = !minimapOpen;
+        minimap.style.display = minimapOpen ? 'flex' : 'none';
+        minimap.style.position = minimapOpen ? 'absolute' : 'static';
+        if(minimapOpen) minimap.style.boxShadow = "2px 0 10px rgba(0,0,0,0.5)";
+    });
+
+    const checkResponsive = () => {
+        if (window.innerWidth < 768) {
+            minimap.style.display = 'none';
+            toggleBtn.style.display = 'block';
+            minimapOpen = false;
+        } else {
+            minimap.style.display = 'flex';
+            minimap.style.position = 'static';
+            minimap.style.boxShadow = 'none';
+            toggleBtn.style.display = 'none';
+        }
+    };
+    window.addEventListener('resize', checkResponsive);
+    checkResponsive();
+
+    // Render Minimap List
+    const minimapTitle = document.createElement('h3');
+    minimapTitle.textContent = 'Months';
+    minimapTitle.style.cssText = `
+        padding: 20px;
+        margin: 0;
+        color: #fff;
+        border-bottom: 1px solid #333;
+        font-weight: 600;
+    `;
+    minimap.appendChild(minimapTitle);
+
+    const monthList = document.createElement('div');
+    monthList.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        gap: 5px;
+    `;
+    minimap.appendChild(monthList);
+
+    const renderMainView = (month) => {
+        // Clear main view except toggle button
+        Array.from(mainView.children).forEach(child => {
+            if (child !== toggleBtn) mainView.removeChild(child);
+        });
+
+        // Scroll main view back to the top when switching months
+        mainView.scrollTop = 0;
+
+        const monthData = calendarData[month];
+        
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        `;
+        
+        const title = document.createElement('h1');
+        title.textContent = month;
+        title.style.margin = '0';
+        title.style.color = '#1E88E5';
+        header.appendChild(title);
+        mainView.appendChild(header);
+
+        // Day of week headers
+        const grid = document.createElement('div');
+        grid.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            width: 100%;
+            flex-grow: 1;
+        `;
+        
+        const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        daysOfWeek.forEach(d => {
+            const dayHeader = document.createElement('div');
+            dayHeader.textContent = d;
+            dayHeader.style.cssText = `
+                text-align: center;
+                font-weight: bold;
+                padding: 10px;
+                background-color: #1e1e1e;
+                border-radius: 8px;
+                color: #aaa;
+            `;
+            grid.appendChild(dayHeader);
+        });
+
+        // Determine starting day padding based on date '1'
+        let startDayIndex = 0;
+        if (monthData['1'] && monthData['1'].day) {
+            startDayIndex = daysOfWeek.indexOf(monthData['1'].day);
+            if (startDayIndex === -1) startDayIndex = 0;
+        }
+
+        for(let i = 0; i < startDayIndex; i++) {
+            const emptySlot = document.createElement('div');
+            emptySlot.style.cssText = `
+                background-color: transparent;
+                border-radius: 8px;
+            `;
+            grid.appendChild(emptySlot);
+        }
+
+        for (let i = 1; i <= 31; i++) {
+            const dateStr = i.toString();
+            if (monthData[dateStr]) {
+                const dayInfo = monthData[dateStr];
+                const dayCard = document.createElement('div');
+                
+                const isHoliday = dayInfo.dayOrder === '-' || dayInfo.dayOrder.toLowerCase() === 'holiday' || dayInfo.event.toLowerCase().includes('holiday');
+                const borderColor = isHoliday ? '#d32f2f' : '#333';
+                const bg = isHoliday ? 'rgba(211, 47, 47, 0.1)' : '#2a2a2a';
+                
+                dayCard.style.cssText = `
+                    background-color: ${bg};
+                    border: 1px solid ${borderColor};
+                    border-radius: 8px;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 100px;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                `;
+                dayCard.onmouseover = () => {
+                    dayCard.style.transform = 'translateY(-2px)';
+                    dayCard.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+                };
+                dayCard.onmouseout = () => {
+                    dayCard.style.transform = 'none';
+                    dayCard.style.boxShadow = 'none';
+                };
+
+                // Top row: Date and Day Order
+                const topRow = document.createElement('div');
+                topRow.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 8px;
+                `;
+                
+                const dateNum = document.createElement('span');
+                dateNum.textContent = dateStr;
+                dateNum.style.cssText = `
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    color: ${isHoliday ? '#ef5350' : '#fff'};
+                `;
+                
+                const doBadge = document.createElement('span');
+                doBadge.textContent = dayInfo.dayOrder;
+                doBadge.style.cssText = `
+                    background-color: ${isHoliday ? '#d32f2f' : '#1E88E5'};
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    font-size: 0.8em;
+                    font-weight: bold;
+                `;
+                
+                topRow.appendChild(dateNum);
+                topRow.appendChild(doBadge);
+                dayCard.appendChild(topRow);
+
+                // Event text
+                const eventText = document.createElement('div');
+                eventText.textContent = dayInfo.event !== '-' ? dayInfo.event : '';
+                eventText.style.cssText = `
+                    font-size: 0.85em;
+                    color: #bbb;
+                    flex-grow: 1;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                `;
+                dayCard.appendChild(eventText);
+
+                grid.appendChild(dayCard);
+            }
+        }
+        
+        mainView.appendChild(grid);
+    };
+
+    const updateActiveMonth = (selected) => {
+        Array.from(monthList.children).forEach(btn => {
+            if (btn.dataset.month === selected) {
+                btn.style.backgroundColor = '#1E88E5';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.backgroundColor = 'transparent';
+                btn.style.color = '#ccc';
+            }
+        });
+    };
+
+    months.forEach(month => {
+        const monthBtn = document.createElement('button');
+        monthBtn.textContent = month;
+        monthBtn.dataset.month = month;
+        monthBtn.style.cssText = `
+            width: 100%;
+            text-align: left;
+            padding: 12px 15px;
+            background: transparent;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: all 0.2s;
+        `;
+        monthBtn.onmouseover = () => {
+            if(selectedMonth !== month) monthBtn.style.backgroundColor = '#2a2a2a';
+        };
+        monthBtn.onmouseout = () => {
+            if(selectedMonth !== month) monthBtn.style.backgroundColor = 'transparent';
+        };
+        
+        monthBtn.addEventListener('click', () => {
+            selectedMonth = month;
+            updateActiveMonth(month);
+            renderMainView(month);
+            if(window.innerWidth < 768 && minimapOpen) {
+                toggleBtn.click(); // auto close on mobile
+            }
+        });
+        
+        monthList.appendChild(monthBtn);
+    });
+
+    updateActiveMonth(selectedMonth);
+    renderMainView(selectedMonth);
 }
 
 
@@ -1920,9 +2184,15 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container, ne
 
     // Inject timetable HTML
     const timetableContentContainer = timetablePanel.querySelector('#timetable-content-container');
-    if (cachedData.replacedTimetableHTML) {
-        timetableContentContainer.innerHTML = cachedData.replacedTimetableHTML;
-        addDownloadTimetableButton(timetableContentContainer.querySelector('table')); // Add button to the rendered table
+    if (cachedData.timetableJSON) {
+        if (cachedData.timetableJSON.extraSlotFlag !== undefined) {
+            window.extraSlotFlag = !!cachedData.timetableJSON.extraSlotFlag;
+        }
+        timetableContentContainer.innerHTML = renderTableFromJSON(cachedData.timetableJSON);
+        if (cachedData.courseData) {
+            replaceSlotsWithCourseTitles(cachedData.courseData, timetableContentContainer.querySelector('table'), true);
+        }
+        addDownloadTimetableButton(timetableContentContainer.querySelector('table')); 
         highlightCurrentDayOrder(timetableContentContainer);
     } else {
         timetableContentContainer.innerHTML = '<p style="color: #fff;">Timetable data not available.</p>';
@@ -1953,7 +2223,7 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container, ne
     accordionWrapper.appendChild(marksPanel);
 
     // Inject marks data
-    formatMarksTable(cachedData.marksData, marksPanel.querySelector('#marks-content-container'), previousAttendanceData);
+    formatMarksTable(cachedData.marksData, marksPanel.querySelector('#marks-content-container'), previousAttendanceData, cachedData.courseData);
     const loadingAnimetion = document.getElementById('preloader');
     loadingAnimetion.style.display = 'none'; // Hide loading animation after rendering
 }
@@ -1970,6 +2240,18 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
         return;
     }
 
+    // Pre-compute combined attendance by base course code (strip trailing T or P)
+    const combinedMap = {};
+    attendanceData.forEach(item => {
+        const base = item.courseCode.replace(/[TP]$/, '');
+        if (!combinedMap[base]) combinedMap[base] = { conducted: 0, attended: 0, codes: [] };
+        if (!item.isLocked && typeof item.hoursConducted === 'number' && typeof item.absentHours === 'number') {
+            combinedMap[base].conducted += item.hoursConducted;
+            combinedMap[base].attended += (item.hoursConducted - item.absentHours);
+        }
+        combinedMap[base].codes.push(item.courseCode);
+    });
+
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `
         display: grid;
@@ -1983,17 +2265,26 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
         let statusColor = '';
         let bgColor = '';
 
-        // Check for special yellow case
-        if (item.classesToSkip === 0 && item.classesToAttend === 0) {
-            statusColor = '#FBC02D'; // yellow
+        if (item.isLocked) {
+            if (item.percentage >= 75) {
+                statusColor = '#81C784';
+                bgColor = 'rgba(76,175,80,0.15)';
+                statusText = `Attendance Locked`;
+            } else {
+                statusColor = '#E57373';
+                bgColor = 'rgba(244,67,54,0.15)';
+                statusText = `Attendance Locked`;
+            }
+        } else if (item.classesToSkip === 0 && item.classesToAttend === 0) {
+            statusColor = '#FBC02D';
             bgColor = 'rgba(251,192,45,0.15)';
             statusText = `Can skip: ${item.classesToSkip}`;
         } else if (item.percentage >= 75) {
-            statusColor = '#81C784'; // green
+            statusColor = '#81C784';
             bgColor = 'rgba(76,175,80,0.15)';
             statusText = `Can skip: ${item.classesToSkip}`;
         } else {
-            statusColor = '#E57373'; // red
+            statusColor = '#E57373';
             bgColor = 'rgba(244,67,54,0.15)';
             statusText = `Require: ${item.classesToAttend}`;
         }
@@ -2008,6 +2299,7 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
             gap: 0.8rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
         `;
         card.onmouseenter = () => {
             card.style.transform = 'translateY(-4px)';
@@ -2033,15 +2325,17 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
                     <div style="font-size:0.9em; color:#aaa;">${item.courseCode}</div>
                     <div style="font-size:1.1em; font-weight:bold; color:#fff;">${item.courseTitle}</div>
                 </div>
-                <div style="
-                    padding: 0.4rem 0.8rem;
-                    background: ${bgColor};
-                    color: ${statusColor};
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 0.95em;
-                ">
-                    ${item.percentage.toFixed(2)}%
+                <div style="display:flex;align-items:center;gap:0.4rem;">
+                    <div style="
+                        padding: 0.4rem 0.8rem;
+                        background: ${bgColor};
+                        color: ${statusColor};
+                        border-radius: 8px;
+                        font-weight: bold;
+                        font-size: 0.95em;
+                    ">
+                        ${item.percentage.toFixed(2)}%
+                    </div>
                 </div>
             </div>
 
@@ -2058,8 +2352,81 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
             </div>
         `;
 
+        // ⓘ button for combined attendance (only for non-locked courses that share a base code)
+        const base = item.courseCode.replace(/[TP]$/, '');
+        const group = combinedMap[base];
+        const hasSibling = group && group.codes.length > 1 && !item.isLocked;
+
+        if (hasSibling) {
+            const combinedPct = group.conducted > 0 ? (group.attended / group.conducted * 100) : 0;
+            const combinedColor = combinedPct >= 75 ? '#81C784' : '#E57373';
+
+            const infoBtn = document.createElement('button');
+            infoBtn.textContent = 'ⓘ';
+            infoBtn.title = 'Combined attendance info';
+            infoBtn.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: rgba(255,255,255,0.1);
+                color: #aaa;
+                border: none;
+                border-radius: 50%;
+                width: 22px;
+                height: 22px;
+                font-size: 0.85em;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+            `;
+
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                display: none;
+                position: absolute;
+                top: 34px;
+                right: 10px;
+                background: #2a2a2a;
+                border: 1px solid #444;
+                border-radius: 10px;
+                padding: 12px 14px;
+                font-size: 0.85em;
+                color: #eee;
+                z-index: 100;
+                width: 200px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+                line-height: 1.6;
+            `;
+            popup.innerHTML = `
+                <b style="color:#fff;">Combined Attendance</b><br>
+                Codes: <span style="color:#aaa;">${group.codes.join(', ')}</span><br>
+                Combined %: <b style="color:${combinedColor};">${combinedPct.toFixed(2)}%</b><br>
+                Total Conducted: <b style="color:#fff;">${group.conducted}</b><br>
+                Total Attended: <b style="color:#fff;">${group.attended}</b>
+            `;
+
+            infoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isVisible = popup.style.display !== 'none';
+                // Close all other popups
+                document.querySelectorAll('.unfugly-att-popup').forEach(p => p.style.display = 'none');
+                popup.style.display = isVisible ? 'none' : 'block';
+            });
+            popup.className = 'unfugly-att-popup';
+
+            card.appendChild(infoBtn);
+            card.appendChild(popup);
+        }
+
         wrapper.appendChild(card);
     });
+
+    // Close popups on outside click
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.unfugly-att-popup').forEach(p => p.style.display = 'none');
+    }, { once: false, capture: false });
 
     container.innerHTML = '';
     container.appendChild(wrapper);
@@ -2067,39 +2434,103 @@ function formatAttendanceTable(attendanceData, previousData = [], container) {
 
 
 /**
+ * Converts a faculty name into the corresponding faculty page URL.
+ * @param {string} facultyName
+ * @returns {string|null}
+ */
+function convertFacultyNameToUrl(facultyName) {
+    if (!facultyName) return null;
+
+    // 1. Remove trailing IDs and brackets (e.g. "Name (12345)")
+    let cleaned = facultyName.replace(/\s*\(?\d+\)?.*$/, "").trim();
+
+    // 2. Separate camelCase names (e.g. "Manoj KumarRana" -> "Manoj Kumar Rana")
+    cleaned = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+    // 3. Remove common titles at the beginning (case-insensitive)
+    cleaned = cleaned.replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, "").trim();
+
+    return `https://www.srmist.edu.in/staff-finder/?unfugly_faculty=${encodeURIComponent(cleaned)}`;
+}
+
+/**
  * Formats and displays the marks data in a table.
  * @param {Array} marksData The marks data array.
  * @param {HTMLElement} container The container to render the table into.
+ * @param {Array} attendanceData Previous attendance data for course title lookup.
+ * @param {Object} courseData Course slot map for credit & faculty info.
  */
-function formatMarksTable(marksData, container, attendanceData) {
+function formatMarksTable(marksData, container, attendanceData, courseData) {
     if (!marksData || marksData.length === 0) {
         container.innerHTML = '<p style="color: #ccc; text-align: center;">No marks data found.</p>';
         return;
     }
 
-    // Helper for colors based on %
+    // Standard color helper (% of total marks)
     const getColor = (pct) => {
-        if (pct > 85) return '#81C784'; // muted green
-        if (pct > 50) return '#FBC02D'; // muted yellow
-        return '#E57373'; // muted red
+        if (pct > 85) return '#81C784';
+        if (pct > 50) return '#FBC02D';
+        return '#E57373';
     };
 
-    container.innerHTML = ''; // Clear old content
+    // Internal-course color (higher bar: must be >91 for green)
+    const getInternalColor = (pct) => {
+        if (pct > 91) return '#81C784';
+        if (pct > 50) return '#FBC02D';
+        return '#E57373';
+    };
+
+    // Detect fully internal: code ends in 'P' OR max marks > 60
+    const isFullyInternal = (item) =>
+        item.CourseCode.trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60;
+
+    // Build a courseCode → {credit, faculty} lookup from slot-keyed courseData
+    const courseInfoMap = {};
+    if (courseData && typeof courseData === 'object') {
+        Object.values(courseData).forEach(cd => {
+            const cc = (cd['Course Code'] || '').trim();
+            if (cc) {
+                courseInfoMap[cc] = {
+                    credit: cd['Credit'] || '',
+                    faculty: cd['Faculty Name'] || ''
+                };
+            }
+        });
+    }
+
+    const GRADES = [
+        { grade: 'O',  min: 91 },
+        { grade: 'A+', min: 81 },
+        { grade: 'A',  min: 71 },
+        { grade: 'B+', min: 61 },
+        { grade: 'B',  min: 56 },
+        { grade: 'C',  min: 50 }
+    ];
+
+    container.innerHTML = '';
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.gap = '1rem';
 
     marksData.forEach(item => {
-        const percentage = (item.TotalObtainedMarks / item.TotalMaxMarks) * 100;
+        const internal = isFullyInternal(item);
+        const percentage = item.TotalMaxMarks > 0 ? (item.TotalObtainedMarks / item.TotalMaxMarks) * 100 : 0;
+        const colorFn = internal ? getInternalColor : getColor;
+        const scoreColor = colorFn(percentage);
 
-        // Find matching course in attendanceData to get course title
+        // Find course title from attendanceData
         let courseTitle = '';
         if (attendanceData && attendanceData.length > 0) {
             const match = attendanceData.find(a => a.courseCode === item.CourseCode);
-            if (match && match.courseTitle) {
-                courseTitle = match.courseTitle;
-            }
+            if (match && match.courseTitle) courseTitle = match.courseTitle;
         }
+
+        // Find credit & faculty from courseInfoMap
+        const info = courseInfoMap[item.CourseCode] || {};
+        const facultyUrl = convertFacultyNameToUrl(info.faculty);
+        const facultyLink = info.faculty
+            ? `<a href="${facultyUrl}" target="_blank" style="color:#64b5f6;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${info.faculty}</a>`
+            : '<span style="color:#888;">N/A</span>';
 
         const card = document.createElement('div');
         card.style.cssText = `
@@ -2111,10 +2542,111 @@ function formatMarksTable(marksData, container, attendanceData) {
             flex-direction: column;
             gap: 12px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+            position: relative;
         `;
-
         card.onmouseenter = () => card.style.background = 'rgba(255,255,255,0.05)';
         card.onmouseleave = () => card.style.background = '#1e1e1e';
+
+        // ⓘ Info button
+        const infoBtn = document.createElement('button');
+        infoBtn.textContent = 'ⓘ';
+        infoBtn.title = 'Course info & grade projection';
+        infoBtn.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.85em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            line-height: 1;
+        `;
+
+        // Build grade table HTML for external courses
+        let gradeHtml = '';
+        if (internal) {
+            gradeHtml = '<div style="color:#aaa;font-size:0.85em;margin-top:6px;">Fully Internal – no external exam</div>';
+        } else {
+            // internal component = obtained out of 60 (max internal = 60)
+            const internalObtained = Math.min(item.TotalObtainedMarks, 60);
+            const totalMax = 100; // 60 internal + 40 converted external
+            gradeHtml = `
+                <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.82em;">
+                    <thead>
+                        <tr style="color:#aaa;border-bottom:1px solid #444;">
+                            <th style="text-align:left;padding:3px 6px;">Grade</th>
+                            <th style="text-align:left;padding:3px 6px;">Min Total</th>
+                            <th style="text-align:left;padding:3px 6px;">Need /75</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            GRADES.forEach(g => {
+                // Required total marks out of 100 for this grade
+                const reqTotal = g.min;
+                // External portion needed = reqTotal - internalObtained (capped at 40)
+                const extNeeded40 = Math.max(0, reqTotal - internalObtained);
+                // Convert from /40 to /75 scale
+                const extNeeded75 = extNeeded40 > 40
+                    ? '—' // impossible even with 75/75
+                    : Math.ceil(extNeeded40 * 75 / 40);
+                const impossible = extNeeded75 === '—' || (typeof extNeeded75 === 'number' && extNeeded75 > 75);
+                const rowColor = impossible ? '#E57373' : (extNeeded75 <= 37 ? '#81C784' : '#FBC02D');
+                const displayNeeded = impossible ? '✗' : `${extNeeded75}/75`;
+                gradeHtml += `
+                    <tr style="border-bottom:1px solid #2a2a2a;">
+                        <td style="padding:3px 6px;font-weight:bold;color:#fff;">${g.grade}</td>
+                        <td style="padding:3px 6px;color:#ccc;">${reqTotal}</td>
+                        <td style="padding:3px 6px;color:${rowColor};font-weight:bold;">${displayNeeded}</td>
+                    </tr>
+                `;
+            });
+            gradeHtml += `</tbody></table>`;
+        }
+
+        const popup = document.createElement('div');
+        popup.className = 'unfugly-marks-popup';
+        popup.style.cssText = `
+            display: none;
+            position: absolute;
+            top: 38px;
+            right: 10px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.85em;
+            color: #eee;
+            z-index: 200;
+            width: 260px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+            line-height: 1.7;
+        `;
+        popup.innerHTML = `
+            <b style="color:#fff;font-size:1em;">Course Info</b><br>
+            Credit: <b style="color:#fff;">${info.credit || 'N/A'}</b><br>
+            Faculty: ${facultyLink}<br>
+            <div style="margin-top:4px;color:#aaa;font-size:0.82em;">Type: ${internal ? '🔒 Fully Internal' : '📄 Theory (60+40)'}</div>
+            ${gradeHtml}
+        `;
+
+        infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = popup.style.display !== 'none';
+            document.querySelectorAll('.unfugly-marks-popup').forEach(p => p.style.display = 'none');
+            popup.style.display = isVisible ? 'none' : 'block';
+        });
+
+        card.appendChild(infoBtn);
+        card.appendChild(popup);
 
         // Top Section: Course Info
         const courseInfo = document.createElement('div');
@@ -2122,18 +2654,18 @@ function formatMarksTable(marksData, container, attendanceData) {
         courseInfo.style.justifyContent = 'space-between';
         courseInfo.style.alignItems = 'center';
         courseInfo.innerHTML = `
-            <div>
+            <div style="max-width:75%;">
                 <h2 style="margin: 0; font-size: 1.1em; font-weight: 600;">
                     ${item.CourseCode}${courseTitle ? ` - ${courseTitle}` : ''}
                 </h2>
-                <p style="margin: 2px 0; opacity: 0.8; font-size: 0.9em;">${item.CourseType}</p>
+                <p style="margin: 2px 0; opacity: 0.8; font-size: 0.9em;">${item.CourseType}${internal ? ' <span style="font-size:0.8em;color:#FBC02D;">(Internal)</span>' : ''}</p>
             </div>
-            <div style="text-align: right; font-size: 1em; font-weight: bold; color: ${getColor(percentage)};">
+            <div style="text-align: right; font-size: 1em; font-weight: bold; color: ${scoreColor}; padding-right:30px;">
                 ${item.TotalObtainedMarks} / ${item.TotalMaxMarks}
             </div>
         `;
 
-        // Progress Bar for total marks
+        // Progress Bar
         const progressWrapper = document.createElement('div');
         progressWrapper.style.cssText = `
             width: 100%;
@@ -2145,8 +2677,8 @@ function formatMarksTable(marksData, container, attendanceData) {
         const progressFill = document.createElement('div');
         progressFill.style.cssText = `
             height: 100%;
-            width: ${percentage}%;
-            background: ${getColor(percentage)};
+            width: ${Math.min(100, percentage)}%;
+            background: ${scoreColor};
             transition: width 0.4s ease-in-out;
         `;
         progressWrapper.appendChild(progressFill);
@@ -2159,17 +2691,18 @@ function formatMarksTable(marksData, container, attendanceData) {
 
         if (item.Components && item.Components.length > 0) {
             item.Components.forEach(comp => {
-                const compPct = (comp.ObtainedMarks / comp.MaxMarks) * 100;
+                const isAbsent = comp.ObtainedMarks === 'Absent';
+                const compPct = !isAbsent && comp.MaxMarks > 0 ? (comp.ObtainedMarks / comp.MaxMarks) * 100 : 0;
                 const chip = document.createElement('span');
                 chip.style.cssText = `
-                    background: ${getColor(compPct)};
-                    color: #000;
+                    background: ${isAbsent ? '#4a2020' : colorFn(compPct)};
+                    color: ${isAbsent ? '#e57373' : '#000'};
                     padding: 6px 10px;
                     border-radius: 16px;
                     font-size: 0.85em;
                     font-weight: 500;
                 `;
-                chip.innerHTML = `${comp.ComponentName}: ${comp.ObtainedMarks}/${comp.MaxMarks}`;
+                chip.innerHTML = `${comp.ComponentName}: ${isAbsent ? 'Absent' : comp.ObtainedMarks}/${comp.MaxMarks}`;
                 componentsWrapper.appendChild(chip);
             });
         }
@@ -2181,6 +2714,12 @@ function formatMarksTable(marksData, container, attendanceData) {
         }
 
         container.appendChild(card);
+    });
+
+    // Close popups on outside click
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.unfugly-marks-popup').forEach(p => p.style.display = 'none');
+        document.querySelectorAll('.unfugly-att-popup').forEach(p => p.style.display = 'none');
     });
 }
 
@@ -2194,59 +2733,57 @@ function formatMarksTable(marksData, container, attendanceData) {
  * @param {object} courseData Object mapping slots to course information.
  * @param {HTMLElement} timetableTable The HTML table element to modify.
  */
-function replaceSlotsWithCourseTitles(courseData, timetableTable) {
+function replaceSlotsWithCourseTitles(courseData, timetableTable, isGeneratedTable = false) {
     if (!timetableTable) {
         console.warn("replaceSlotsWithCourseTitles: Timetable table not provided.");
         return;
     }
-    timetableTable.align = '';
-    timetableTable.border = '5px';
-    timetableTable.style.border = '10px';
-    timetableTable.style.maxWidth = '100%'; // Ensure full width for better visibility
-    timetableTable.cellPadding = '10'; // Add some padding for better readability
-    //timetableTable.style.scale = '0.85'; // Scale down the table for better fit
+    if (!isGeneratedTable) {
+        timetableTable.align = '';
+        timetableTable.border = '5px';
+        timetableTable.style.border = '10px';
+        timetableTable.style.maxWidth = '100%'; // Ensure full width for better visibility
+        timetableTable.cellPadding = '10'; // Add some padding for better readability
 
-    // Apply background color if not already applied (for the welcome page rendered table)
-    if (timetableTable.style.backgroundColor === '') {
-        timetableTable.style.backgroundColor = 'rgba(0, 0, 0, 1)';
+        // Apply background color if not already applied (for the welcome page rendered table)
+        if (timetableTable.style.backgroundColor === '') {
+            timetableTable.style.backgroundColor = 'rgba(0, 0, 0, 1)';
+        }
     }
 
 
+    const initialRows = timetableTable.querySelectorAll('tbody tr');
+
+    if (!isGeneratedTable) {
+        if (initialRows[0]) {
+            const row = initialRows[0];
+            const cells = row.querySelectorAll('td, th');
+            cells[0].textContent = 'Time'; // Ensure first cell is labeled "Time"
+            for (let colIndex = 0; colIndex < cells.length; colIndex++) {
+                const cell = cells[colIndex];
+                cell.style.width = '120px'; // Set a fixed width for header cells
+                cell.style.fontSize = '10px';
+                cell.style.maxHeight = '40px'; // Make header text bold
+                cell.rowSpan = '1'; // Ensure header cells are not merged
+            }
+        }
+
+        // Remove the 3rd row (index 2) if it exists
+        if (initialRows.length > 2) {
+            if (initialRows[2].cells.length > 0 && initialRows[2].cells[0].textContent.includes('Hour/Day Order')) { // More robust check
+                initialRows[2].remove();
+            }
+            initialRows[1].remove(); // Remove the second row (index 1) as well
+        }
+    }
+
+    // Now query the active rows that actually exist in the DOM
     const allTableRows = timetableTable.querySelectorAll('tbody tr');
 
-    if (allTableRows[0]) {
-        const row = allTableRows[0];
-        const cells = row.querySelectorAll('td, th');
-        cells[0].textContent = 'Time'; // Ensure first cell is labeled "Time"
-        for (let colIndex = 0; colIndex < cells.length; colIndex++) {
-            const cell = cells[colIndex];
-            //cell.style.backgroundColor = '#444'; // Header row background
-            //cell.style.color = '#fff'; // Header text color
-            cell.style.width = '120px'; // Set a fixed width for header cells
-            //cell.style.minWidth = "100px" // Ensure minimum width for better fit
-            cell.style.fontSize = '10px';
-            cell.style.maxHeight = '40px'; // Make header text bold
-            cell.rowSpan = '1'; // Ensure header cells are not merged
-        }
-    }
-
-    // Remove the 3rd row (index 2) if it exists
-    if (allTableRows.length > 2) {
-        //const rowToRemove = allTableRows[2];
-        if (allTableRows[2].cells.length > 0 && allTableRows[2].cells[0].textContent.includes('Hour/Day Order')) { // More robust check
-            allTableRows[2].remove();//.deleteRow(2);//rowToRemove.remove();
-            //console.log("replaceSlotsWithCourseTitles: Removed 3rd row.");
-        }
-        allTableRows[1].remove(); // Remove the second row (index 1) as well
-        //console.log("replaceSlotsWithCourseTitles: Removed 2nd row.");
-    }
-
     // Remove last two columns if 'L' slots not required
-    if (!extraSlotFlag) {
+    if (!window.extraSlotFlag) {
         allTableRows.forEach(row => {
             const cells = row.querySelectorAll('td, th');
-            //cells[0].style.backgroundColor = '#444'; // Ensure first column has a consistent background color
-            //cells[0].style.color = '#fff'; // Ensure first column text is visible
             if (cells.length >= 2) { // Ensure there are at least two columns to potentially remove
                 const secondToLast = cells[cells.length - 2];
                 const last = cells[cells.length - 1];
@@ -2266,40 +2803,34 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
     // slotToCourse: slot letter → { title, courseType }
     // courseType derived from slot name: P# and L# are Practical, letter slots are Theory
     const slotToCourse = {};
-    let dayCounter = -1; // counts only non-removed, real Day rows (1–5)
 
+    const startIndex = isGeneratedTable ? 0 : 1;
 
-    for (let rowIndex = 1; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
+    for (let rowIndex = startIndex; rowIndex < allTableRows.length; rowIndex++) { // Iterate all rows after initial removals
         const row = allTableRows[rowIndex];
         if (!row) continue;
 
-        // Skip rows that were detached from DOM (the removed header rows)
-        //if (!row.parentNode) continue;
-        if (rowIndex !== 1) { // Only increment dayCounter for actual day rows, not the first header row
-            dayCounter++;
-        }
-        const currentDayOrder = String(dayCounter);
+        const currentDayOrder = isGeneratedTable ? String(rowIndex + 1) : String(rowIndex);
 
         const firstCell = row.querySelector('td, th');
         if (firstCell.textContent.trim() === 'TO') {
             firstCell.remove(); // Remove the "TO" cell if it exists
         }
         if (firstCell) {
-            //firstCell.style.backgroundColor = '#444';// Ensure first cell has a consistent background color
-            //firstCell.style.backgroundColor = '#444'; // Header row background
-            //firstCell.style.color = '#fff'; // Header text color
-            firstCell.style.width = '120px'; // Set a fixed width for header cells
-            //firstCell.style.minWidth = "100px" // Ensure minimum width for better fit
-            firstCell.style.fontSize = '10px';
+            if (!isGeneratedTable) {
+                firstCell.style.width = '120px'; // Set a fixed width for header cells
+                firstCell.style.fontSize = '10px';
+            }
         }
 
         const cells = row.querySelectorAll('td, th');
         for (let colIndex = 1; colIndex < cells.length; colIndex++) {
-
-
             const cell = cells[colIndex];
-            cell.style.width = '120px'; // Reset width to auto for better fit
-            cell.style.minWidth = '90px'; // Ensure minimum width for better fit
+            
+            if (!isGeneratedTable) {
+                cell.style.width = '120px'; // Reset width to auto for better fit
+                cell.style.minWidth = '90px'; // Ensure minimum width for better fit
+            }
 
             if (!cell) continue;
 
@@ -2326,15 +2857,18 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 }
                 // P# or L# slots are Practical; single letter slots (A–G, X) are Theory
                 const isLabSlot = /^[PL]\d+/.test(cleanCellText);
+                const courseTitle = courseInfo["Course Title"] || courseInfo.title || '';
+                const courseClassroom = courseInfo["Room No."] || courseInfo.classroom || '';
+
                 slotToCourse[cleanCellText] = {
-                    title: courseInfo.title,
+                    title: courseTitle,
                     courseType: isLabSlot ? 'Practical' : 'Theory'
                 };
 
                 cell.title = `Slot: ${cellText}`;
                 cell.innerHTML = ''; // Clear original content
                 const titleSpan = document.createElement('span');
-                titleSpan.textContent = courseInfo.title;
+                titleSpan.textContent = courseTitle;
                 titleSpan.style.fontWeight = '600';
                 titleSpan.style.color = '#334';
                 titleSpan.style.display = 'block';
@@ -2342,7 +2876,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 titleSpan.classList.add('editedSlot-originalTitle');
 
                 const classroomSpan = document.createElement('span');
-                classroomSpan.textContent = courseInfo.classroom ? `Room: ${courseInfo.classroom}` : '';
+                classroomSpan.textContent = courseClassroom ? `Room: ${courseClassroom}` : '';
                 classroomSpan.style.fontWeight = 'semi-bold'; // Changed to normal for distinction
                 classroomSpan.style.color = '#555';
                 classroomSpan.style.fontSize = '9px';
@@ -2350,7 +2884,7 @@ function replaceSlotsWithCourseTitles(courseData, timetableTable) {
                 classroomSpan.classList.add('editedSlot-originalClassroom');
 
                 cell.appendChild(titleSpan);
-                if (courseInfo.classroom) cell.appendChild(classroomSpan);
+                if (courseClassroom) cell.appendChild(classroomSpan);
                 //cell.style.backgroundColor = '#F9E79F'; // Light background for filled slots
             } else if (cleanCellText !== '') { // If it's not empty but also not a recognized slot
                 // Keep original text but make it less prominent or grey out
@@ -2541,114 +3075,119 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     window.isFetchingInBackground = true;
     displayInfoMessage("Fetching latest data from SRM portal...", 5000);
 
+    const storageKey = `unfuglyData_${currentNetId}`;
+    const existingData = await chrome.storage.local.get(storageKey);
+    const cachedProfileData = existingData?.[storageKey]?.profileData;
+
     const fetchedData = {
         profileData: null,
         editedSlots: null,
-        replacedTimetableHTML: null,
+        timetableJSON: null,
         attendanceData: null,
         marksData: null,
+        courseData: null,
     };
 
     try {
-        //Fetch Course Registration data to get profile and batch
-        console.log("backgroundFetchAllData: Fetching Course Registration data...");
-        const registrationPageUrl = "https://academia.srmist.edu.in/#Page:My_Time_Table_2023_24"; //#My_Time_Table_Attendance";
-        const { iframeDoc: regIframeDoc, iframe: regIframe } = await createHiddenIframe(
-            registrationPageUrl,
-            ['div.cntdDiv table:not(.course_tbl)', 'table.course_tbl']
-        );
-        const { courses: courseSlotMap, batch, registrationNo } = extractCourseDataFromDocument(regIframeDoc);
-        fetchedData.profileData = extractProfileDataFromDocument(regIframeDoc);
-        // Prioritize registration number from here, if profile data is richer
+        // Fetch Course Registration data natively via direct API calls
+        console.log("backgroundFetchAllData: Fetching Course Registration data natively...");
+        const regStartTime = performance.now();
+        const courseRegResult = await fetchCourseRegistrationData();
+        const courseData = courseRegResult.courses;
+        const batch = courseRegResult.batch;
+        const registrationNo = courseRegResult.registrationNo;
+        fetchedData.profileData = courseRegResult.profileData;
+        fetchedData.courseData = courseData;
         if (registrationNo && !fetchedData.profileData.registrationNo) {
             fetchedData.profileData.registrationNo = registrationNo;
         }
 
-        regIframe.remove();
-        console.log("backgroundFetchAllData: Course Registration data fetched.");
+        const regEndTime = performance.now();
+        console.log(`[Unfugly Speed] Fetching and parsing Course Registration took ${(regEndTime - regStartTime).toFixed(2)} ms.`);
 
-        //Fetch the profile photo url
-        console.log("backgroundFetchAllData: Fetching profile photo URL...");
-        const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
-            "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
-            ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
-        );
-        const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
-        fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
-
-        profilePhotoIframe.remove();
-        console.log("backgroundFetchAllData: Profile photo URL fetched.");
-
-        //Fetch Unified Timetable HTML based on batch
-        //console.log(batch, "batch");
-        //let batch = 2;
-        //console.log("Batch changed, explicitly set to 2 for testing purposes.", batch);
-        if (batch && UNIFIED_TIMETABLE_URLS[batch]) {
-            console.log(`backgroundFetchAllData: Fetching Unified Timetable for Batch ${batch}...`);
-            const unifiedTimetableUrl = UNIFIED_TIMETABLE_URLS[batch];
-            const { iframeDoc: unifiedTtIframeDoc, iframe: unifiedTtIframe } = await createHiddenIframe(
-                unifiedTimetableUrl,
-                ['table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]']
+        //Fetch the profile photo url (only if not already cached)
+        const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
+        if (cachedPhotoUrl) {
+            console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
+            fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
+        } else {
+            console.log("backgroundFetchAllData: Profile photo URL not cached. Fetching...");
+            const photoStartTime = performance.now();
+            const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
+                "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
+                ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
             );
+            const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
+            fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
 
-            // Get the raw HTML of the unified timetable table
-            const rawUnifiedTimetableHTML = extractUnifiedTimetableHTML(unifiedTtIframeDoc);
-            //console.log("Raw Unified Timetable HTML fetched:", rawUnifiedTimetableHTML);
+            profilePhotoIframe.remove();
+            const photoEndTime = performance.now();
+            console.log(`[Unfugly Speed] Loading Student Profile Report took ${(photoEndTime - photoStartTime).toFixed(2)} ms.`);
+        }
 
-            if (rawUnifiedTimetableHTML) {
-                // Create a temporary div to apply slot replacement without modifying the iframe's DOM
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = rawUnifiedTimetableHTML;
-                const tempTable = tempDiv.querySelector('table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]');
+        //Fetch Unified Timetable HTML based on batch natively
+        if (batch && (batch === '1' || batch === '2')) {
+            console.log(`backgroundFetchAllData: Fetching Unified Timetable for Batch ${batch} natively...`);
+            const ttStartTime = performance.now();
 
-                if (tempTable && courseSlotMap) {
-                    fetchedData.slotMap = replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
-                    fetchedData.replacedTimetableHTML = tempTable.outerHTML;
+            try {
+                const rawUnifiedTimetableHTML = await fetchUnifiedTimetableData(batch);
+
+                if (rawUnifiedTimetableHTML) {
+                    // Create a temporary div to apply slot replacement
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = rawUnifiedTimetableHTML;
+                    const tempTable = tempDiv.querySelector('table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]');
+    
+                    if (tempTable && courseData) {
+                        fetchedData.timetableJSON = parseTableToJSON(tempTable);
+                    }
                 }
+            } catch (ttError) {
+                console.error("backgroundFetchAllData: Error fetching Unified Timetable:", ttError);
             }
-            unifiedTtIframe.remove();
-            console.log("backgroundFetchAllData: Unified Timetable data fetched and processed.");
+            
+            const ttEndTime = performance.now();
+            console.log(`[Unfugly Speed] Fetching Unified Timetable took ${(ttEndTime - ttStartTime).toFixed(2)} ms.`);
         } else {
             console.warn("backgroundFetchAllData: Batch not determined or unsupported for unified timetable. Skipping unified timetable fetch.");
             // If unified TT not found, try to use course registration page timetable
-            const regPageTtTable = regIframeDoc.querySelector('table[align="center"][border="5"]');
-            if (regPageTtTable && courseSlotMap) {
+            const regPageTtTable = courseRegResult.doc.querySelector('table[align="center"][border="5"]');
+            if (regPageTtTable && courseData) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = regPageTtTable.outerHTML;
                 const tempTable = tempDiv.querySelector('table');
-                fetchedData.slotMap = replaceSlotsWithCourseTitles(courseSlotMap, tempTable);
-                fetchedData.replacedTimetableHTML = tempTable.outerHTML;
+                fetchedData.timetableJSON = parseTableToJSON(tempTable);
                 console.log("backgroundFetchAllData: Used Course Registration page timetable as fallback.");
             } else {
                 console.warn("backgroundFetchAllData: Fallback timetable also not found.");
             }
         }
 
-        // Step 3: Fetch attendance and marks data
-        console.log("backgroundFetchAllData: Fetching Attendance and Marks data...");
-        const attendanceUrl = "https://academia.srmist.edu.in/#Page:My_Attendance";
-        const { iframeDoc: attendanceIframeDoc, iframe: attendanceIframe } = await createHiddenIframe(
-            attendanceUrl,
-            ['#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)']
-        );
-
-        // Note: These functions are called with the iframe's document, so they won't modify the main page.
-        fetchedData.attendanceData = extractAttendanceDataFromDocument(attendanceIframeDoc);
-        fetchedData.marksData = extractMarksDataFromDocument(attendanceIframeDoc);
-        attendanceIframe.remove();
-        console.log("backgroundFetchAllData: Attendance and marks data fetched and processed.");
+        // Step 3: Fetch attendance and marks data natively
+        console.log("backgroundFetchAllData: Fetching Attendance and Marks data natively...");
+        const attStartTime = performance.now();
+        
+        try {
+            const attendanceDataResult = await fetchAttendanceData(previousAttendanceData);
+            fetchedData.attendanceData = attendanceDataResult.attendanceData;
+            fetchedData.marksData = attendanceDataResult.marksData;
+        } catch (attError) {
+            console.error("backgroundFetchAllData: Error fetching Attendance and Marks data natively:", attError);
+        }
+        
+        const attEndTime = performance.now();
+        console.log(`[Unfugly Speed] Fetching Attendance and Marks natively took ${(attEndTime - attStartTime).toFixed(2)} ms.`);
 
         // Store the combined data
-        const storageKey = `unfuglyData_${currentNetId}`;
-        const existingData = await chrome.storage.local.get(storageKey);
         //console.log(existingData[storageKey].editedSlots, "edited slots before preserving");
         const dataToCache = {
             profileData: fetchedData.profileData,
-            replacedTimetableHTML: fetchedData.replacedTimetableHTML,
+            timetableJSON: fetchedData.timetableJSON,
             editedSlots: existingData?.[storageKey]?.editedSlots ?? {},
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
-            slotMap: fetchedData.slotMap ?? null,   // ← new: { dayOrder, slotToCourse }
+            courseData: fetchedData.courseData ?? null,
             lastUpdated: new Date().toISOString()
         };
         //console.log(dataToCache.editedSlots, "edited slots preserved");
@@ -2796,8 +3335,11 @@ function handleCurrentPage() {
 
     if (hash.includes('#WELCOME')) {
         handleWelcomePage();
-    } else if (hash.includes('#Page:My_Time_Table_2023_24')) { //#My_Time_Table_Attendance
-        //handleTimetablePage();
+    } else if (hash.includes('#Page:My_Time_Table_2023_24')) {
+        // Inject faculty hyperlinks into the course registration table on the live page
+        waitForElement(document, 'table.course_tbl').then(tbl => {
+            injectFacultyLinksInTable(tbl, 7);
+        }).catch(() => {});
     } else if (hash.includes('#Page:My_Attendance')) {
         try {
             // Attempt to run the main function
@@ -2819,7 +3361,7 @@ function handleCurrentPage() {
         marksTotalReport();
     } else if (hash.includes('#Course_Feedback')) {
         handleFeedbackPage();
-    } else if (hash.includes('#Page:Academic_Planner_2025_26_EVEN') || hash.includes('#Page:Academic_Planner_2025_26_ODD')) {
+    } else if (hash.includes('#Page:Academic_Planner_2025_26_EVEN') || hash.includes('#Page:Academic_Planner_2025_26_ODD') || hash.includes('#Page:Academic_Planner_2026_27_ODD')) {
         handleAcademicPlannerPage();
     }
 

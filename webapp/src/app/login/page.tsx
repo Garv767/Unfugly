@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -10,6 +10,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    localStorage.setItem('unfugly_token', "mock.jwt.token.for.testing");
+    localStorage.setItem('unfugly_net_id', "gr2383");
+    router.push('/dashboard');
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -17,21 +23,22 @@ export default function LoginPage() {
 
     try {
       const formattedUsername = username.split('@')[0].toLowerCase();
-      const res = await fetch('http://localhost:3000/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: formattedUsername, password })
-      });
+      // MOCK LOGIN FOR TESTING UI
+      // const res = await fetch('http://localhost:3000/api/v1/auth/login', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ username: formattedUsername, password })
+      // });
+      // const data = await res.json();
+      // if (!res.ok) throw new Error(data.error || 'Login failed');
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
+      // Fake JWT for testing
+      const token = "mock.jwt.token.for.testing";
+      const net_id = formattedUsername || 'ra2411003010718';
 
       // Store JWT in localStorage
-      localStorage.setItem('unfugly_token', data.token);
-      localStorage.setItem('unfugly_net_id', data.net_id);
+      localStorage.setItem('unfugly_token', token);
+      localStorage.setItem('unfugly_net_id', net_id);
       
       // Clear password 
       setPassword('');
