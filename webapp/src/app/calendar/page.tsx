@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CalendarView from '@/components/CalendarView';
 import Link from 'next/link';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function CalendarPage() {
   const router = useRouter();
@@ -11,18 +12,7 @@ export default function CalendarPage() {
   const [calendarData, setCalendarData] = useState<any>(null);
 
   useEffect(() => {
-    let token = localStorage.getItem('unfugly_token');
-    let net_id = localStorage.getItem('unfugly_net_id');
-
-    if (!token || !net_id) {
-      // Auto-login for UI testing bypass
-      token = "mock.jwt.token.for.testing";
-      net_id = "gr2383";
-      localStorage.setItem('unfugly_token', token);
-      localStorage.setItem('unfugly_net_id', net_id);
-    }
-
-    fetch('http://localhost:3000/api/v1/calendar')
+    fetch(`${API_URL}/api/v1/calendar`)
       .then(res => res.json())
       .then(calData => {
         setCalendarData(calData.calendar_json || calData);
