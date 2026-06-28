@@ -3,18 +3,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    localStorage.setItem('unfugly_token', "mock.jwt.token.for.testing");
-    localStorage.setItem('unfugly_net_id', "gr2383");
-    router.push('/dashboard');
-  }, [router]);
+    // Check if already authenticated by hitting the /user/data endpoint.
+    // The HttpOnly cookie will be sent automatically by the browser.
+    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include' })
+      .then(res => { if (res.ok) router.push('/dashboard'); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,27 +27,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const formattedUsername = username.split('@')[0].toLowerCase();
-      // MOCK LOGIN FOR TESTING UI
-      // const res = await fetch('http://localhost:3000/api/v1/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username: formattedUsername, password })
-      // });
-      // const data = await res.json();
-      // if (!res.ok) throw new Error(data.error || 'Login failed');
+      // Accept NetID (e.g. ab1234) or full email. Parents may use Gmail.
+      const finalUsername = username.includes('@') ? username : `${username.trim().toLowerCase()}@srmist.edu.in`;
 
-      // Fake JWT for testing
-      const token = "mock.jwt.token.for.testing";
-      const net_id = formattedUsername || 'ra2411003010718';
+      const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include', // Required to receive the HttpOnly cookie
+        body:        JSON.stringify({ username: finalUsername, password }),
+      });
 
-      // Store JWT in localStorage
-      localStorage.setItem('unfugly_token', token);
-      localStorage.setItem('unfugly_net_id', net_id);
-      
-      // Clear password 
-      setPassword('');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
 
+      // No localStorage — the JWT is now an HttpOnly cookie set by the server.
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -63,7 +61,7 @@ export default function LoginPage() {
             Unfugly
           </h1>
           <p className="text-muted text-sm">
-            Sign in with your SRM Academia portal credentials.
+            Sign in with your SRM Academia credentials.
           </p>
         </div>
 
@@ -78,32 +76,34 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-text mb-1">Registration Number</label>
-            <input 
-              type="text" 
-              className="input-field w-full transition-all" 
-              placeholder="e.g. RA2411003010718" 
+            <label className="block text-sm font-medium text-text mb-1">NetID / Email address</label>
+            <input
+              type="text"
+              className="input-field w-full transition-all"
+              placeholder="e.g. ab1234 or ab1234@srmist.edu.in"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              required 
+              required
               disabled={loading}
+              autoComplete="username"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-text mb-1">Password</label>
-            <input 
-              type="password" 
-              className="input-field w-full transition-all" 
-              placeholder="Enter Academia Password" 
+            <input
+              type="password"
+              className="input-field w-full transition-all"
+              placeholder="Enter Academia Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required 
+              required
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             className="btn-primary w-full flex justify-center items-center h-11"
             disabled={loading}
           >
@@ -117,8 +117,8 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-border text-center text-xs text-muted">
-          <p>Your password is sent securely and is <strong>never stored</strong>.</p>
-          <p>It is used once to scrape Academia and instantly discarded.</p>
+          <p>Your password is sent securely and is <strong>never stored</strong> in plaintext.</p>
+          <p>It is hashed and used to authenticate you with Academia.</p>
         </div>
       </div>
     </div>
