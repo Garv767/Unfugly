@@ -51,9 +51,9 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
     <>
       <button 
         onClick={() => setIsOpen(true)}
-        className="flex items-center text-xs font-semibold bg-[#1e88e5]/20 text-[#64b5f6] hover:bg-[#1e88e5]/30 px-3 py-1.5 rounded-full transition-all border border-[#1e88e5]/40 whitespace-nowrap shadow-[0_4px_12px_rgba(30,136,229,0.2)] ml-4"
+        className="flex items-center text-sm font-semibold bg-[#333] hover:bg-[#444] text-white px-4 py-1.5 rounded-full transition-all ml-4"
       >
-        <span className="mr-1.5">✦</span> Predict
+        <span className="mr-1.5 text-lg leading-none">+</span> Predict
       </button>
 
       {isOpen && (

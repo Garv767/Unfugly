@@ -226,7 +226,16 @@ async function createHiddenIframe(url, selectorsToWaitFor = ['body']) {
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
 
+        const timeoutId = setTimeout(() => {
+            console.error("createHiddenIframe: Timeout loading iframe for URL:", url);
+            iframe.onload = null;
+            iframe.onerror = null;
+            iframe.remove();
+            reject(new Error("Iframe load timeout"));
+        }, 15000); // 15 seconds timeout
+
         iframe.onload = async () => {
+            clearTimeout(timeoutId);
             try {
                 const iframeDoc = iframe.contentWindow.document;
                 // console.log("createHiddenIframe: iframe loaded. Waiting for dynamic content inside...", url);
@@ -243,6 +252,7 @@ async function createHiddenIframe(url, selectorsToWaitFor = ['body']) {
         };
 
         iframe.onerror = (e) => {
+            clearTimeout(timeoutId);
             console.error("createHiddenIframe: Iframe failed to load.", e);
             reject(new Error("Iframe failed to load."));
         };
@@ -1617,120 +1627,9 @@ async function handleFeedbackPage() {
 
 /*Handles academic planner page*/
 async function handleAcademicPlannerPage() {
-    console.log("handleAcademicPlannerPage: Injecting calendar UI.");
-    
-    const hash = window.location.hash;
-    const pageMatch = hash.match(/Page:([A-Za-z0-9_]+)/);
-    const pageName = pageMatch ? pageMatch[1] : "";
-    console.log("Pagename", pageName);
-    if (!pageName) return;
-
-    // Fire off storage fetch immediately, in parallel with everything else
-    const calendarDataPromise = chrome.storage.local.get('unfuglyData_calendar');
-
-    // Wait for the preloader to hide — this is Zoho's signal that the SPA is ready
-    await new Promise(resolve => {
-        const preloader = document.getElementById('preloader');
-        if (!preloader || preloader.style.display === 'none') {
-            resolve(); // Already hidden or doesn't exist
-            return;
-        }
-        const obs = new MutationObserver(() => {
-            if (preloader.style.display === 'none') {
-                obs.disconnect();
-                resolve();
-            }
-        });
-        obs.observe(preloader, { attributes: true, attributeFilter: ['style'] });
-        setTimeout(() => { obs.disconnect(); resolve(); }, 8000); // 8s max fallback
-    });
-
-    // Find the Zoho content div. It looks like "Academic_Planner_2025_26_ODD_ZC_XXXXXX"
-    // Use pageName + "_" to avoid matching unrelated elements (tabs, wrappers, etc.)
-    const container =
-        document.querySelector(`[id^="${pageName}_"]`) ||
-        document.querySelector('div[role="main"]');
-
-    if (!container) {
-        console.error("handleAcademicPlannerPage: No container found after preloader hid.");
-        return;
-    }
-
-    // Core injection logic
-    const doInject = async (reason) => {
-        if (container.querySelector('#unfugly-calendar-main')) return;
-        console.log(`handleAcademicPlannerPage: Injecting (${reason}).`);
-
-        // Style the container immediately to suppress any Zoho flash
-        container.style.cssText = `
-            display: flex; flex-direction: row; width: 100%;
-            height: calc(100vh - 50px); background-color: #121212;
-            color: #ffffff; font-family: 'Inter', 'Segoe UI', sans-serif;
-            box-sizing: border-box; overflow: hidden;
-        `;
-
-        // Await the already-in-flight storage fetch
-        const result = await calendarDataPromise;
-        let calendarData = result.unfuglyData_calendar?.data || {};
-
-        if (Object.keys(calendarData).length === 0) {
-            container.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;
-                    justify-content:center;width:100%;gap:16px;color:#aaa;font-family:'Inter',sans-serif;">
-                    <div style="width:40px;height:40px;border:3px solid #333;
-                        border-top-color:#1E88E5;border-radius:50%;
-                        animation:unfugly-spin 0.8s linear infinite;"></div>
-                    <p style="margin:0;font-size:14px;">Syncing calendar data for the first time…</p>
-                    <style>@keyframes unfugly-spin{to{transform:rotate(360deg)}}</style>
-                </div>
-            `;
-            if (typeof syncAllCalendars === 'function') {
-                await syncAllCalendars();
-                const r2 = await chrome.storage.local.get('unfuglyData_calendar');
-                calendarData = r2.unfuglyData_calendar?.data || {};
-            }
-            if (Object.keys(calendarData).length === 0) {
-                container.innerHTML = '<div style="padding:20px;color:#aaa;"><h2>Failed to load calendar data. Please refresh.</h2></div>';
-                return;
-            }
-        }
-
-        container.innerHTML = '';
-        renderCalendarUI(container, calendarData, pageName);
-
-        // Guard: if Zoho overwrites our UI after injection, re-inject immediately (once)
-        const guard = new MutationObserver(() => {
-            if (!container.querySelector('#unfugly-calendar-main')) {
-                console.log("handleAcademicPlannerPage: Guard triggered — re-injecting.");
-                guard.disconnect();
-                container.innerHTML = '';
-                renderCalendarUI(container, calendarData, pageName);
-            }
-        });
-        guard.observe(container, { childList: true });
-        setTimeout(() => guard.disconnect(), 15000); // Stop guarding after 15s
-    };
-
-    // Zoho injects its content after the preloader. At this point:
-    // - If children already exist: inject now (Zoho already rendered)
-    // - If empty: observe for Zoho's injection and react immediately
-    if (container.children.length > 0) {
-        doInject('container already has children');
-    } else {
-        const waitForContent = new MutationObserver((mutations, obs) => {
-            if (mutations.some(m => m.addedNodes.length > 0)) {
-                obs.disconnect();
-                doInject('Zoho content detected');
-            }
-        });
-        waitForContent.observe(container, { childList: true });
-        // Safety fallback: inject anyway after 4s even if Zoho never fires
-        setTimeout(() => {
-            waitForContent.disconnect();
-            if (!container.querySelector('#unfugly-calendar-main')) {
-                doInject('timeout fallback');
-            }
-        }, 4000);
+    console.log("handleAcademicPlannerPage: Triggering background sync only (UI injection disabled).");
+    if (typeof syncAllCalendars === 'function') {
+        syncAllCalendars().catch(e => console.error("Calendar sync failed:", e));
     }
 }
 
@@ -2224,6 +2123,40 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container, ne
 
     // Inject marks data
     formatMarksTable(cachedData.marksData, marksPanel.querySelector('#marks-content-container'), previousAttendanceData, cachedData.courseData);
+
+    // Calendar Panel
+    const calendarPanel = document.createElement('div');
+    calendarPanel.className = 'unfugly-panel';
+    calendarPanel.innerHTML = `
+        <h3 style="color: #fff;">Calendar</h3>
+        <div id="calendar-content-container" style="height: 500px; display: flex; flex-direction: row; border: 1px solid #333; border-radius: 8px; overflow: hidden; background: #121212;"></div>
+    `;
+    accordionWrapper.appendChild(calendarPanel);
+
+    // Render Calendar
+    const calendarContentContainer = calendarPanel.querySelector('#calendar-content-container');
+    chrome.storage.local.get('unfuglyData_calendar', (result) => {
+        let calendarData = result.unfuglyData_calendar?.data || {};
+        if (Object.keys(calendarData).length > 0) {
+            renderCalendarUI(calendarContentContainer, calendarData, ""); // "" as pageName so it shows all months
+        } else {
+            calendarContentContainer.innerHTML = '<p style="color: #ccc; text-align: center; width: 100%; align-self: center;">Calendar data syncing...</p>';
+            if (typeof syncAllCalendars === 'function') {
+                syncAllCalendars().then(() => {
+                    chrome.storage.local.get('unfuglyData_calendar', (res2) => {
+                        let updatedData = res2.unfuglyData_calendar?.data || {};
+                        calendarContentContainer.innerHTML = '';
+                        if (Object.keys(updatedData).length > 0) {
+                            renderCalendarUI(calendarContentContainer, updatedData, "");
+                        } else {
+                            calendarContentContainer.innerHTML = '<p style="color: #ccc; text-align: center; width: 100%; align-self: center;">Failed to load calendar data.</p>';
+                        }
+                    });
+                });
+            }
+        }
+    });
+
     const loadingAnimetion = document.getElementById('preloader');
     loadingAnimetion.style.display = 'none'; // Hide loading animation after rendering
 }
@@ -3105,25 +3038,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         const regEndTime = performance.now();
         console.log(`[Unfugly Speed] Fetching and parsing Course Registration took ${(regEndTime - regStartTime).toFixed(2)} ms.`);
 
-        //Fetch the profile photo url (only if not already cached)
-        const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
-        if (cachedPhotoUrl) {
-            console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
-            fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
-        } else {
-            console.log("backgroundFetchAllData: Profile photo URL not cached. Fetching...");
-            const photoStartTime = performance.now();
-            const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
-                "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
-                ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
-            );
-            const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
-            fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
 
-            profilePhotoIframe.remove();
-            const photoEndTime = performance.now();
-            console.log(`[Unfugly Speed] Loading Student Profile Report took ${(photoEndTime - photoStartTime).toFixed(2)} ms.`);
-        }
 
         //Fetch Unified Timetable HTML based on batch natively
         if (batch && (batch === '1' || batch === '2')) {
@@ -3179,6 +3094,44 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         const attEndTime = performance.now();
         console.log(`[Unfugly Speed] Fetching Attendance and Marks natively took ${(attEndTime - attStartTime).toFixed(2)} ms.`);
 
+        // Fetch the profile photo url (only if not already cached)
+        const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
+        let dbPhotoUrl = null;
+        
+        if (cachedPhotoUrl) {
+            console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
+            fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
+        } else {
+            console.log("backgroundFetchAllData: Checking DB for profile photo...");
+            try {
+                const BACKEND = 'https://unfugly-backend.onrender.com';
+                const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+                if (dbRes.ok) {
+                    const dbJson = await dbRes.json();
+                    dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
+                }
+            } catch (e) {
+                console.error("Failed to check DB for profile photo:", e);
+            }
+            
+            if (dbPhotoUrl) {
+                 console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
+                 fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
+            } else {
+                 console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
+                 const photoStartTime = performance.now();
+                 const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
+                     "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
+                     ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
+                 );
+                 const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
+                 fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
+
+                 profilePhotoIframe.remove();
+                 const photoEndTime = performance.now();
+                 console.log(`[Unfugly Speed] Loading Student Profile Report took ${(photoEndTime - photoStartTime).toFixed(2)} ms.`);
+            }
+        }
         // Store the combined data
         //console.log(existingData[storageKey].editedSlots, "edited slots before preserving");
         const dataToCache = {
