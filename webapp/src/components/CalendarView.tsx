@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 
 interface CalendarViewProps {
   calendarData: Record<string, Record<string, { day: string; dayOrder: string; event: string }>>;
+  profileData?: any;
 }
 
-export default function CalendarView({ calendarData }: CalendarViewProps) {
+export default function CalendarView({ calendarData, profileData }: CalendarViewProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [months, setMonths] = useState<string[]>([]);
@@ -21,6 +22,43 @@ export default function CalendarView({ calendarData }: CalendarViewProps) {
         return parseMonth(a).getTime() - parseMonth(b).getTime();
     });
 
+    // Filter months based on the current semester (ODD/EVEN)
+    const currentDate = new Date();
+    let isEven = false;
+    
+    if (profileData && profileData.semester) {
+        const sem = parseInt(profileData.semester, 10);
+        isEven = sem % 2 === 0;
+    } else {
+        // Fallback: Use current date to determine semester
+        const month = currentDate.getMonth();
+        isEven = month >= 0 && month <= 5; // Jan-Jun is EVEN
+    }
+
+    sortedMonths = sortedMonths.filter(m => {
+        const parts = m.split(" '");
+        if (parts.length === 2) {
+            const mName = parts[0].toLowerCase();
+            if (isEven) {
+                // EVEN semester: Jan to Jun
+                const evenMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'];
+                return evenMonths.some(em => mName.startsWith(em));
+            } else {
+                // ODD semester: Jul to Dec
+                const oddMonths = ['jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                return oddMonths.some(em => mName.startsWith(em));
+            }
+        }
+        return true;
+    });
+
+    console.log('Calendar filtering:', {
+        isEven,
+        profileDataSemester: profileData?.semester,
+        sortedMonths,
+        originalKeys: Object.keys(calendarData)
+    });
+
     if (sortedMonths.length > 0) {
         setMonths(sortedMonths);
         
@@ -31,7 +69,7 @@ export default function CalendarView({ calendarData }: CalendarViewProps) {
         let initialMonth = sortedMonths.find(m => m.toLowerCase().includes(currentMonthShort) && m.includes(currentYearTwoDigit)) || sortedMonths[0];
         setSelectedMonth(initialMonth);
     }
-  }, [calendarData]);
+  }, [calendarData, profileData]);
 
   useEffect(() => {
      if (scrollContainerRef.current) {
