@@ -19,6 +19,13 @@ async function extractImageUrl(doc) {
         // Ensuring the report interface is fully loaded before interacting
         await waitForElement(doc, '#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn', 5000);
         
+        const imgSelector = '#listReportMainContainer > div.ht_master.handsontable > div > div > div > table > tbody > tr > td.zcReport_Image.zc-mapping-field > a > img';
+        const existingImg = doc.querySelector(imgSelector);
+        if (existingImg && existingImg.src) {
+            console.log("[Unfugly] Image already visible! Extracted URL immediately.");
+            return existingImg.src;
+        }
+
         const eyeTh = doc.querySelector('#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn');
         if (eyeTh) {
             //console.log("[Unfugly] Eye icon found. Triggering column selector...");
