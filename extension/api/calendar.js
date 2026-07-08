@@ -223,10 +223,13 @@ async function syncCalendarForSemester(semesterKey) {
                     }).catch(e => console.error("Failed to POST scraped calendar to backend", e));
                     
                     return new Promise((resolve) => {
-                        // Save specific semester data
-                        chrome.storage.local.set({ [`unfuglyData_calendar_${semesterKey}`]: updatedCalendarWrap, 'unfuglyData_calendar': updatedCalendarWrap }, () => {
-                            console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
-                            resolve(updatedCalendarWrap);
+                        chrome.storage.local.get(['unfuglyData_calendar'], (result) => {
+                            let rootCalendar = result.unfuglyData_calendar || {};
+                            rootCalendar[semesterKey] = updatedCalendarWrap;
+                            chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar }, () => {
+                                console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
+                                resolve(updatedCalendarWrap);
+                            });
                         });
                     });
                 }
@@ -249,9 +252,13 @@ async function syncCalendarForSemester(semesterKey) {
                         lastUpdated: "Fetched from DB"
                     };
                     return new Promise((resolve) => {
-                        chrome.storage.local.set({ [`unfuglyData_calendar_${semesterKey}`]: updatedCalendarWrap }, () => {
-                            console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
-                            resolve(updatedCalendarWrap);
+                        chrome.storage.local.get(['unfuglyData_calendar'], (result) => {
+                            let rootCalendar = result.unfuglyData_calendar || {};
+                            rootCalendar[semesterKey] = updatedCalendarWrap;
+                            chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar }, () => {
+                                console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
+                                resolve(updatedCalendarWrap);
+                            });
                         });
                     });
                 }

@@ -858,16 +858,22 @@ async function marksTotalReport() {
 
 async function checkAndSyncCalendar() {
     const result = await chrome.storage.local.get('unfuglyData_calendar');
-    const calendar = result.unfuglyData_calendar;
+    const calendarRoot = result.unfuglyData_calendar || {};
+    
+    // Check if we need to sync based on the CURRENT semester's last updated time
+    const currentSem = getCurrentSemesterKey();
+    const currentCalendar = calendarRoot[currentSem];
 
-    if (calendar && calendar.lastUpdated) {
-        const lastUpdateDate = new Date(calendar.lastUpdated);
-        const now = new Date();
-        const diffInHours = (now - lastUpdateDate) / (1000 * 60 * 60);
+    if (currentCalendar && currentCalendar.lastUpdated) {
+        const lastUpdateDate = new Date(currentCalendar.lastUpdated);
+        if (!isNaN(lastUpdateDate)) {
+            const now = new Date();
+            const diffInHours = (now - lastUpdateDate) / (1000 * 60 * 60);
 
-        // Only fetch if data is older than 24 hours
-        if (diffInHours < 24) {
-            return;
+            // Only fetch if data is older than 24 hours
+            if (diffInHours < 24) {
+                return;
+            }
         }
     }
 
@@ -3501,7 +3507,7 @@ function showCalendarViewFull(appWrapper) {
     backBtnContainer.appendChild(backBtn);
 
     const semesterHeader = document.createElement("div");
-    semesterHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 5px 0;";
+    semesterHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 5px 0 16px 0; border-bottom: 1px solid #fff;";
     
     const prevBtn = document.createElement("button");
     prevBtn.innerHTML = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"></polyline></svg>";
@@ -3512,7 +3518,7 @@ function showCalendarViewFull(appWrapper) {
     nextBtn.style.cssText = "background: transparent; border: none; color: #fff; cursor: pointer;";
     
     const semesterTitle = document.createElement("h4");
-    semesterTitle.style.cssText = "margin: 0; color: #fff; text-align: center; font-size: 14px; border-bottom: 2px solid #1E88E5; padding-bottom: 2px;";
+    semesterTitle.style.cssText = "margin: 0; color: #fff; text-align: center; font-size: 14px; font-weight: 600;";
 
     semesterHeader.appendChild(prevBtn);
     semesterHeader.appendChild(semesterTitle);
@@ -3543,8 +3549,8 @@ function showCalendarViewFull(appWrapper) {
         
         // Wait briefly just to ensure the UI updates before fetching
         setTimeout(() => {
-            chrome.storage.local.get(`unfuglyData_calendar_${semKey}`, (res) => {
-                const data = res[`unfuglyData_calendar_${semKey}`]?.data;
+            chrome.storage.local.get('unfuglyData_calendar', (res) => {
+                const data = res.unfuglyData_calendar?.[semKey]?.data;
                 if (data && Object.keys(data).length > 0) {
                     renderCalendarGridFull(calendarMainWrapper, monthListContainer, data);
                 } else {
@@ -3597,18 +3603,19 @@ function renderCalendarGridFull(mainView, monthListContainer, calendarData) {
     months.forEach(month => {
         const btn = document.createElement("button");
         btn.textContent = month;
-        btn.style.cssText = "width: 100%; text-align: left; padding: 10px; background: transparent; border: none; border-radius: 5px; color: #ccc; cursor: pointer; transition: all 0.2s;";
+        btn.style.cssText = "width: 100%; text-align: left; padding: 10px; background: transparent; border: none; border-radius: 5px; color: #ccc; cursor: pointer; transition: all 0.2s; position: relative;";
         if (month === selectedMonth) {
-            btn.style.background = "#1E88E5";
             btn.style.color = "white";
+            btn.style.borderBottom = "2px solid white";
+            btn.style.borderRadius = "5px 5px 0 0";
         }
         btn.onclick = () => {
             Array.from(monthListContainer.children).forEach(c => {
-                c.style.background = "transparent";
                 c.style.color = "#ccc";
+                c.style.borderBottom = "none";
             });
-            btn.style.background = "#1E88E5";
             btn.style.color = "white";
+            btn.style.borderBottom = "2px solid white";
             renderMonthGrid(mainView, month, calendarData[month]);
         };
         monthListContainer.appendChild(btn);
