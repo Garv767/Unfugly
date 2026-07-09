@@ -276,101 +276,91 @@ export default function Dashboard() {
          </div>
       </header>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col flex-shrink-0 h-[calc(100vh-32px)] overflow-y-auto custom-scrollbar">
-         <h2 className="text-white text-2xl font-bold mb-6">Profile</h2>
-         <div className="space-y-4 text-[14px] text-gray-300 font-medium">
-           <div><span className="font-bold text-white">Name:</span> {data.profileData.name}</div>
-           <div><span className="font-bold text-white">Reg No:</span> {data.profileData.registrationNo}</div>
-           <div><span className="font-bold text-white">Program:</span> {data.profileData.programmeBranch}</div>
-           <div><span className="font-bold text-white">Section:</span> {data.profileData.section}</div>
-           <div><span className="font-bold text-white">Semester:</span> {data.profileData.semester || '4'}</div>
-           <div><span className="font-bold text-white">Day Order:</span> {data.profileData.dayOrder || 'No Day Order'}</div>
-           <div><span className="font-bold text-white mt-2 block">Department:</span> {data.profileData.schoolDepartment}</div>
-         </div>
-         <div className="flex justify-center mt-10 mb-4">
-            <img 
-               src={`${API_URL}/api/v1/user/photo`} 
-               alt="Profile" 
-               onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
-               className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 
-            />
-            <div className={`w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-[#1E88E5]/20 flex items-center justify-center text-4xl font-bold text-[#1E88E5] shadow-lg hidden`}>
-               {data.profileData.name ? data.profileData.name.charAt(0).toUpperCase() : 'U'}
-            </div>
-         </div>
-         
-         <div className="mt-auto relative">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex flex-col gap-1.5 p-3 w-12 h-12 justify-center items-center bg-[#2a2a2a] rounded-xl border border-[#444] hover:bg-[#333] transition ml-0 cursor-pointer">
-               <span className="w-5 h-0.5 bg-white"></span>
-               <span className="w-5 h-0.5 bg-white"></span>
-               <span className="w-5 h-0.5 bg-white"></span>
-            </button>
-            
-            {isMenuOpen && (
-               <div className="absolute left-0 bottom-[calc(100%+8px)] bg-[#1e1e1e] border border-[#444] rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all w-[240px] p-2 text-left z-50 flex flex-col gap-1">
-                  <FeedbackFiller asMenuItem={true} profileData={data.profileData} courseData={data.courseData} />
-                  
-                  <button onClick={() => { setActiveTab('Calendar'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
-                     <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
-                  </button>
-                  
-                  <div className="px-4 py-2 mt-1 border-t border-[#333] text-sm text-gray-300 font-bold truncate">
-                     {data.profileData.name}
-                  </div>
-                  
-                  <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm font-bold text-[#ff5252] hover:bg-[#ff5252]/10 hover:translate-x-1 active:scale-[0.98] rounded-lg transition-all duration-200 flex items-center gap-3">
-                     <LogOut className="w-4 h-4" /> Logout
-                  </button>
+      {/* Main Layout Area */}
+      {activeTab === 'Calendar' ? (
+         <CalendarView onBack={() => setActiveTab('Timetable')} profileData={data?.profileData} />
+      ) : (
+         <>
+            {/* Desktop Sidebar */}
+            <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col flex-shrink-0 h-[calc(100vh-32px)] overflow-y-auto custom-scrollbar">
+               <h2 className="text-white text-2xl font-bold mb-6">Profile</h2>
+               <div className="space-y-4 text-[14px] text-gray-300 font-medium">
+                 <div><span className="font-bold text-white">Name:</span> {data.profileData.name}</div>
+                 <div><span className="font-bold text-white">Reg No:</span> {data.profileData.registrationNo}</div>
+                 <div><span className="font-bold text-white">Program:</span> {data.profileData.programmeBranch}</div>
+                 <div><span className="font-bold text-white">Section:</span> {data.profileData.section}</div>
+                 <div><span className="font-bold text-white">Semester:</span> {data.profileData.semester || '4'}</div>
+                 <div><span className="font-bold text-white">Day Order:</span> {data.profileData.dayOrder || 'No Day Order'}</div>
+                 <div><span className="font-bold text-white mt-2 block">Department:</span> {data.profileData.schoolDepartment}</div>
                </div>
-            )}
-         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
-         {isBgScraping && (
-            <div className="absolute top-4 right-6 bg-[#333] px-3 py-1.5 rounded-full text-xs text-white flex items-center shadow border border-[#444] z-50">
-               <div className="w-3 h-3 rounded-full border-2 border-accent border-t-transparent animate-spin mr-2"></div> 
-               Syncing latest data...
-               <span className="ml-2 text-muted truncate max-w-[150px] italic">({progressMsg})</span>
-            </div>
-         )}
-         
-         <div className="max-w-[1400px] mx-auto space-y-12">
-             {activeTab === 'Calendar' ? (
-                 <div className="w-full">
-                    <div className="flex justify-between items-center mb-6">
-                       <h2 className="text-2xl font-bold text-white">Calendar</h2>
-                       <button 
-                          onClick={() => setActiveTab('Timetable')}
-                          className="px-4 py-2 bg-[#1e1e1e] hover:bg-[#333] border border-[#444] rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                       >
-                          <span>←</span> Back to Dashboard
-                       </button>
-                    </div>
-                    <CalendarView calendarData={calendarData} profileData={data?.profileData} />
-                 </div>
-             ) : (
-                 <>
-                     {/* Timetable Section */}
-                     <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block' : 'hidden lg:block'}`}>
-                 {(data.timetableHTML || (data.timetableJSON && data.timetableJSON.days)) ? (
-                     <TimetableView 
-                       htmlContent={data.timetableHTML || ''} 
-                       courseData={data.courseData} 
-                       netId={data.profileData.registrationNo} 
-                       calendarData={calendarData}
-                       timetableJSON={data.timetableJSON}
-                       profileData={data.profileData}
-                       dbEditedSlots={data.editedSlots}
-                     />
-                 ) : (isBgScraping && (
-                     <div className="w-full h-[300px] rounded-xl bg-[#1e1e1e] border border-[#333] animate-pulse flex items-center justify-center">
-                         <div className="text-gray-400 font-medium">Syncing Timetable...</div>
+               <div className="flex justify-center mt-10 mb-4">
+                  <img 
+                     src={`${API_URL}/api/v1/user/photo`} 
+                     alt="Profile" 
+                     onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
+                     className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 
+                  />
+                  <div className={`w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-[#1E88E5]/20 flex items-center justify-center text-4xl font-bold text-[#1E88E5] shadow-lg hidden`}>
+                     {data.profileData.name ? data.profileData.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+               </div>
+               
+               <div className="mt-auto relative">
+                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex flex-col gap-1.5 p-3 w-12 h-12 justify-center items-center bg-[#2a2a2a] rounded-xl border border-[#444] hover:bg-[#333] transition ml-0 cursor-pointer">
+                     <span className="w-5 h-0.5 bg-white"></span>
+                     <span className="w-5 h-0.5 bg-white"></span>
+                     <span className="w-5 h-0.5 bg-white"></span>
+                  </button>
+                  
+                  {isMenuOpen && (
+                     <div className="absolute left-0 bottom-[calc(100%+8px)] bg-[#1e1e1e] border border-[#444] rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all w-[240px] p-2 text-left z-50 flex flex-col gap-1">
+                        <FeedbackFiller asMenuItem={true} profileData={data.profileData} courseData={data.courseData} />
+                        
+                        <button onClick={() => { setActiveTab('Calendar'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                           <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
+                        </button>
+                        
+                        <div className="px-4 py-2 mt-1 border-t border-[#333] text-sm text-gray-300 font-bold truncate">
+                           {data.profileData.name}
+                        </div>
+                        
+                        <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm font-bold text-[#ff5252] hover:bg-[#ff5252]/10 hover:translate-x-1 active:scale-[0.98] rounded-lg transition-all duration-200 flex items-center gap-3">
+                           <LogOut className="w-4 h-4" /> Logout
+                        </button>
                      </div>
-                 ))}
-             </div>
+                  )}
+               </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
+               {isBgScraping && (
+                  <div className="absolute top-4 right-6 bg-[#333] px-3 py-1.5 rounded-full text-xs text-white flex items-center shadow border border-[#444] z-50">
+                     <div className="w-3 h-3 rounded-full border-2 border-accent border-t-transparent animate-spin mr-2"></div> 
+                     Syncing latest data...
+                     <span className="ml-2 text-muted truncate max-w-[150px] italic">({progressMsg})</span>
+                  </div>
+               )}
+               
+               <div className="max-w-[1400px] mx-auto space-y-12">
+                   {/* Timetable Section */}
+                   <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block' : 'hidden lg:block'}`}>
+                       {(data.timetableHTML || (data.timetableJSON && data.timetableJSON.days)) ? (
+                           <TimetableView 
+                             htmlContent={data.timetableHTML || ''} 
+                             courseData={data.courseData} 
+                             netId={data.profileData.registrationNo} 
+                             calendarData={calendarData}
+                             timetableJSON={data.timetableJSON}
+                             profileData={data.profileData}
+                             dbEditedSlots={data.editedSlots}
+                           />
+                       ) : (isBgScraping && (
+                           <div className="w-full h-[300px] rounded-xl bg-[#1e1e1e] border border-[#333] animate-pulse flex items-center justify-center">
+                               <div className="text-gray-400 font-medium">Syncing Timetable...</div>
+                           </div>
+                       ))}
+                   </div>
 
              {/* Attendance Section */}
              <div className={`lg:min-w-[700px] ${activeTab === 'Attendance' ? 'block' : 'hidden lg:block'}`}>
@@ -633,10 +623,11 @@ export default function Dashboard() {
                   })}
                 </div>
              </div>
-            </>
-          )}
+
          </div>
       </main>
+      </>
+    )}
 
        {/* Bottom Navigation Bar (Mobile) */}
        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-[#1a1a1a] border-t border-[#333] flex justify-around items-center h-16 z-40 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">

@@ -3,60 +3,72 @@
 import { useState, useEffect, useRef } from 'react';
 
 interface CalendarViewProps {
-  calendarData: Record<string, Record<string, { day: string; dayOrder: string; event: string }>>;
   profileData?: any;
+  onBack?: () => void;
 }
 
-export default function CalendarView({ calendarData, profileData }: CalendarViewProps) {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const SEMESTERS = ['2025_26_ODD', '2025_26_EVEN', '2026_27_ODD'];
+
+export default function CalendarView({ profileData, onBack }: CalendarViewProps) {
+  const [currentSemesterIndex, setCurrentSemesterIndex] = useState<number>(1); // Default will be set in useEffect
+  const [semesterDataCache, setSemesterDataCache] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
+  const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [months, setMonths] = useState<string[]>([]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Determine initial semester based on current date
   useEffect(() => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-11
+    
+    let initialIndex = 2; // Default
+    if (currentYear === 2025) {
+        if (currentMonth >= 6) initialIndex = 0; // 2025_26_ODD starts July 2025
+    } else if (currentYear === 2026) {
+        if (currentMonth < 6) initialIndex = 1; // 2025_26_EVEN starts Jan 2026
+        else initialIndex = 2; // 2026_27_ODD starts July 2026
+    }
+    setCurrentSemesterIndex(initialIndex);
+  }, []);
+
+  // Fetch data for the current semester
+  useEffect(() => {
+     const semKey = SEMESTERS[currentSemesterIndex];
+     if (semesterDataCache[semKey]) {
+        setLoading(false);
+        return;
+     }
+     
+     setLoading(true);
+     fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`)
+       .then(res => res.json())
+       .then(data => {
+          setSemesterDataCache(prev => ({ ...prev, [semKey]: data.calendar_json || data }));
+          setLoading(false);
+       })
+       .catch(err => {
+          console.error("Failed to fetch calendar", err);
+          setLoading(false);
+       });
+  }, [currentSemesterIndex]);
+
+  // Process data when cache or semester index changes
+  useEffect(() => {
+    const semKey = SEMESTERS[currentSemesterIndex];
+    const calendarData = semesterDataCache[semKey];
     if (!calendarData) return;
     
     let sortedMonths = Object.keys(calendarData).sort((a, b) => {
         const parseMonth = (str: string) => new Date(str.replace("'", "20"));
         return parseMonth(a).getTime() - parseMonth(b).getTime();
-    });
-
-    // Filter months based on the current semester (ODD/EVEN)
-    const currentDate = new Date();
-    let isEven = false;
-    
-    if (profileData && profileData.semester) {
-        const sem = parseInt(profileData.semester, 10);
-        isEven = sem % 2 === 0;
-    } else {
-        // Fallback: Use current date to determine semester
-        const month = currentDate.getMonth();
-        isEven = month >= 0 && month <= 5; // Jan-Jun is EVEN
-    }
-
-    sortedMonths = sortedMonths.filter(m => {
-        const parts = m.split(" '");
-        if (parts.length === 2) {
-            const mName = parts[0].toLowerCase();
-            if (isEven) {
-                // EVEN semester: Jan to Jun
-                const evenMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'];
-                return evenMonths.some(em => mName.startsWith(em));
-            } else {
-                // ODD semester: Jul to Dec
-                const oddMonths = ['jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-                return oddMonths.some(em => mName.startsWith(em));
-            }
-        }
-        return true;
-    });
-
-    console.log('Calendar filtering:', {
-        isEven,
-        profileDataSemester: profileData?.semester,
-        sortedMonths,
-        originalKeys: Object.keys(calendarData)
     });
 
     if (sortedMonths.length > 0) {
@@ -69,7 +81,7 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
         let initialMonth = sortedMonths.find(m => m.toLowerCase().includes(currentMonthShort) && m.includes(currentYearTwoDigit)) || sortedMonths[0];
         setSelectedMonth(initialMonth);
     }
-  }, [calendarData, profileData]);
+  }, [currentSemesterIndex, semesterDataCache]);
 
   useEffect(() => {
      if (scrollContainerRef.current) {
@@ -77,64 +89,135 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
      }
   }, [selectedMonth]);
 
-  if (!calendarData || months.length === 0) {
-      return (
-          <div className="flex flex-col items-center justify-center w-full gap-4 text-[#aaa] font-sans p-10">
-              <div className="w-10 h-10 border-4 border-[#333] border-t-[#1E88E5] rounded-full animate-spin"></div>
-              <p className="m-0 text-sm">Syncing calendar data...</p>
-          </div>
-      );
-  }
+  const semKey = SEMESTERS[currentSemesterIndex];
+  const calendarData = semesterDataCache[semKey];
 
-  const monthData = selectedMonth ? calendarData[selectedMonth] : null;
+  const handleTouchStart = (e: React.TouchEvent) => {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const dx = touchStartRef.current.x - touchEndX;
+      const dy = touchStartRef.current.y - touchEndY;
+      
+      // If horizontal swipe is greater than vertical and exceeds threshold
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+          const currentMonthIndex = months.indexOf(selectedMonth);
+          if (dx > 0) {
+              // Swiped left (Next Month)
+              if (currentMonthIndex < months.length - 1) {
+                  setSelectedMonth(months[currentMonthIndex + 1]);
+              } else if (currentSemesterIndex < SEMESTERS.length - 1) {
+                  // Switch to next semester
+                  setCurrentSemesterIndex(prev => prev + 1);
+              }
+          } else {
+              // Swiped right (Previous Month)
+              if (currentMonthIndex > 0) {
+                  setSelectedMonth(months[currentMonthIndex - 1]);
+              } else if (currentSemesterIndex > 0) {
+                  // Switch to previous semester
+                  setCurrentSemesterIndex(prev => prev - 1);
+              }
+          }
+      }
+      touchStartRef.current = null;
+  };
 
   return (
-      <div className="flex flex-col md:flex-row w-full h-[calc(100vh-100px)] bg-[#121212] text-white font-sans box-border overflow-hidden relative rounded-xl border border-[#333] shadow-lg">
-          
+      <>
           {/* Mobile Toggle Button */}
-          <div className="md:hidden flex items-center justify-between p-4 border-b border-[#333]">
+          <div className="lg:hidden flex items-center justify-between p-4 border-b border-[#333] w-full">
               <h1 className="m-0 text-[#1E88E5] text-xl font-bold">{selectedMonth}</h1>
               <button 
                   className="bg-[#1E88E5] text-white border-none px-4 py-2 rounded-md font-bold cursor-pointer text-sm"
                   onClick={() => setMinimapOpen(!minimapOpen)}
               >
-                  {minimapOpen ? 'Close Months' : 'Change Month'}
+                  {minimapOpen ? 'Close' : 'Months'}
               </button>
           </div>
 
-          {/* Minimap */}
-          <div 
+          {/* Minimap (Months List + Pagination) - matches Desktop Sidebar */}
+          <aside 
               className={`
-                  ${minimapOpen ? 'flex absolute shadow-[2px_0_10px_rgba(0,0,0,0.5)]' : 'hidden'} 
-                  md:flex md:static
-                  flex-col w-[250px] min-w-[250px] h-full bg-[#1e1e1e] border-r border-[#333] overflow-y-auto transition-transform z-10
+                  ${minimapOpen ? 'flex absolute top-[60px] left-0 w-[250px] shadow-[2px_0_10px_rgba(0,0,0,0.5)] z-50 h-[calc(100vh-60px)] bg-[#1e1e1e]' : 'hidden'} 
+                  lg:flex lg:static lg:w-[260px] xl:w-[300px] lg:bg-[#2a2a2a] lg:m-4 lg:mr-2 lg:rounded-2xl lg:p-6 lg:h-[calc(100vh-32px)]
+                  flex-col flex-shrink-0 overflow-y-auto custom-scrollbar border-r border-[#333] lg:border-none
               `}
           >
-              <h3 className="p-5 m-0 text-white border-b border-[#333] font-semibold">Months</h3>
-              <div className="flex flex-col p-2.5 gap-1.5">
-                  {months.map(month => (
-                      <button 
-                          key={month}
-                          className={`
-                              w-full text-left py-3 px-4 bg-transparent border-none rounded-md text-[1em] transition-all cursor-pointer
-                              ${selectedMonth === month ? 'bg-[#1E88E5] text-white' : 'text-[#ccc] hover:bg-[#2a2a2a]'}
-                          `}
-                          onClick={() => {
-                              setSelectedMonth(month);
-                              if (window.innerWidth < 768) {
-                                  setMinimapOpen(false);
-                              }
-                          }}
-                      >
-                          {month}
-                      </button>
-                  ))}
+              <div className="flex items-center justify-between p-4 lg:p-0 lg:mb-6 lg:pb-4 lg:border-b lg:border-[#555] border-b border-[#333]">
+                  <button 
+                      onClick={() => setCurrentSemesterIndex(prev => Math.max(0, prev - 1))}
+                      disabled={currentSemesterIndex === 0}
+                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === 0 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#333] hover:text-[#1E88E5]'}`}
+                  >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <h3 className="m-0 text-white font-semibold text-sm">
+                      {semKey.replace('_', '-')}
+                  </h3>
+                  <button 
+                      onClick={() => setCurrentSemesterIndex(prev => Math.min(SEMESTERS.length - 1, prev + 1))}
+                      disabled={currentSemesterIndex === SEMESTERS.length - 1}
+                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === SEMESTERS.length - 1 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#333] hover:text-[#1E88E5]'}`}
+                  >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
               </div>
-          </div>
 
-          {/* Main View */}
-          <div ref={scrollContainerRef} className="flex-grow h-full bg-[#121212] flex flex-col overflow-y-auto p-5 box-border scroll-smooth">
-              {selectedMonth && monthData && (
+              {loading ? (
+                  <div className="p-4 text-center text-sm text-[#aaa]">Loading...</div>
+              ) : months.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-[#aaa]">No data</div>
+              ) : (
+                  <div className="flex flex-col p-2.5 gap-1.5">
+                      {months.map(month => {
+                          const isCurrentRealWorldMonth = month.toLowerCase().includes(new Date().toLocaleString('default', { month: 'short' }).toLowerCase()) && month.includes(new Date().getFullYear().toString().slice(-2));
+                          return (
+                              <button 
+                                  key={month}
+                                  className={`
+                                      w-full text-left py-3 px-4 bg-transparent border-none rounded-md text-[1em] transition-all cursor-pointer relative
+                                      ${selectedMonth === month ? 'bg-[#1E88E5] text-white' : 'text-[#ccc] hover:bg-[#2a2a2a]'}
+                                  `}
+                                  style={isCurrentRealWorldMonth && selectedMonth !== month ? { borderLeft: '5px solid #1E88E5', paddingLeft: '11px' } : isCurrentRealWorldMonth && selectedMonth === month ? { borderLeft: '5px solid #fff', paddingLeft: '11px' } : {}}
+                                  onClick={() => {
+                                      setSelectedMonth(month);
+                                      if (window.innerWidth < 768) {
+                                          setMinimapOpen(false);
+                                      }
+                                  }}
+                              >
+                                  {month}
+                              </button>
+                          );
+                      })}
+                  </div>
+              )}
+
+              <div className="mt-auto pt-6 w-full hidden lg:block">
+                  <button onClick={onBack} className="w-full text-left px-4 py-3 bg-[#1e1e1e] hover:bg-[#333] border border-[#444] rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                     <span>←</span> Back to Dashboard
+                  </button>
+              </div>
+          </aside>
+
+          {/* Main View - matches Desktop Main Content */}
+          <main 
+              ref={scrollContainerRef} 
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar flex flex-col"
+          >
+              {loading ? (
+                  <div className="flex flex-col items-center justify-center w-full h-full gap-4 text-[#aaa] font-sans p-10">
+                      <div className="w-10 h-10 border-4 border-[#333] border-t-[#1E88E5] rounded-full animate-spin"></div>
+                      <p className="m-0 text-sm">Loading calendar...</p>
+                  </div>
+              ) : selectedMonth && calendarData && calendarData[selectedMonth] ? (
                   <>
                       <div className="hidden md:flex justify-between items-center mb-5">
                           <h1 className="m-0 text-[#1E88E5] text-3xl font-bold">{selectedMonth}</h1>
@@ -148,11 +231,10 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                               </div>
                           ))}
 
-                          {/* Determine starting padding */}
                           {(() => {
                               let startDayIndex = 0;
-                              if (monthData['1'] && monthData['1'].day) {
-                                  startDayIndex = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(monthData['1'].day);
+                              if (calendarData[selectedMonth]['1'] && calendarData[selectedMonth]['1'].day) {
+                                  startDayIndex = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(calendarData[selectedMonth]['1'].day);
                                   if (startDayIndex === -1) startDayIndex = 0;
                               }
                               return Array.from({ length: startDayIndex }).map((_, i) => (
@@ -160,15 +242,14 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                               ));
                           })()}
 
-                          {/* Render Days */}
                           {Array.from({ length: 31 }).map((_, i) => {
                               const dateStr = (i + 1).toString();
-                              if (!monthData[dateStr]) return null;
+                              if (!calendarData[selectedMonth][dateStr]) return null;
 
-                              const dayInfo = monthData[dateStr];
+                              const dayInfo = calendarData[selectedMonth][dateStr];
                               const isHoliday = dayInfo.dayOrder === '-' || dayInfo.dayOrder?.toLowerCase() === 'holiday' || dayInfo.event?.toLowerCase().includes('holiday');
-                              const borderColor = isHoliday ? '#d32f2f' : '#333';
-                              const bg = isHoliday ? 'rgba(211, 47, 47, 0.1)' : '#2a2a2a';
+                              const borderColor = isHoliday ? '#d32f2f' : '#444';
+                              const bg = isHoliday ? 'rgba(211, 47, 47, 0.1)' : '#1e1e1e';
 
                               return (
                                   <div 
@@ -201,11 +282,10 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                                   </div>
                               ))}
 
-                              {/* Start padding */}
                               {(() => {
                                   let startDayIndex = 0;
-                                  if (monthData['1'] && monthData['1'].day) {
-                                      startDayIndex = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(monthData['1'].day);
+                                  if (calendarData[selectedMonth]['1'] && calendarData[selectedMonth]['1'].day) {
+                                      startDayIndex = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(calendarData[selectedMonth]['1'].day);
                                       if (startDayIndex === -1) startDayIndex = 0;
                                   }
                                   return Array.from({ length: startDayIndex }).map((_, i) => (
@@ -213,17 +293,22 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                                   ));
                               })()}
 
-                              {/* Render Mini Days */}
                               {Array.from({ length: 31 }).map((_, i) => {
                                   const dateStr = (i + 1).toString();
-                                  if (!monthData[dateStr]) return null;
+                                  if (!calendarData[selectedMonth][dateStr]) return null;
 
-                                  const dayInfo = monthData[dateStr];
+                                  const dayInfo = calendarData[selectedMonth][dateStr];
                                   const isHoliday = dayInfo.dayOrder === '-' || dayInfo.dayOrder?.toLowerCase() === 'holiday' || dayInfo.event?.toLowerCase().includes('holiday');
                                   const hasEvent = dayInfo.event && dayInfo.event !== '-';
 
                                   return (
-                                      <div key={`mob-${dateStr}`} className="flex flex-col items-center justify-center aspect-square p-1">
+                                      <div 
+                                          key={`mob-${dateStr}`} 
+                                          className="flex flex-col items-center justify-center aspect-square p-1 cursor-pointer hover:scale-110 transition-transform"
+                                          onClick={() => {
+                                              document.getElementById(`evt-${dateStr}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                          }}
+                                      >
                                           <div className={`w-full h-full flex items-center justify-center rounded-full text-sm font-semibold relative ${isHoliday ? 'text-[#ef5350] bg-red-900/20' : 'text-white'}`}>
                                               {dateStr}
                                               {hasEvent && <div className="absolute bottom-0 w-1 h-1 rounded-full bg-[#1E88E5]"></div>}
@@ -238,15 +323,15 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                              <h3 className="text-white font-bold mb-2">Events & Holidays</h3>
                              {Array.from({ length: 31 }).map((_, i) => {
                                  const dateStr = (i + 1).toString();
-                                 if (!monthData[dateStr]) return null;
-                                 const dayInfo = monthData[dateStr];
+                                 if (!calendarData[selectedMonth][dateStr]) return null;
+                                 const dayInfo = calendarData[selectedMonth][dateStr];
                                  const hasEvent = dayInfo.event && dayInfo.event !== '-';
                                  const isHoliday = dayInfo.dayOrder === '-' || dayInfo.dayOrder?.toLowerCase() === 'holiday' || dayInfo.event?.toLowerCase().includes('holiday');
                                  
-                                 if (!hasEvent && !isHoliday && dayInfo.dayOrder === 'No Day Order') return null; // Skip empty days
+                                 if (!hasEvent && !isHoliday && dayInfo.dayOrder === 'No Day Order') return null;
 
                                  return (
-                                     <div key={`evt-${dateStr}`} className="flex items-start gap-4 p-3 bg-[#1e1e1e] rounded-lg border border-[#333]">
+                                     <div id={`evt-${dateStr}`} key={`evt-${dateStr}`} className="flex items-start gap-4 p-3 bg-[#1e1e1e] rounded-lg border border-[#333]">
                                          <div className="flex flex-col items-center min-w-[40px]">
                                              <span className="text-xs text-[#aaa]">{dayInfo.day}</span>
                                              <span className={`text-xl font-bold ${isHoliday ? 'text-[#ef5350]' : 'text-white'}`}>{dateStr}</span>
@@ -262,8 +347,8 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                                      </div>
                                  );
                              })}
-                             {Object.keys(monthData).every(k => {
-                                 const d = monthData[k];
+                             {Object.keys(calendarData[selectedMonth]).every(k => {
+                                 const d = calendarData[selectedMonth][k];
                                  return (!d.event || d.event === '-') && d.dayOrder !== '-';
                              }) && (
                                  <div className="text-[#aaa] text-sm italic">No special events this month.</div>
@@ -271,8 +356,8 @@ export default function CalendarView({ calendarData, profileData }: CalendarView
                           </div>
                       </div>
                   </>
-              )}
-          </div>
-      </div>
+              ) : null}
+          </main>
+      </>
   );
 }
