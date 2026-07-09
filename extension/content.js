@@ -2017,8 +2017,12 @@ function renderProfilePanel(profileData, container, dayOrder) {
         profilePanel = document.createElement('div');
         profilePanel.className = 'unfugly-panel profile-panel';
         profilePanel.style.cssText = `
-            flex: 1;
-            max-width: 200px;
+            flex: 0 0 25%;
+            min-width: 240px;
+            max-width: 300px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
             background-color: #333;
             color: #fff;
             border-radius: 8px;
@@ -2039,7 +2043,115 @@ function renderProfilePanel(profileData, container, dayOrder) {
         <p><strong>Department:</strong> ${profileData.schoolDepartment || 'N/A'}</p>
         <div class="profile-photo-container" style="margin-top: 15px; text-align: center;">
             <img id="unfugly-profile-photo" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #1E88E5; box-shadow: 0 4px 8px rgba(0,0,0,0.3); object-fit: cover; background-color: #444;" />
-        </div>`;
+        </div>
+        <div id="unfugly-profile-details-wrapper"></div>
+    `;
+    
+    // Move existing details into a wrapper so we can easily hide/show them
+    const detailsWrapper = profilePanel.querySelector('#unfugly-profile-details-wrapper');
+    detailsWrapper.style.paddingBottom = '60px'; // Prevent overlap with pinned menu
+    const existingChildren = Array.from(profilePanel.childNodes);
+    existingChildren.forEach(child => {
+        if (child.id !== 'unfugly-profile-details-wrapper') {
+            detailsWrapper.appendChild(child);
+        }
+    });
+
+    // Add Hamburger menu with exact screenshot styling
+    const menuContainer = document.createElement('div');
+    menuContainer.id = 'unfugly-profile-menu-container';
+    menuContainer.style.cssText = 'position: absolute; bottom: 20px; left: 20px; display: flex; justify-content: flex-start;';
+    menuContainer.innerHTML = `
+        <button id="unfugly-hamburger-btn" style="
+            background: #222; 
+            border: 1px solid #444; 
+            border-radius: 8px; 
+            color: white; 
+            width: 40px; 
+            height: 40px; 
+            cursor: pointer; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 4px;
+            transition: background 0.2s;
+        ">
+            <span style="display: block; width: 18px; height: 2px; background: white; border-radius: 2px;"></span>
+            <span style="display: block; width: 18px; height: 2px; background: white; border-radius: 2px;"></span>
+            <span style="display: block; width: 18px; height: 2px; background: white; border-radius: 2px;"></span>
+        </button>
+        
+        <div id="unfugly-hamburger-popup" style="
+            display: none; 
+            position: absolute; 
+            bottom: 100%; 
+            left: 0; 
+            width: 220px; 
+            background: #1e1e1e; 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); 
+            z-index: 100; 
+            flex-direction: column;
+            padding: 8px 0;
+        ">
+            <button id="unfugly-menu-calendar-btn" style="
+                width: 100%; 
+                background: transparent; 
+                border: none; 
+                color: white; 
+                padding: 12px 16px; 
+                cursor: pointer; 
+                text-align: left; 
+                font-size: 14px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                transition: background 0.2s;
+            ">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E88E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Calendar
+            </button>
+        </div>
+    `;
+    detailsWrapper.appendChild(menuContainer);
+
+    const hamburgerBtn = profilePanel.querySelector('#unfugly-hamburger-btn');
+    const popup = profilePanel.querySelector('#unfugly-hamburger-popup');
+    
+    hamburgerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+        hamburgerBtn.style.background = popup.style.display === 'none' ? '#222' : '#333';
+    });
+    
+    document.addEventListener('click', () => {
+        if (popup) {
+            popup.style.display = 'none';
+            hamburgerBtn.style.background = '#222';
+        }
+    });
+
+    const calendarBtn = profilePanel.querySelector('#unfugly-menu-calendar-btn');
+    
+    calendarBtn.addEventListener('mouseover', () => calendarBtn.style.background = '#2a2a2a');
+    calendarBtn.addEventListener('mouseout', () => calendarBtn.style.background = 'transparent');
+    
+    calendarBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+        hamburgerBtn.style.background = '#222';
+        if (typeof showCalendarViewFull === 'function') {
+            showCalendarViewFull(container);
+        }
+    });
 
     const profileImgElement = profilePanel.querySelector('#unfugly-profile-photo');
     if (profileImgElement) {
@@ -2124,39 +2236,8 @@ function renderAccordionPanels(cachedData, previousAttendanceData, container, ne
     // Inject marks data
     formatMarksTable(cachedData.marksData, marksPanel.querySelector('#marks-content-container'), previousAttendanceData, cachedData.courseData);
 
-    // Calendar Panel
-    const calendarPanel = document.createElement('div');
-    calendarPanel.className = 'unfugly-panel';
-    calendarPanel.innerHTML = `
-        <h3 style="color: #fff;">Calendar</h3>
-        <div id="calendar-content-container" style="height: 500px; display: flex; flex-direction: row; border: 1px solid #333; border-radius: 8px; overflow: hidden; background: #121212;"></div>
-    `;
-    accordionWrapper.appendChild(calendarPanel);
-
-    // Render Calendar
-    const calendarContentContainer = calendarPanel.querySelector('#calendar-content-container');
-    chrome.storage.local.get('unfuglyData_calendar', (result) => {
-        let calendarData = result.unfuglyData_calendar?.data || {};
-        if (Object.keys(calendarData).length > 0) {
-            renderCalendarUI(calendarContentContainer, calendarData, ""); // "" as pageName so it shows all months
-        } else {
-            calendarContentContainer.innerHTML = '<p style="color: #ccc; text-align: center; width: 100%; align-self: center;">Calendar data syncing...</p>';
-            if (typeof syncAllCalendars === 'function') {
-                syncAllCalendars().then(() => {
-                    chrome.storage.local.get('unfuglyData_calendar', (res2) => {
-                        let updatedData = res2.unfuglyData_calendar?.data || {};
-                        calendarContentContainer.innerHTML = '';
-                        if (Object.keys(updatedData).length > 0) {
-                            renderCalendarUI(calendarContentContainer, updatedData, "");
-                        } else {
-                            calendarContentContainer.innerHTML = '<p style="color: #ccc; text-align: center; width: 100%; align-self: center;">Failed to load calendar data.</p>';
-                        }
-                    });
-                });
-            }
-        }
-    });
-
+    // Calendar Panel removed as it is now in the hamburger menu
+    
     const loadingAnimetion = document.getElementById('preloader');
     loadingAnimetion.style.display = 'none'; // Hide loading animation after rendering
 }
@@ -3373,3 +3454,248 @@ if (document.body) {
 
 checkVersion();
 handleCurrentPage(); // Initial call to set up the page correctly
+
+// --- NEW CALENDAR VIEW FULL LOGIC ---
+function showCalendarViewFull(appWrapper) {
+    const accordionWrapper = appWrapper.querySelector(".unfugly-accordion-wrapper");
+    const profilePanel = appWrapper.querySelector(".profile-panel");
+    if (accordionWrapper) accordionWrapper.style.display = "none";
+    
+    const detailsWrapper = profilePanel.querySelector("#unfugly-profile-details-wrapper");
+    if (detailsWrapper) detailsWrapper.style.display = "none";
+
+    let calendarMinimapContainer = profilePanel.querySelector("#unfugly-calendar-minimap-wrapper");
+    if (!calendarMinimapContainer) {
+        calendarMinimapContainer = document.createElement("div");
+        calendarMinimapContainer.id = "unfugly-calendar-minimap-wrapper";
+        calendarMinimapContainer.style.cssText = "display: flex; flex-direction: column; flex: 1; overflow-y: auto; margin-top: 15px;";
+        profilePanel.appendChild(calendarMinimapContainer);
+    }
+    calendarMinimapContainer.style.display = "flex";
+    calendarMinimapContainer.innerHTML = "";
+
+    let calendarMainWrapper = appWrapper.querySelector("#unfugly-calendar-main-wrapper");
+    if (!calendarMainWrapper) {
+        calendarMainWrapper = document.createElement("div");
+        calendarMainWrapper.id = "unfugly-calendar-main-wrapper";
+        calendarMainWrapper.style.cssText = "flex: 3; background-color: #121212; border-radius: 8px; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.2); padding: 20px;";
+        appWrapper.appendChild(calendarMainWrapper);
+    }
+    calendarMainWrapper.style.display = "flex";
+    calendarMainWrapper.style.flexDirection = "column";
+
+    const backBtnContainer = document.createElement("div");
+    backBtnContainer.style.cssText = "margin-top: auto; padding-top: 20px; width: 100%; display: flex; justify-content: center;";
+    
+    const backBtn = document.createElement("button");
+    backBtn.innerHTML = "← Back to Dashboard";
+    backBtn.style.cssText = "background: #1e1e1e; border: 1px solid #444; color: #fff; cursor: pointer; padding: 12px 20px; font-weight: bold; text-align: center; width: 100%; border-radius: 8px; font-size: 13px; transition: background 0.2s;";
+    backBtn.onmouseover = () => backBtn.style.background = "#333";
+    backBtn.onmouseout = () => backBtn.style.background = "#1e1e1e";
+    backBtn.onclick = () => {
+        calendarMinimapContainer.style.display = "none";
+        calendarMainWrapper.style.display = "none";
+        if (detailsWrapper) detailsWrapper.style.display = "block";
+        if (accordionWrapper) accordionWrapper.style.display = "block";
+    };
+    backBtnContainer.appendChild(backBtn);
+
+    const semesterHeader = document.createElement("div");
+    semesterHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 5px 0;";
+    
+    const prevBtn = document.createElement("button");
+    prevBtn.innerHTML = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"15 18 9 12 15 6\"></polyline></svg>";
+    prevBtn.style.cssText = "background: transparent; border: none; color: #fff; cursor: pointer;";
+    
+    const nextBtn = document.createElement("button");
+    nextBtn.innerHTML = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"9 18 15 12 9 6\"></polyline></svg>";
+    nextBtn.style.cssText = "background: transparent; border: none; color: #fff; cursor: pointer;";
+    
+    const semesterTitle = document.createElement("h4");
+    semesterTitle.style.cssText = "margin: 0; color: #fff; text-align: center; font-size: 14px; border-bottom: 2px solid #1E88E5; padding-bottom: 2px;";
+
+    semesterHeader.appendChild(prevBtn);
+    semesterHeader.appendChild(semesterTitle);
+    semesterHeader.appendChild(nextBtn);
+    calendarMinimapContainer.appendChild(semesterHeader);
+
+    const monthListContainer = document.createElement("div");
+    monthListContainer.style.cssText = "display: flex; flex-direction: column; gap: 5px;";
+    calendarMinimapContainer.appendChild(monthListContainer);
+    
+    // Add the back button at the very bottom
+    calendarMinimapContainer.appendChild(backBtnContainer);
+
+    let currentSemesterKey = getCurrentSemesterKey();
+    const semesters = ["2025_26_ODD", "2025_26_EVEN", "2026_27_ODD"];
+    let currentIndex = semesters.indexOf(currentSemesterKey);
+    if (currentIndex === -1) currentIndex = 0;
+
+    const loadSemester = (index) => {
+        const semKey = semesters[index];
+        semesterTitle.textContent = semKey.replace("_", "-");
+        calendarMainWrapper.innerHTML = "<div style=\"color: #ccc; text-align: center; width: 100%; margin-top: 50px;\">Loading " + semKey + "...</div>";
+        
+        prevBtn.style.opacity = index === 0 ? "0.2" : "1";
+        prevBtn.style.cursor = index === 0 ? "not-allowed" : "pointer";
+        nextBtn.style.opacity = index === semesters.length - 1 ? "0.2" : "1";
+        nextBtn.style.cursor = index === semesters.length - 1 ? "not-allowed" : "pointer";
+        
+        // Wait briefly just to ensure the UI updates before fetching
+        setTimeout(() => {
+            chrome.storage.local.get(`unfuglyData_calendar_${semKey}`, (res) => {
+                const data = res[`unfuglyData_calendar_${semKey}`]?.data;
+                if (data && Object.keys(data).length > 0) {
+                    renderCalendarGridFull(calendarMainWrapper, monthListContainer, data);
+                } else {
+                    calendarMainWrapper.innerHTML = "<div style=\"color: #ccc; text-align: center; width: 100%; margin-top: 50px;\">Calendar data not available. Syncing...</div>";
+                    monthListContainer.innerHTML = "";
+                    syncCalendarForSemester(semKey).then(() => {
+                        chrome.storage.local.get(`unfuglyData_calendar_${semKey}`, (res2) => {
+                            const data2 = res2[`unfuglyData_calendar_${semKey}`]?.data;
+                            if (data2 && Object.keys(data2).length > 0) {
+                                renderCalendarGridFull(calendarMainWrapper, monthListContainer, data2);
+                            } else {
+                                calendarMainWrapper.innerHTML = "<div style=\"color: #ccc; text-align: center; width: 100%; margin-top: 50px;\">Failed to load calendar data.</div>";
+                            }
+                        });
+                    });
+                }
+            });
+        }, 50);
+    };
+
+    prevBtn.onclick = () => {
+        if (currentIndex > 0) {
+            currentIndex--;
+            loadSemester(currentIndex);
+        }
+    };
+    nextBtn.onclick = () => {
+        if (currentIndex < semesters.length - 1) {
+            currentIndex++;
+            loadSemester(currentIndex);
+        }
+    };
+
+    loadSemester(currentIndex);
+}
+
+function renderCalendarGridFull(mainView, monthListContainer, calendarData) {
+    monthListContainer.innerHTML = "";
+    mainView.innerHTML = "";
+
+    let months = Object.keys(calendarData).sort((a, b) => {
+        const parseMonth = (str) => new Date(str.replace("'", "20"));
+        return parseMonth(a) - parseMonth(b);
+    });
+
+    if (months.length === 0) return;
+
+    let selectedMonth = months[0];
+
+    months.forEach(month => {
+        const btn = document.createElement("button");
+        btn.textContent = month;
+        btn.style.cssText = "width: 100%; text-align: left; padding: 10px; background: transparent; border: none; border-radius: 5px; color: #ccc; cursor: pointer; transition: all 0.2s;";
+        if (month === selectedMonth) {
+            btn.style.background = "#1E88E5";
+            btn.style.color = "white";
+        }
+        btn.onclick = () => {
+            Array.from(monthListContainer.children).forEach(c => {
+                c.style.background = "transparent";
+                c.style.color = "#ccc";
+            });
+            btn.style.background = "#1E88E5";
+            btn.style.color = "white";
+            renderMonthGrid(mainView, month, calendarData[month]);
+        };
+        monthListContainer.appendChild(btn);
+    });
+
+    renderMonthGrid(mainView, selectedMonth, calendarData[selectedMonth]);
+}
+
+function renderMonthGrid(mainView, monthName, monthData) {
+    mainView.innerHTML = "";
+    mainView.scrollTop = 0;
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;";
+    
+    const title = document.createElement("h1");
+    title.textContent = monthName;
+    title.style.margin = "0";
+    title.style.color = "#1E88E5";
+    header.appendChild(title);
+    mainView.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.style.cssText = "display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; width: 100%;";
+    
+    const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    daysOfWeek.forEach(d => {
+        const dayHeader = document.createElement("div");
+        dayHeader.textContent = d;
+        dayHeader.style.cssText = "text-align: center; font-weight: bold; padding: 10px; background-color: #1e1e1e; border-radius: 8px; color: #aaa;";
+        grid.appendChild(dayHeader);
+    });
+
+    let startDayIndex = 0;
+    if (monthData["1"] && monthData["1"].day) {
+        startDayIndex = daysOfWeek.indexOf(monthData["1"].day);
+        if (startDayIndex === -1) startDayIndex = 0;
+    }
+
+    for(let i = 0; i < startDayIndex; i++) {
+        const emptySlot = document.createElement("div");
+        grid.appendChild(emptySlot);
+    }
+
+    for (let i = 1; i <= 31; i++) {
+        const dateStr = i.toString();
+        if (monthData[dateStr]) {
+            const dayInfo = monthData[dateStr];
+            const dayCard = document.createElement("div");
+            
+            const isHoliday = dayInfo.dayOrder === "-" || dayInfo.dayOrder.toLowerCase() === "holiday" || dayInfo.event.toLowerCase().includes("holiday");
+            const borderColor = isHoliday ? "#d32f2f" : "#444";
+            const bg = isHoliday ? "rgba(211, 47, 47, 0.1)" : "#1e1e1e";
+            
+            dayCard.style.cssText = `background-color: ${bg}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; min-height: 100px; transition: all 0.2s;`;
+            dayCard.onmouseover = () => {
+                dayCard.style.transform = "translateY(-2px)";
+                dayCard.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+            };
+            dayCard.onmouseout = () => {
+                dayCard.style.transform = "none";
+                dayCard.style.boxShadow = "none";
+            };
+
+            const topRow = document.createElement("div");
+            topRow.style.cssText = "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;";
+            
+            const dateNum = document.createElement("span");
+            dateNum.textContent = dateStr;
+            dateNum.style.cssText = `font-size: 1.5em; font-weight: bold; color: ${isHoliday ? "#ef5350" : "#fff"};`;
+            
+            const doBadge = document.createElement("span");
+            doBadge.textContent = dayInfo.dayOrder;
+            doBadge.style.cssText = `background-color: ${isHoliday ? "#d32f2f" : "#1E88E5"}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold;`;
+            
+            topRow.appendChild(dateNum);
+            topRow.appendChild(doBadge);
+            dayCard.appendChild(topRow);
+
+            const eventText = document.createElement("div");
+            eventText.textContent = dayInfo.event !== "-" ? dayInfo.event : "";
+            eventText.style.cssText = "color: #bbb; font-size: 0.9em; overflow-wrap: break-word;";
+            dayCard.appendChild(eventText);
+
+            grid.appendChild(dayCard);
+        }
+    }
+    mainView.appendChild(grid);
+}
+

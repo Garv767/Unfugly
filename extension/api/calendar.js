@@ -74,13 +74,12 @@ async function parseCalendarHTML(rawText) {
  * @returns {Object} The scraped calendar data object.
  */
 function extractCalendarData(doc, url) {
-    // Determine the year for the months based on the URL (e.g. Academic_Planner_2025_26_ODD)
-    let year = "";
+    let startYear = 0;
+    let semesterType = '';
     const match = url.match(/Academic_Planner_(\d{4})_(\d{2})_(ODD|EVEN)/i);
     if (match) {
-        const startYear = parseInt(match[1]);
-        // ODD semesters are in the starting year (e.g. Jul-Dec 2025), EVEN are in the next year (e.g. Jan-May 2026)
-        year = (match[3].toUpperCase() === 'ODD') ? startYear.toString() : (startYear + 1).toString();
+        startYear = parseInt(match[1]);
+        semesterType = match[3].toUpperCase();
     }
 
     const tables = doc.querySelectorAll('table');
@@ -130,7 +129,15 @@ function extractCalendarData(doc, url) {
         if (cellIndex % 5 === 2) {
             let monthName = cell.textContent.trim();
             if (monthName && monthName !== '-') {
-                if (!monthName.includes("'") && year) {
+                if (!monthName.includes("'") && startYear) {
+                    let year = "";
+                    if (semesterType === 'ODD') {
+                        const isNextYear = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].some(m => monthName.startsWith(m));
+                        year = isNextYear ? (startYear + 1).toString() : startYear.toString();
+                    } else {
+                        const isPrevYear = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].some(m => monthName.startsWith(m));
+                        year = isPrevYear ? startYear.toString() : (startYear + 1).toString();
+                    }
                     monthName = `${monthName} '${year.slice(-2)}`;
                 }
                 currentUrlCalendar[monthName] = {};
@@ -162,58 +169,112 @@ function extractCalendarData(doc, url) {
 }
 
 /**
- * Fetches all predefined calendar URLs natively, parses them, and stores the merged data.
+ * Helper to get current semester key based on date
  */
-async function syncAllCalendars() {
-    console.log("syncAllCalendars: Starting native calendar sync.");
-    const urls = [
-        "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2025_26_ODD",
-        "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2025_26_EVEN",
-        "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2026_27_ODD"
-    ];
+function getCurrentSemesterKey() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    if (month <= 6) {
+        return `${year - 1}_${year.toString().slice(-2)}_EVEN`;
+    } else {
+        return `${year}_${(year + 1).toString().slice(-2)}_ODD`;
+    }
+}
 
-    let mergedCalendarData = {};
+/**
+ * Syncs a specific calendar semester.
+ * @param {string} semesterKey - e.g., '2025_26_ODD'
+ */
+async function syncCalendarForSemester(semesterKey) {
+    const BACKEND = 'https://unfugly-backend.onrender.com';
+    const isCurrent = semesterKey === getCurrentSemesterKey();
 
-    for (const url of urls) {
+    if (isCurrent) {
+        const url = `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_${semesterKey}`;
         try {
-            console.log(`syncAllCalendars: Fetching ${url}`);
+            console.log(`syncCalendarForSemester: Fetching ${url} via scraping (Current Sem)`);
             const rawText = await fetchCalendarRaw(url);
             const doc = await parseCalendarHTML(rawText);
             if (doc) {
                 const calendarData = extractCalendarData(doc, url);
-                for (const month in calendarData) {
-                    mergedCalendarData[month] = {
-                        ...(mergedCalendarData[month] || {}),
-                        ...calendarData[month]
+                if (Object.keys(calendarData).length > 0) {
+                    const now = new Date();
+                    const day = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", day: "numeric" });
+                    const month = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", month: "short" });
+                    const year = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" });
+                    const time = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+                    const istTime = `${day} ${month} ${year}, ${time}`;
+
+                    const updatedCalendarWrap = {
+                        data: calendarData,
+                        lastUpdated: istTime
                     };
+                    
+                    // POST scraped data to backend to update DB
+                    fetch(`${BACKEND}/api/v1/calendar`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            calendar_json: calendarData,
+                            semester: semesterKey,
+                            last_updated_ist: istTime
+                        })
+                    }).catch(e => console.error("Failed to POST scraped calendar to backend", e));
+                    
+                    return new Promise((resolve) => {
+                        // Save specific semester data
+                        chrome.storage.local.set({ [`unfuglyData_calendar_${semesterKey}`]: updatedCalendarWrap, 'unfuglyData_calendar': updatedCalendarWrap }, () => {
+                            console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
+                            resolve(updatedCalendarWrap);
+                        });
+                    });
                 }
             }
         } catch (error) {
-            console.error(`syncAllCalendars: Failed to process ${url}`, error);
+            console.error(`syncCalendarForSemester: Failed to scrape ${url}`, error);
+            // Optionally, we could fallback to DB here, but we'll stick to user instructions.
+        }
+    } else {
+        // Fetch from DB for older/other semesters
+        const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}`;
+        try {
+            console.log(`syncCalendarForSemester: Fetching ${semesterKey} from backend API (Old Sem)`);
+            const res = await fetch(apiUrl);
+            if (res.ok) {
+                const json = await res.json();
+                if (json && json.calendar_json) {
+                    const updatedCalendarWrap = {
+                        data: json.calendar_json,
+                        lastUpdated: "Fetched from DB"
+                    };
+                    return new Promise((resolve) => {
+                        chrome.storage.local.set({ [`unfuglyData_calendar_${semesterKey}`]: updatedCalendarWrap }, () => {
+                            console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
+                            resolve(updatedCalendarWrap);
+                        });
+                    });
+                }
+            }
+        } catch (error) {
+            console.error(`syncCalendarForSemester: Failed to fetch from DB for ${semesterKey}`, error);
         }
     }
+    return null;
+}
 
-    if (Object.keys(mergedCalendarData).length > 0) {
-        chrome.storage.local.get('unfuglyData_calendar', (result) => {
-            const oldCalendarWrap = result.unfuglyData_calendar || { data: {}, lastUpdated: null };
+/**
+ * Fetches all predefined calendar URLs natively, parses them, and stores the data per semester.
+ */
+async function syncAllCalendars() {
+    console.log("syncAllCalendars: Starting native calendar sync.");
+    const semestersToSync = [
+        "2025_26_ODD",
+        "2025_26_EVEN",
+        "2026_27_ODD"
+    ];
 
-            const now = new Date();
-            const day = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", day: "numeric" });
-            const month = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", month: "short" });
-            const year = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" });
-            const time = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
-            const istTime = `${day} ${month} ${year}, ${time}`;
-
-            const updatedCalendarWrap = {
-                data: mergedCalendarData, // Replace completely to flush out old formatted keys
-                lastUpdated: istTime
-            };
-
-            chrome.storage.local.set({ 'unfuglyData_calendar': updatedCalendarWrap }, () => {
-                console.log(`syncAllCalendars: Calendar Updated at ${istTime}`);
-            });
-        });
-    } else {
-        console.warn("syncAllCalendars: No calendar data extracted from any URL.");
+    for (const sem of semestersToSync) {
+        await syncCalendarForSemester(sem);
     }
 }
