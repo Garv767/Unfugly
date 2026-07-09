@@ -42,23 +42,47 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
   // Fetch data for the current semester
   useEffect(() => {
      const semKey = SEMESTERS[currentSemesterIndex];
+     
+     // First check state cache
      if (semesterDataCache[semKey]) {
         setLoading(false);
         return;
+     }
+
+     // Then check localStorage cache
+     const cachedDataStr = localStorage.getItem('unfuglyData_calendar');
+     if (cachedDataStr) {
+         try {
+             const cachedRoot = JSON.parse(cachedDataStr);
+             if (cachedRoot[semKey] && cachedRoot[semKey].data) {
+                 setSemesterDataCache(prev => ({ ...prev, [semKey]: cachedRoot[semKey].data }));
+                 setLoading(false);
+                 return;
+             }
+         } catch(e) { console.error('Failed to parse calendar from localStorage', e); }
      }
      
      setLoading(true);
      fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`)
        .then(res => res.json())
        .then(data => {
-          setSemesterDataCache(prev => ({ ...prev, [semKey]: data.calendar_json || data }));
+          const calendarJson = data.calendar_json || data;
+          setSemesterDataCache(prev => ({ ...prev, [semKey]: calendarJson }));
+          
+          // Save to localStorage under unfuglyData_calendar
+          const existingCacheStr = localStorage.getItem('unfuglyData_calendar');
+          let rootCache = {};
+          try { if (existingCacheStr) rootCache = JSON.parse(existingCacheStr); } catch(e){}
+          rootCache[semKey] = { data: calendarJson, lastUpdated: new Date().toISOString() };
+          localStorage.setItem('unfuglyData_calendar', JSON.stringify(rootCache));
+          
           setLoading(false);
        })
        .catch(err => {
           console.error("Failed to fetch calendar", err);
           setLoading(false);
        });
-  }, [currentSemesterIndex]);
+  }, [currentSemesterIndex, semesterDataCache]);
 
   // Process data when cache or semester index changes
   useEffect(() => {
@@ -143,16 +167,16 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
           {/* Minimap (Months List + Pagination) - matches Desktop Sidebar */}
           <aside 
               className={`
-                  ${minimapOpen ? 'flex absolute top-[60px] left-0 w-[250px] shadow-[2px_0_10px_rgba(0,0,0,0.5)] z-50 h-[calc(100vh-60px)] bg-[#1e1e1e]' : 'hidden'} 
-                  lg:flex lg:static lg:w-[260px] xl:w-[300px] lg:bg-[#2a2a2a] lg:m-4 lg:mr-2 lg:rounded-2xl lg:p-6 lg:h-[calc(100vh-32px)]
+                  ${minimapOpen ? 'flex absolute top-[60px] left-0 w-[250px] shadow-[2px_0_10px_rgba(0,0,0,0.5)] z-50 h-[calc(100vh-60px)] bg-[#333]' : 'hidden'} 
+                  lg:flex lg:static lg:w-[260px] xl:w-[300px] lg:bg-[#333] lg:m-4 lg:mr-2 lg:rounded-2xl lg:p-6 lg:h-[calc(100vh-32px)]
                   flex-col flex-shrink-0 overflow-y-auto custom-scrollbar border-r border-[#333] lg:border-none
               `}
           >
-              <div className="flex items-center justify-between p-4 lg:p-0 lg:mb-6 lg:pb-4 lg:border-b lg:border-[#555] border-b border-[#333]">
+              <div className="flex items-center justify-between p-4 lg:p-0 lg:mb-6 lg:pb-4 lg:border-b lg:border-white border-b border-[#333]">
                   <button 
                       onClick={() => setCurrentSemesterIndex(prev => Math.max(0, prev - 1))}
                       disabled={currentSemesterIndex === 0}
-                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === 0 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#333] hover:text-[#1E88E5]'}`}
+                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === 0 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#444] hover:text-[#1E88E5]'}`}
                   >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   </button>
@@ -162,7 +186,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                   <button 
                       onClick={() => setCurrentSemesterIndex(prev => Math.min(SEMESTERS.length - 1, prev + 1))}
                       disabled={currentSemesterIndex === SEMESTERS.length - 1}
-                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === SEMESTERS.length - 1 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#333] hover:text-[#1E88E5]'}`}
+                      className={`bg-transparent border-none flex items-center justify-center p-2 rounded-full transition ${currentSemesterIndex === SEMESTERS.length - 1 ? 'opacity-20 cursor-not-allowed text-gray-500' : 'text-white cursor-pointer hover:bg-[#444] hover:text-[#1E88E5]'}`}
                   >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </button>
@@ -180,10 +204,9 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                               <button 
                                   key={month}
                                   className={`
-                                      w-full text-left py-3 px-4 bg-transparent border-none rounded-md text-[1em] transition-all cursor-pointer relative
-                                      ${selectedMonth === month ? 'bg-[#1E88E5] text-white' : 'text-[#ccc] hover:bg-[#2a2a2a]'}
+                                      w-full text-left py-3 px-4 border-none text-[1em] transition-all cursor-pointer relative
+                                      ${selectedMonth === month ? 'border-l-4 border-l-[#1E88E5] bg-[#1E88E5]/10 text-white font-bold' : 'bg-transparent text-[#ccc] hover:bg-[#444] border-l-4 border-l-transparent'}
                                   `}
-                                  style={isCurrentRealWorldMonth && selectedMonth !== month ? { borderLeft: '5px solid #1E88E5', paddingLeft: '11px' } : isCurrentRealWorldMonth && selectedMonth === month ? { borderLeft: '5px solid #fff', paddingLeft: '11px' } : {}}
                                   onClick={() => {
                                       setSelectedMonth(month);
                                       if (window.innerWidth < 768) {
@@ -199,8 +222,8 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
               )}
 
               <div className="mt-auto pt-6 w-full hidden lg:block">
-                  <button onClick={onBack} className="w-full text-left px-4 py-3 bg-[#1e1e1e] hover:bg-[#333] border border-[#444] rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer">
-                     <span>←</span> Back to Dashboard
+                  <button onClick={onBack} className="w-full text-center px-4 py-3 bg-[#1e1e1e] hover:bg-[#333] border border-[#444] rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer text-white">
+                     ← Back to Dashboard
                   </button>
               </div>
           </aside>
@@ -210,7 +233,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
               ref={scrollContainerRef} 
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
-              className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar flex flex-col"
+              className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#121212] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar flex flex-col"
           >
               {loading ? (
                   <div className="flex flex-col items-center justify-center w-full h-full gap-4 text-[#aaa] font-sans p-10">
@@ -261,7 +284,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                                           <span className={`text-2xl font-bold ${isHoliday ? 'text-[#ef5350]' : 'text-white'}`}>
                                               {dateStr}
                                           </span>
-                                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${isHoliday ? 'bg-[#d32f2f]' : 'bg-[#1E88E5]'}`}>
+                                          <span className={`w-6 h-6 flex items-center justify-center shrink-0 rounded-full text-xs font-bold text-white ${isHoliday ? 'bg-[#d32f2f]' : 'bg-[#1E88E5]'}`}>
                                               {dayInfo.dayOrder}
                                           </span>
                                       </div>
