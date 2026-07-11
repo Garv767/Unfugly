@@ -16,6 +16,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
   const [loading, setLoading] = useState(true);
 
   const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+  const transitionDirectionRef = useRef<'next' | 'prev' | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [minimapOpen, setMinimapOpen] = useState(false);
@@ -118,12 +119,20 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
     if (sortedMonths.length > 0) {
         setMonths(sortedMonths);
         
-        const currentDate = new Date();
-        const currentMonthShort = currentDate.toLocaleString('default', { month: 'short' }).toLowerCase();
-        const currentYearTwoDigit = currentDate.getFullYear().toString().slice(-2);
-        
-        let initialMonth = sortedMonths.find(m => m.toLowerCase().includes(currentMonthShort) && m.includes(currentYearTwoDigit)) || sortedMonths[0];
-        setSelectedMonth(initialMonth);
+        if (transitionDirectionRef.current === 'next') {
+            setSelectedMonth(sortedMonths[0]);
+            transitionDirectionRef.current = null;
+        } else if (transitionDirectionRef.current === 'prev') {
+            setSelectedMonth(sortedMonths[sortedMonths.length - 1]);
+            transitionDirectionRef.current = null;
+        } else {
+            const currentDate = new Date();
+            const currentMonthShort = currentDate.toLocaleString('default', { month: 'short' }).toLowerCase();
+            const currentYearTwoDigit = currentDate.getFullYear().toString().slice(-2);
+            
+            let initialMonth = sortedMonths.find(m => m.toLowerCase().includes(currentMonthShort) && m.includes(currentYearTwoDigit)) || sortedMonths[0];
+            setSelectedMonth(initialMonth);
+        }
     }
   }, [currentSemesterIndex, semesterDataCache]);
 
@@ -156,6 +165,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                   setSelectedMonth(months[currentMonthIndex + 1]);
               } else if (currentSemesterIndex < SEMESTERS.length - 1) {
                   // Switch to next semester
+                  transitionDirectionRef.current = 'next';
                   setCurrentSemesterIndex(prev => prev + 1);
               }
           } else {
@@ -164,6 +174,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                   setSelectedMonth(months[currentMonthIndex - 1]);
               } else if (currentSemesterIndex > 0) {
                   // Switch to previous semester
+                  transitionDirectionRef.current = 'prev';
                   setCurrentSemesterIndex(prev => prev - 1);
               }
           }
