@@ -373,7 +373,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                           </div>
 
                           {/* Event List */}
-                          <div className="flex flex-col space-y-3 pb-8">
+                          <div className="flex flex-col space-y-3 pb-24">
                              <h3 className="text-white font-bold mb-2">Events & Holidays</h3>
                              {Array.from({ length: 31 }).map((_, i) => {
                                  const dateStr = (i + 1).toString();
