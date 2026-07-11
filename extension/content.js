@@ -3608,8 +3608,6 @@ function renderCalendarGridFull(mainView, monthListContainer, calendarData) {
         if (month === selectedMonth) {
             btn.style.color = "white";
             btn.style.background = "#1E88E5";
-            btn.style.borderBottom = "2px solid white";
-            btn.style.borderRadius = "5px 5px 0 0";
         }
         btn.onclick = () => {
             Array.from(monthListContainer.children).forEach(c => {
@@ -3619,7 +3617,6 @@ function renderCalendarGridFull(mainView, monthListContainer, calendarData) {
             });
             btn.style.color = "white";
             btn.style.background = "#1E88E5";
-            btn.style.borderBottom = "2px solid white";
             renderMonthGrid(mainView, month, calendarData[month]);
         };
         monthListContainer.appendChild(btn);
