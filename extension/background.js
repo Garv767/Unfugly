@@ -17,4 +17,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // Keep the message channel open for the async response
   }
+  
+  if (request.action === "fetch_backend") {
+    fetch(request.url, request.options)
+      .then(res => res.text().then(text => ({
+        status: res.status,
+        ok: res.ok,
+        text: text
+      })))
+      .then(data => sendResponse({ success: true, data }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
 });

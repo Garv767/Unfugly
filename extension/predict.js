@@ -187,8 +187,17 @@ function runPrediction(netId, startDateStr, endDateStr, callback) {
             callback(null, 'Missing attendance, course, or timetable data. Please refresh your data first.');
             return;
         }
-        if (!calendarWrap?.data || Object.keys(calendarWrap.data).length === 0) {
-            callback(null, 'Calendar data not available. Please visit the Academic Planner page first.');
+        let mergedCalendarData = {};
+        if (calendarWrap) {
+            for (const semKey of Object.keys(calendarWrap)) {
+                if (calendarWrap[semKey]?.data) {
+                    Object.assign(mergedCalendarData, calendarWrap[semKey].data);
+                }
+            }
+        }
+
+        if (Object.keys(mergedCalendarData).length === 0) {
+            callback(null, 'Calendar data not available. Please wait for it to sync.');
             return;
         }
 
@@ -197,7 +206,7 @@ function runPrediction(netId, startDateStr, endDateStr, callback) {
         const predictions = predictAttendance(
             userData.attendanceData,
             slotMap,
-            calendarWrap.data,
+            mergedCalendarData,
             startDateStr,
             endDateStr
         );
@@ -268,7 +277,11 @@ async function openPredictModal(netId) {
 
     // Fetch Calendar data to determine the maximum available date
     const storageResult = await chrome.storage.local.get('unfuglyData_calendar');
-    const calendarData = storageResult.unfuglyData_calendar?.data || {};
+    let calendarData = {};
+    const rootCal = storageResult.unfuglyData_calendar || {};
+    for (const semKey of Object.keys(rootCal)) {
+        if (rootCal[semKey]?.data) Object.assign(calendarData, rootCal[semKey].data);
+    }
 
     let maxDateStr = null;
     let maxDate = new Date(0);

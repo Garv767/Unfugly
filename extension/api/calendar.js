@@ -187,87 +187,127 @@ function getCurrentSemesterKey() {
  * @param {string} semesterKey - e.g., '2025_26_ODD'
  */
 async function syncCalendarForSemester(semesterKey) {
-    const BACKEND = 'https://unfugly-backend.onrender.com';
+    // const BACKEND = 'https://unfugly-backend.onrender.com';
+    const BACKEND = 'http://localhost:3000';
     const isCurrent = semesterKey === getCurrentSemesterKey();
 
-    if (isCurrent) {
-        const url = `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_${semesterKey}`;
-        try {
-            console.log(`syncCalendarForSemester: Fetching ${url} via scraping (Current Sem)`);
-            const rawText = await fetchCalendarRaw(url);
-            const doc = await parseCalendarHTML(rawText);
-            if (doc) {
-                const calendarData = extractCalendarData(doc, url);
-                if (Object.keys(calendarData).length > 0) {
-                    const now = new Date();
-                    const day = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", day: "numeric" });
-                    const month = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", month: "short" });
-                    const year = now.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" });
-                    const time = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
-                    const istTime = `${day} ${month} ${year}, ${time}`;
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['unfuglyData_calendar'], async (result) => {
+            let rootCalendar = result.unfuglyData_calendar || {};
+            let cachedSem = rootCalendar[semesterKey];
 
-                    const updatedCalendarWrap = {
-                        data: calendarData,
-                        lastUpdated: istTime
-                    };
-                    
-                    // POST scraped data to backend to update DB
-                    fetch(`${BACKEND}/api/v1/calendar`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            calendar_json: calendarData,
-                            semester: semesterKey,
-                            last_updated_ist: istTime
-                        })
-                    }).catch(e => console.error("Failed to POST scraped calendar to backend", e));
-                    
-                    return new Promise((resolve) => {
-                        chrome.storage.local.get(['unfuglyData_calendar'], (result) => {
-                            let rootCalendar = result.unfuglyData_calendar || {};
-                            rootCalendar[semesterKey] = updatedCalendarWrap;
-                            chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar }, () => {
-                                console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
-                                resolve(updatedCalendarWrap);
-                            });
-                        });
-                    });
+            // 1. Check Local Storage
+            if (cachedSem && cachedSem.data) {
+                if (!isCurrent) {
+                    console.log(`syncCalendarForSemester: Found ${semesterKey} in cache (Old Sem). Skipping DB.`);
+                    return resolve(cachedSem);
+                } else {
+                    const lastUpdateDate = new Date(cachedSem.lastUpdated);
+                    if (!isNaN(lastUpdateDate)) {
+                        const diffInHours = (new Date() - lastUpdateDate) / (1000 * 60 * 60);
+                        if (diffInHours < 24) {
+                            console.log(`syncCalendarForSemester: Cache for ${semesterKey} is fresh (<24h). Skipping DB.`);
+                            return resolve(cachedSem);
+                        }
+                    }
                 }
             }
-        } catch (error) {
-            console.error(`syncCalendarForSemester: Failed to scrape ${url}`, error);
-            // Optionally, we could fallback to DB here, but we'll stick to user instructions.
-        }
-    } else {
-        // Fetch from DB for older/other semesters
-        const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}`;
-        try {
-            console.log(`syncCalendarForSemester: Fetching ${semesterKey} from backend API (Old Sem)`);
-            const res = await fetch(apiUrl);
-            if (res.ok) {
-                const json = await res.json();
-                if (json && json.calendar_json) {
-                    const updatedCalendarWrap = {
-                        data: json.calendar_json,
-                        lastUpdated: "Fetched from DB"
-                    };
-                    return new Promise((resolve) => {
-                        chrome.storage.local.get(['unfuglyData_calendar'], (result) => {
-                            let rootCalendar = result.unfuglyData_calendar || {};
+
+            // 2. Check DB via background proxy (avoids mixed-content block: HTTPS page → HTTP backend)
+            const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}`;
+            let fetchedFromDb = false;
+            try {
+                console.log(`syncCalendarForSemester: Fetching ${semesterKey} from DB at ${apiUrl}`);
+                const resObj = await new Promise((promResolve) => {
+                    chrome.runtime.sendMessage(
+                        { action: "fetch_backend", url: apiUrl, options: { method: "GET" } },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                console.warn(`syncCalendarForSemester: sendMessage error for ${semesterKey}:`, chrome.runtime.lastError.message);
+                                promResolve(null);
+                            } else {
+                                promResolve(response);
+                            }
+                        }
+                    );
+                });
+                console.log(`syncCalendarForSemester: DB response for ${semesterKey}:`, resObj?.data?.status, resObj?.success);
+                if (resObj && resObj.success && resObj.data.ok) {
+                    const json = JSON.parse(resObj.data.text);
+                    if (json && json.calendar_json) {
+                        const updatedCalendarWrap = {
+                            data: json.calendar_json,
+                            lastUpdated: new Date().toISOString()
+                        };
+                        rootCalendar[semesterKey] = updatedCalendarWrap;
+                        chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar });
+                        console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
+                        fetchedFromDb = true;
+                        return resolve(updatedCalendarWrap);
+                    } else {
+                        console.warn(`syncCalendarForSemester: DB returned ok but no calendar_json for ${semesterKey}`);
+                    }
+                } else if (resObj && resObj.data) {
+                    console.warn(`syncCalendarForSemester: DB returned ${resObj.data.status} for ${semesterKey}`);
+                }
+            } catch (error) {
+                console.error(`syncCalendarForSemester: Failed to fetch from DB for ${semesterKey}:`, error.message);
+            }
+
+            if (fetchedFromDb) return;
+
+            // 3. If not in DB, and is current semester -> Scrape Academia
+            if (isCurrent) {
+                const url = `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_${semesterKey}`;
+                try {
+                    console.log(`syncCalendarForSemester: Fetching ${url} via scraping`);
+                    const rawText = await fetchCalendarRaw(url);
+                    const doc = await parseCalendarHTML(rawText);
+                    if (doc) {
+                        const calendarData = extractCalendarData(doc, url);
+                        if (Object.keys(calendarData).length > 0) {
+                            const now = new Date();
+                            const istTime = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+                            const updatedCalendarWrap = {
+                                data: calendarData,
+                                lastUpdated: now.toISOString()
+                            };
+
+                            // POST to backend
+                            fetch(`${BACKEND}/api/v1/calendar`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    calendar_json: calendarData,
+                                    semester: semesterKey,
+                                    last_updated_ist: istTime
+                                })
+                            }).catch(e => console.error("Failed to POST scraped calendar to backend", e));
+
                             rootCalendar[semesterKey] = updatedCalendarWrap;
-                            chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar }, () => {
-                                console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
-                                resolve(updatedCalendarWrap);
-                            });
-                        });
-                    });
+                            chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar });
+                            console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
+                            return resolve(updatedCalendarWrap);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`syncCalendarForSemester: Failed to scrape ${url}`, error);
                 }
             }
-        } catch (error) {
-            console.error(`syncCalendarForSemester: Failed to fetch from DB for ${semesterKey}`, error);
-        }
-    }
-    return null;
+
+            // 4. Fallback if everything fails
+            if (cachedSem && cachedSem.data) {
+                console.log(`syncCalendarForSemester: Falling back to stale cache for ${semesterKey}`);
+                resolve(cachedSem);
+            } else {
+                console.log(`syncCalendarForSemester: No cache available and failed to fetch/scrape ${semesterKey}`);
+                if (typeof displayInfoMessage === 'function') {
+                    displayInfoMessage(`Calendar data for ${semesterKey.replace('_', '-')} is currently unavailable.`, 5000, 'error');
+                }
+                resolve(null);
+            }
+        });
+    });
 }
 
 /**
@@ -276,6 +316,7 @@ async function syncCalendarForSemester(semesterKey) {
 async function syncAllCalendars() {
     console.log("syncAllCalendars: Starting native calendar sync.");
     const semestersToSync = [
+        "2024_25_EVEN",
         "2025_26_ODD",
         "2025_26_EVEN",
         "2026_27_ODD"

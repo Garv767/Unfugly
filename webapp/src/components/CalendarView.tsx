@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface CalendarViewProps {
   profileData?: any;
@@ -8,7 +8,7 @@ interface CalendarViewProps {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const SEMESTERS = ['2025_26_ODD', '2025_26_EVEN', '2026_27_ODD'];
+const SEMESTERS = ['2024_25_EVEN', '2025_26_ODD', '2025_26_EVEN', '2026_27_ODD'];
 
 export default function CalendarView({ profileData, onBack }: CalendarViewProps) {
   const [currentSemesterIndex, setCurrentSemesterIndex] = useState<number>(1); // Default will be set in useEffect
@@ -24,20 +24,24 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Determine initial semester based on current date
-  useEffect(() => {
+  const initialIndex = React.useMemo(() => {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth(); // 0-11
     
-    let initialIndex = 2; // Default
+    let index = 3; // Default
     if (currentYear === 2025) {
-        if (currentMonth >= 6) initialIndex = 0; // 2025_26_ODD starts July 2025
+        if (currentMonth >= 6) index = 1; // 2025_26_ODD
     } else if (currentYear === 2026) {
-        if (currentMonth < 6) initialIndex = 1; // 2025_26_EVEN starts Jan 2026
-        else initialIndex = 2; // 2026_27_ODD starts July 2026
+        if (currentMonth < 6) index = 2; // 2025_26_EVEN
+        else index = 3; // 2026_27_ODD
     }
-    setCurrentSemesterIndex(initialIndex);
+    return index;
   }, []);
+
+  useEffect(() => {
+    setCurrentSemesterIndex(initialIndex);
+  }, [initialIndex]);
 
   // Fetch data for the current semester
   useEffect(() => {
@@ -51,13 +55,29 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
 
      // Then check localStorage cache
      const cachedDataStr = localStorage.getItem('unfuglyData_calendar');
+     let useCache = false;
      if (cachedDataStr) {
          try {
              const cachedRoot = JSON.parse(cachedDataStr);
-             if (cachedRoot[semKey] && cachedRoot[semKey].data) {
-                 setSemesterDataCache(prev => ({ ...prev, [semKey]: cachedRoot[semKey].data }));
-                 setLoading(false);
-                 return;
+             const cachedSem = cachedRoot[semKey];
+             if (cachedSem && cachedSem.data) {
+                 const isCurrent = currentSemesterIndex === initialIndex;
+                 if (!isCurrent) {
+                     useCache = true; // Always use cache for old semesters
+                 } else {
+                     const lastUpdateDate = new Date(cachedSem.lastUpdated);
+                     if (!isNaN(lastUpdateDate.getTime())) {
+                         const diffInHours = (new Date().getTime() - lastUpdateDate.getTime()) / (1000 * 60 * 60);
+                         if (diffInHours < 24) {
+                             useCache = true; // Use cache if <24h old
+                         }
+                     }
+                 }
+                 if (useCache) {
+                     setSemesterDataCache(prev => ({ ...prev, [semKey]: cachedSem.data }));
+                     setLoading(false);
+                     return;
+                 }
              }
          } catch(e) { console.error('Failed to parse calendar from localStorage', e); }
      }
@@ -204,8 +224,8 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                               <button 
                                   key={month}
                                   className={`
-                                      w-full text-left py-3 px-4 border-none text-[1em] transition-all cursor-pointer relative
-                                      ${selectedMonth === month ? 'border-l-4 border-l-[#1E88E5] bg-[#1E88E5]/10 text-white font-bold' : 'bg-transparent text-[#ccc] hover:bg-[#444] border-l-4 border-l-transparent'}
+                                      w-full text-left py-3 px-4 border-none text-[1em] transition-all cursor-pointer relative rounded-t-md
+                                      ${selectedMonth === month ? 'bg-[#1E88E5] text-white font-bold border-b-2 border-white' : 'bg-transparent text-[#ccc] hover:bg-[#444] border-b-2 border-transparent'}
                                   `}
                                   onClick={() => {
                                       setSelectedMonth(month);

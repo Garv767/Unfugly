@@ -3100,96 +3100,94 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     const cachedProfileData = existingData?.[storageKey]?.profileData;
 
     const fetchedData = {
-        profileData: null,
+        profileData: cachedProfileData ?? null,
         editedSlots: null,
-        timetableJSON: null,
-        attendanceData: null,
-        marksData: null,
-        courseData: null,
+        timetableJSON: existingData?.[storageKey]?.timetableJSON ?? null,
+        attendanceData: existingData?.[storageKey]?.attendanceData ?? null,
+        marksData: existingData?.[storageKey]?.marksData ?? null,
+        courseData: existingData?.[storageKey]?.courseData ?? null,
     };
+    
+    let batch = null;
+    let courseRegResult = null;
 
+    // Step 1: Course Registration (independent)
     try {
-        // Fetch Course Registration data natively via direct API calls
         console.log("backgroundFetchAllData: Fetching Course Registration data natively...");
         const regStartTime = performance.now();
-        const courseRegResult = await fetchCourseRegistrationData();
-        const courseData = courseRegResult.courses;
-        const batch = courseRegResult.batch;
-        const registrationNo = courseRegResult.registrationNo;
+        courseRegResult = await fetchCourseRegistrationData();
+        batch = courseRegResult.batch;
+        fetchedData.courseData = courseRegResult.courses;
         fetchedData.profileData = courseRegResult.profileData;
-        fetchedData.courseData = courseData;
-        if (registrationNo && !fetchedData.profileData.registrationNo) {
-            fetchedData.profileData.registrationNo = registrationNo;
+        if (courseRegResult.registrationNo && !fetchedData.profileData?.registrationNo) {
+            fetchedData.profileData.registrationNo = courseRegResult.registrationNo;
         }
+        console.log(`[Unfugly Speed] Fetching and parsing Course Registration took ${(performance.now() - regStartTime).toFixed(2)} ms.`);
+    } catch (regError) {
+        console.error("backgroundFetchAllData: Course Registration failed (will use cache):", regError);
+        // Fall back to cached course/profile data
+        const cachedEntry = existingData?.[storageKey];
+        if (cachedEntry) {
+            fetchedData.courseData = cachedEntry.courseData ?? fetchedData.courseData;
+            fetchedData.profileData = cachedEntry.profileData ?? fetchedData.profileData;
+        }
+    }
 
-        const regEndTime = performance.now();
-        console.log(`[Unfugly Speed] Fetching and parsing Course Registration took ${(regEndTime - regStartTime).toFixed(2)} ms.`);
-
-
-
-        //Fetch Unified Timetable HTML based on batch natively
+    // Step 2: Unified Timetable (independent)
+    try {
         if (batch && (batch === '1' || batch === '2')) {
             console.log(`backgroundFetchAllData: Fetching Unified Timetable for Batch ${batch} natively...`);
             const ttStartTime = performance.now();
-
-            try {
-                const rawUnifiedTimetableHTML = await fetchUnifiedTimetableData(batch);
-
-                if (rawUnifiedTimetableHTML) {
-                    // Create a temporary div to apply slot replacement
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = rawUnifiedTimetableHTML;
-                    const tempTable = tempDiv.querySelector('table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]');
-    
-                    if (tempTable && courseData) {
-                        fetchedData.timetableJSON = parseTableToJSON(tempTable);
-                    }
+            const rawUnifiedTimetableHTML = await fetchUnifiedTimetableData(batch);
+            if (rawUnifiedTimetableHTML) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rawUnifiedTimetableHTML;
+                const tempTable = tempDiv.querySelector('table[align="center"][border="5"][cellpadding="18"][cellspacing="2"][width="400"]');
+                if (tempTable && fetchedData.courseData) {
+                    fetchedData.timetableJSON = parseTableToJSON(tempTable);
                 }
-            } catch (ttError) {
-                console.error("backgroundFetchAllData: Error fetching Unified Timetable:", ttError);
             }
-            
-            const ttEndTime = performance.now();
-            console.log(`[Unfugly Speed] Fetching Unified Timetable took ${(ttEndTime - ttStartTime).toFixed(2)} ms.`);
-        } else {
-            console.warn("backgroundFetchAllData: Batch not determined or unsupported for unified timetable. Skipping unified timetable fetch.");
-            // If unified TT not found, try to use course registration page timetable
+            console.log(`[Unfugly Speed] Fetching Unified Timetable took ${(performance.now() - ttStartTime).toFixed(2)} ms.`);
+        } else if (courseRegResult?.doc) {
             const regPageTtTable = courseRegResult.doc.querySelector('table[align="center"][border="5"]');
-            if (regPageTtTable && courseData) {
+            if (regPageTtTable && fetchedData.courseData) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = regPageTtTable.outerHTML;
-                const tempTable = tempDiv.querySelector('table');
-                fetchedData.timetableJSON = parseTableToJSON(tempTable);
+                fetchedData.timetableJSON = parseTableToJSON(tempDiv.querySelector('table'));
                 console.log("backgroundFetchAllData: Used Course Registration page timetable as fallback.");
-            } else {
-                console.warn("backgroundFetchAllData: Fallback timetable also not found.");
             }
+        } else {
+            // Use cached timetable
+            fetchedData.timetableJSON = existingData?.[storageKey]?.timetableJSON ?? null;
         }
+    } catch (ttError) {
+        console.error("backgroundFetchAllData: Timetable fetch failed (will use cache):", ttError);
+        fetchedData.timetableJSON = existingData?.[storageKey]?.timetableJSON ?? null;
+    }
 
-        // Step 3: Fetch attendance and marks data natively
+    // Step 3: Attendance & Marks (independent)
+    try {
         console.log("backgroundFetchAllData: Fetching Attendance and Marks data natively...");
         const attStartTime = performance.now();
-        
-        try {
-            const attendanceDataResult = await fetchAttendanceData(previousAttendanceData);
-            fetchedData.attendanceData = attendanceDataResult.attendanceData;
-            fetchedData.marksData = attendanceDataResult.marksData;
-        } catch (attError) {
-            console.error("backgroundFetchAllData: Error fetching Attendance and Marks data natively:", attError);
-        }
-        
-        const attEndTime = performance.now();
-        console.log(`[Unfugly Speed] Fetching Attendance and Marks natively took ${(attEndTime - attStartTime).toFixed(2)} ms.`);
+        const attendanceDataResult = await fetchAttendanceData(previousAttendanceData);
+        fetchedData.attendanceData = attendanceDataResult.attendanceData;
+        fetchedData.marksData = attendanceDataResult.marksData;
+        console.log(`[Unfugly Speed] Fetching Attendance and Marks natively took ${(performance.now() - attStartTime).toFixed(2)} ms.`);
+    } catch (attError) {
+        console.error("backgroundFetchAllData: Attendance/Marks fetch failed (will use cache):", attError);
+        fetchedData.attendanceData = existingData?.[storageKey]?.attendanceData ?? null;
+        fetchedData.marksData = existingData?.[storageKey]?.marksData ?? null;
+    }
 
-        // Fetch the profile photo url (only if not already cached)
+    // Step 4: Profile photo (independent)
+    try {
         const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
-        let dbPhotoUrl = null;
-        
         if (cachedPhotoUrl) {
             console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
-            fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
+            if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
         } else {
             console.log("backgroundFetchAllData: Checking DB for profile photo...");
+            let dbPhotoUrl = null;
             try {
                 const BACKEND = 'https://unfugly-backend.onrender.com';
                 const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
@@ -3200,27 +3198,29 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             } catch (e) {
                 console.error("Failed to check DB for profile photo:", e);
             }
-            
-            if (dbPhotoUrl) {
-                 console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
-                 fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
-            } else {
-                 console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
-                 const photoStartTime = performance.now();
-                 const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
-                     "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
-                     ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
-                 );
-                 const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
-                 fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
 
-                 profilePhotoIframe.remove();
-                 const photoEndTime = performance.now();
-                 console.log(`[Unfugly Speed] Loading Student Profile Report took ${(photoEndTime - photoStartTime).toFixed(2)} ms.`);
+            if (dbPhotoUrl) {
+                console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
+                if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
+            } else {
+                console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
+                const photoStartTime = performance.now();
+                const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
+                    "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
+                    ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
+                );
+                const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
+                if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
+                profilePhotoIframe.remove();
+                console.log(`[Unfugly Speed] Loading Student Profile Report took ${(performance.now() - photoStartTime).toFixed(2)} ms.`);
             }
         }
-        // Store the combined data
-        //console.log(existingData[storageKey].editedSlots, "edited slots before preserving");
+    } catch (photoError) {
+        console.error("backgroundFetchAllData: Profile photo fetch failed:", photoError);
+    }
+
+    // Step 5: Save whatever we managed to get to cache
+    try {
         const dataToCache = {
             profileData: fetchedData.profileData,
             timetableJSON: fetchedData.timetableJSON,
@@ -3230,32 +3230,33 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             courseData: fetchedData.courseData ?? null,
             lastUpdated: new Date().toISOString()
         };
-        //console.log(dataToCache.editedSlots, "edited slots preserved");
         chrome.storage.local.set({ [storageKey]: dataToCache }, () => {
             if (chrome.runtime.lastError) console.error("Error saving all data to cache:", chrome.runtime.lastError);
             else console.log("backgroundFetchAllData: All data saved to cache.");
         });
-
-        // Update the UI with new data
-        if (titleElement) {
-            titleElement.textContent = "Unfugly: Data updated!";
-        }
-
-        await checkAndSyncCalendar();
-        // Re-render panels with the newly fetched data
-        renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder); // Pass dayOrder for profile panel
-        renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper, currentNetId); // Pass previous data for diff
-        displayInfoMessage("All new data fetched and displayed!", 3000, 'success');
-
-    } catch (error) {
-        console.error("backgroundFetchAllData: An error occurred during data fetching:", error);
-        if (titleElement) {
-            titleElement.textContent = "Unfugly: Error fetching data!";
-        }
-        displayInfoMessage("An error occurred while fetching new data. Please refresh.", 5000, 'error');
-    } finally {
-        window.isFetchingInBackground = false;
+    } catch (cacheError) {
+        console.error("backgroundFetchAllData: Failed to save data to cache:", cacheError);
     }
+
+    // Step 6: Update UI and sync calendar (independent)
+    if (titleElement) titleElement.textContent = "Unfugly: Data updated!";
+
+    try {
+        await checkAndSyncCalendar();
+    } catch (calError) {
+        console.error("backgroundFetchAllData: Calendar sync failed:", calError);
+    }
+
+    try {
+        renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder);
+        renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper, currentNetId);
+        displayInfoMessage("All new data fetched and displayed!", 3000, 'success');
+    } catch (renderError) {
+        console.error("backgroundFetchAllData: Render failed:", renderError);
+        displayInfoMessage("Some data could not be loaded. Showing cached data.", 4000, 'error');
+    }
+
+    window.isFetchingInBackground = false;
 }
 
 // Modify the existing function to dull out other days
@@ -3533,7 +3534,7 @@ function showCalendarViewFull(appWrapper) {
     calendarMinimapContainer.appendChild(backBtnContainer);
 
     let currentSemesterKey = getCurrentSemesterKey();
-    const semesters = ["2025_26_ODD", "2025_26_EVEN", "2026_27_ODD"];
+    const semesters = ["2024_25_EVEN", "2025_26_ODD", "2025_26_EVEN", "2026_27_ODD"];
     let currentIndex = semesters.indexOf(currentSemesterKey);
     if (currentIndex === -1) currentIndex = 0;
 
@@ -3557,8 +3558,8 @@ function showCalendarViewFull(appWrapper) {
                     calendarMainWrapper.innerHTML = "<div style=\"color: #ccc; text-align: center; width: 100%; margin-top: 50px;\">Calendar data not available. Syncing...</div>";
                     monthListContainer.innerHTML = "";
                     syncCalendarForSemester(semKey).then(() => {
-                        chrome.storage.local.get(`unfuglyData_calendar_${semKey}`, (res2) => {
-                            const data2 = res2[`unfuglyData_calendar_${semKey}`]?.data;
+                        chrome.storage.local.get('unfuglyData_calendar', (res2) => {
+                            const data2 = res2.unfuglyData_calendar?.[semKey]?.data;
                             if (data2 && Object.keys(data2).length > 0) {
                                 renderCalendarGridFull(calendarMainWrapper, monthListContainer, data2);
                             } else {
@@ -3606,15 +3607,18 @@ function renderCalendarGridFull(mainView, monthListContainer, calendarData) {
         btn.style.cssText = "width: 100%; text-align: left; padding: 10px; background: transparent; border: none; border-radius: 5px; color: #ccc; cursor: pointer; transition: all 0.2s; position: relative;";
         if (month === selectedMonth) {
             btn.style.color = "white";
+            btn.style.background = "#1E88E5";
             btn.style.borderBottom = "2px solid white";
             btn.style.borderRadius = "5px 5px 0 0";
         }
         btn.onclick = () => {
             Array.from(monthListContainer.children).forEach(c => {
                 c.style.color = "#ccc";
+                c.style.background = "transparent";
                 c.style.borderBottom = "none";
             });
             btn.style.color = "white";
+            btn.style.background = "#1E88E5";
             btn.style.borderBottom = "2px solid white";
             renderMonthGrid(mainView, month, calendarData[month]);
         };
