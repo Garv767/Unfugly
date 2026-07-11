@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import TimetableView from '@/components/TimetableView';
 import AttendancePredict from '@/components/AttendancePredict';
 import FeedbackFiller from '@/components/FeedbackFiller';
-import CalendarView from '@/components/CalendarView';
 import { CalendarDays, CheckSquare, BarChart2, CalendarRange, LogOut } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -277,10 +276,6 @@ export default function Dashboard() {
       </header>
 
       {/* Main Layout Area */}
-      {activeTab === 'Calendar' ? (
-         <CalendarView onBack={() => setActiveTab('Timetable')} profileData={data?.profileData} />
-      ) : (
-         <>
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col flex-shrink-0 h-[calc(100vh-32px)] overflow-y-auto custom-scrollbar">
                <h2 className="text-white text-2xl font-bold mb-6">Profile</h2>
@@ -316,7 +311,7 @@ export default function Dashboard() {
                      <div className="absolute left-0 bottom-[calc(100%+8px)] bg-[#1e1e1e] border border-[#444] rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all w-[240px] p-2 text-left z-50 flex flex-col gap-1">
                         <FeedbackFiller asMenuItem={true} profileData={data.profileData} courseData={data.courseData} />
                         
-                        <button onClick={() => { setActiveTab('Calendar'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                        <button onClick={() => router.push('/calendar')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
                            <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
                         </button>
                         
@@ -626,8 +621,6 @@ export default function Dashboard() {
 
          </div>
       </main>
-      </>
-    )}
 
        {/* Bottom Navigation Bar (Mobile) */}
        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-[#1a1a1a] border-t border-[#333] flex justify-around items-center h-16 z-40 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
@@ -639,7 +632,7 @@ export default function Dashboard() {
            ].map((tab) => (
               <button 
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => tab.id === 'Calendar' ? router.push('/calendar') : setActiveTab(tab.id)}
                   className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === tab.id ? 'text-[#1E88E5]' : 'text-gray-500 hover:text-gray-300'}`}
               >
                   <span className="text-xl">{tab.icon}</span>
