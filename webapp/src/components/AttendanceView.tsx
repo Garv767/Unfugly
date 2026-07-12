@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 export default function AttendanceView({ data, isBgScraping }: { data: any, isBgScraping: boolean }) {
   const [isMobile, setIsMobile] = useState(false);
+  const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
      setIsMobile(window.innerWidth < 1024);
@@ -14,8 +15,15 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
      return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (isMobile) {
+      const el = document.getElementById('mobile-header-actions-Attendance');
+      if (el) setPortalNode(el);
+    }
+  }, [isMobile]);
+
   const predictComponent = <AttendancePredict attendanceData={data.attendanceData} courseData={data.courseData} />;
-  const mobilePortalNode = typeof document !== 'undefined' ? document.getElementById('mobile-header-actions-Attendance') : null;
+  
 
   return (
     <>
@@ -24,7 +32,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
          {predictComponent}
       </div>
       
-      {isMobile && mobilePortalNode ? createPortal(predictComponent, mobilePortalNode) : null}
+      {isMobile && portalNode ? createPortal(predictComponent, portalNode) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {(!data.attendanceData || data.attendanceData.length === 0) && isBgScraping ? (
             Array.from({ length: 4 }).map((_, i) => (

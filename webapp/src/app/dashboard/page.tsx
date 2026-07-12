@@ -15,6 +15,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 export default function Dashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Timetable');
+
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+          setActiveTab(tab);
+      } else {
+          const saved = localStorage.getItem('dashboard_active_tab');
+          if (saved) setActiveTab(saved);
+      }
+  }, []);
+
+  useEffect(() => {
+      localStorage.setItem('dashboard_active_tab', activeTab);
+  }, [activeTab]);
   const [loading, setLoading] = useState(true);
   const [isBgScraping, setIsBgScraping] = useState(false);
   const [showCookieModal, setShowCookieModal] = useState(false);

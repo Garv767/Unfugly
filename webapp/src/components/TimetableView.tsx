@@ -96,8 +96,17 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      window.addEventListener('resize', handleResize);
      return () => window.removeEventListener('resize', handleResize);
   }, []);
+  useEffect(() => {
+    if (isMobile) {
+      const el = document.getElementById('mobile-header-actions-Timetable');
+      if (el) setPortalNode(el);
+    }
+  }, [isMobile]);
+
   const [parsedData, setParsedData] = useState<any>(null);
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
+  const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   
   const [editedSlots, setEditedSlots] = useState<Record<string, { title: string; classroom: string }>>(() => {
     let initialEdits: Record<string, { title: string; classroom: string }> = {};
@@ -432,8 +441,20 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
      const isActiveDay = String(mobileDayIndex + 1) === currentDayOrderObj;
 
+
+    const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+    const handleTouchEnd = (e: React.TouchEvent) => {
+      if (!touchStart) return;
+      const touchEnd = e.changedTouches[0].clientX;
+      const dist = touchStart - touchEnd;
+      if (dist > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
+      if (dist < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
+      setTouchStart(null);
+    };
+
+
      return (
-          <div className="lg:hidden">
+          <div className="lg:hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
               <div className="flex items-center justify-between bg-[#1e1e1e] border border-[#333] rounded-t-xl p-3 shadow-lg">
                  <button 
                     onClick={() => setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1)}
@@ -663,7 +684,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       </div>
 
       {/* Mobile Portal */}
-      {isMobile && typeof document !== 'undefined' && document.getElementById('mobile-header-actions-Timetable') 
+      {isMobile && portalNode 
         ? createPortal(
             <div className="flex items-center gap-2 pb-2 overflow-x-auto w-full hide-scrollbar">
                 <div style={{
@@ -764,7 +785,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                    </svg>
                 </button>
             </div>, 
-            document.getElementById('mobile-header-actions-Timetable')!
+            portalNode!
           ) 
         : null}
       
