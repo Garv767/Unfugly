@@ -236,11 +236,20 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
     try {
       const isMobileHidden = window.getComputedStyle(containerRef.current).display === 'none';
+      const originalWidth = containerRef.current.style.width;
+      const originalMinWidth = tableEl.style.minWidth;
+      const originalPadding = containerRef.current.style.padding;
+      const originalBgColor = containerRef.current.style.backgroundColor;
+
       if (isMobileHidden) {
           containerRef.current.classList.remove('hidden', 'lg:block');
           containerRef.current.style.display = 'block';
           containerRef.current.style.position = 'absolute';
           containerRef.current.style.top = '-9999px';
+          containerRef.current.style.width = '1200px'; 
+          tableEl.style.minWidth = '1200px';
+          containerRef.current.style.padding = '20px';
+          containerRef.current.style.backgroundColor = '#121212';
       }
 
       const originalFilters: string[] = [];
@@ -261,7 +270,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       const canvas = await html2canvas(tableEl, {
         backgroundColor: '#000000',
         scale: 2,
-        useCORS: true
+        useCORS: true,
+        windowWidth: 1200
       });
 
       rows.forEach((row, i) => {
@@ -275,6 +285,10 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
           containerRef.current.style.display = '';
           containerRef.current.style.position = '';
           containerRef.current.style.top = '';
+          containerRef.current.style.width = originalWidth;
+          tableEl.style.minWidth = originalMinWidth;
+          containerRef.current.style.padding = originalPadding;
+          containerRef.current.style.backgroundColor = originalBgColor;
       }
 
       const link = document.createElement('a');

@@ -8,6 +8,7 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
+import { unfuglyData_gr2383 } from '@/mockData_gr2383';
 import { CalendarRange, LogOut, Rocket } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -36,7 +37,7 @@ export default function Dashboard() {
   const [cookieTsv, setCookieTsv] = useState('');
   const [cookieLoading, setCookieLoading] = useState(false);
   const [progressMsg, setProgressMsg] = useState('Initializing...');
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>(unfuglyData_gr2383);
   const [calendarData, setCalendarData] = useState<any>(null);
   const [timetableViewState, setTimetableViewState] = useState<'show' | 'hide'>('show');
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
@@ -284,7 +285,7 @@ export default function Dashboard() {
       )}
 
       {/* Top Navigation Bar (Mobile Only) */}
-      <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e]/95 backdrop-blur-md border-b border-[#333] shadow-md px-5 py-4 w-full flex flex-col gap-3">
+      <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e]/95 backdrop-blur-md shadow-md px-5 py-4 w-full flex items-center justify-between">
          <div className="flex justify-between items-center w-full">
             <h2 className="text-2xl font-bold text-white tracking-tight mr-4">{activeTab}</h2>
             
@@ -357,7 +358,7 @@ export default function Dashboard() {
                
                <div className="max-w-[1400px] mx-auto space-y-12 pb-4 lg:pb-0">
                    {/* Timetable Section */}
-                   <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block' : 'hidden lg:block'}`}>
+                   <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block pb-16' : 'hidden lg:block'}`}>
                        {(data.timetableHTML || (data.timetableJSON && data.timetableJSON.days)) ? (
                            <TimetableView 
                              htmlContent={data.timetableHTML || ''} 
@@ -377,13 +378,13 @@ export default function Dashboard() {
 
              
              {/* Attendance Section */}
-             <div className={`lg:min-w-[700px] ${activeTab === 'Attendance' ? 'block' : 'hidden lg:block'}`}>
+             <div className={`lg:min-w-[700px] ${activeTab === 'Attendance' ? 'block pb-16' : 'hidden lg:block'}`}>
                 <AttendanceView data={data} isBgScraping={isBgScraping} />
              </div>
 
              
              {/* Marks Section */}
-             <div className={`lg:min-w-[700px] ${activeTab === 'Marks' ? 'block' : 'hidden lg:block'}`}>
+             <div className={`lg:min-w-[700px] ${activeTab === 'Marks' ? 'block pb-32' : 'hidden lg:block'}`}>
                 <h2 className="text-2xl font-bold text-white mb-6 hidden lg:block">Marks</h2>
                 <MarksView data={data} isBgScraping={isBgScraping} />
              </div>
