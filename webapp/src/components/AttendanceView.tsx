@@ -16,9 +16,15 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
   }, []);
 
   useEffect(() => {
-    if (isMobile) {
+    if (!isMobile) return;
+    const tryFind = () => {
       const el = document.getElementById('mobile-header-actions-Attendance');
-      if (el) setPortalNode(el);
+      if (el) { setPortalNode(el); return true; }
+      return false;
+    };
+    if (!tryFind()) {
+      const iv = setInterval(() => { if (tryFind()) clearInterval(iv); }, 50);
+      return () => clearInterval(iv);
     }
   }, [isMobile]);
 

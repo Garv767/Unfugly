@@ -352,10 +352,10 @@ export default function Dashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-4 pb-24 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
+            <main className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
                
                
-               <div className="max-w-[1400px] mx-auto space-y-12">
+               <div className="max-w-[1400px] mx-auto space-y-12 pb-24 lg:pb-0">
                    {/* Timetable Section */}
                    <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block' : 'hidden lg:block'}`}>
                        {(data.timetableHTML || (data.timetableJSON && data.timetableJSON.days)) ? (

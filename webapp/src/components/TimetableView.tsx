@@ -489,15 +489,21 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                           if (cleanSlotText) rawSlotId = cleanSlotText;
                       }
 
-                      let displayTitle = slot.title;
-                      let displayRoom = slot.classroom;
-                      let displayBg = slot.bgColor !== 'transparent' && slot.bgColor ? slot.bgColor : '#333';
-                      
                       const isPrac = rawSlotId.startsWith('P');
                       const isExtra = rawSlotId.startsWith('L');
                       const isTheory = rawSlotId.match(/^[A-G]/);
 
-                      if (viewState !== 'hide') {
+                      let displayTitle: string = slot.title || rawSlotId;
+                      let displayRoom: string = slot.classroom || '';
+                      let displayBg: string = slot.bgColor !== 'transparent' && slot.bgColor ? slot.bgColor : '#444';
+
+                      if (viewState === 'hide') {
+                          // Hide mode: strip course names, show only slot IDs
+                          displayTitle = rawSlotId;
+                          displayRoom = '';
+                          displayBg = '#444';
+                      } else {
+                          // Show / Modify: apply edits then map courses
                           if (editedSlots[rawSlotId]) {
                               displayTitle = editedSlots[rawSlotId].title;
                               displayRoom = editedSlots[rawSlotId].classroom;
@@ -519,7 +525,6 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                   displayTitle = anyMappedCourse['Course Title'] || anyMappedCourse.title || displayTitle;
                                   displayRoom = anyMappedCourse['Room No.'] || anyMappedCourse.classroom || anyMappedCourse.classRoom || displayRoom;
                               }
-                              
                               if (isPrac || (mappedCourse && (mappedCourse as any)['Course Type']?.toLowerCase().includes('practical'))) {
                                   displayBg = '#81c784';
                               } else if (isExtra) {
@@ -532,7 +537,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                           }
                       }
 
-                      const isEmpty = !displayTitle || displayTitle.trim() === '';
+                      // In hide mode always show cards; in show/modify skip empty ones
+                      const isEmpty = viewState !== 'hide' && (!displayTitle || displayTitle.trim() === '');
                       if (isEmpty) return null; 
 
                       return (
