@@ -1,5 +1,28 @@
 const BACKEND = 'http://localhost:3000';
 
+function backgroundFetch(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+            { action: "fetch_backend", url, options },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    return reject(new Error(chrome.runtime.lastError.message));
+                }
+                if (!response || !response.success) {
+                    return reject(new Error(response?.error || "Fetch failed"));
+                }
+                const { status, ok, text } = response.data;
+                resolve({
+                    status,
+                    ok,
+                    text,
+                    json: () => Promise.resolve(JSON.parse(text))
+                });
+            }
+        );
+    });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Generates an IST-formatted string: "13 Mar 2026, 1:26 am"
 // ─────────────────────────────────────────────────────────────
@@ -36,7 +59,7 @@ async function getValidSessionToken(netId) {
             }
 
             try {
-                const res = await fetch(`${BACKEND}/api/v1/auth/extension-session`, {
+                const res = await backgroundFetch(`${BACKEND}/api/v1/auth/extension-session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ net_id: netId, cookies: response.cookies })
@@ -68,7 +91,7 @@ async function getValidSessionToken(netId) {
 async function syncUserData(netId, data) {
     try {
         const token = await getValidSessionToken(netId);
-        const response = await fetch(`${BACKEND}/v3/save-data`, {
+        const response = await backgroundFetch(`${BACKEND}/v3/save-data`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -105,7 +128,7 @@ async function syncUserData(netId, data) {
 async function syncCalendar() {
     try {
         // Fetch universal calendar from server
-        const response = await fetch(`${BACKEND}/calendar`);
+        const response = await backgroundFetch(`${BACKEND}/calendar`);
         if (!response.ok) throw new Error(`Calendar fetch failed: ${response.status}`);
 
         const serverCalendar = await response.json();
@@ -172,7 +195,7 @@ async function syncCalendar() {
         const token = await getValidSessionToken(currentNetId);
 
         // Push to server
-        const postRes = await fetch(`${BACKEND}/calendar`, {
+        const postRes = await backgroundFetch(`${BACKEND}/calendar`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

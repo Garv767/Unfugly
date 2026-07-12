@@ -23,6 +23,29 @@ window.extraSlotFlag = false;
 
 const MAX_TIMETABLE_RETRIES = 20; // Max attempts
 
+function backgroundFetch(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+            { action: "fetch_backend", url, options },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    return reject(new Error(chrome.runtime.lastError.message));
+                }
+                if (!response || !response.success) {
+                    return reject(new Error(response?.error || "Fetch failed"));
+                }
+                const { status, ok, text } = response.data;
+                resolve({
+                    status,
+                    ok,
+                    text,
+                    json: () => Promise.resolve(JSON.parse(text))
+                });
+            }
+        );
+    });
+}
+
 const TIMETABLE_RETRY_DELAY = 1000; // 1 second delay between attempts
 
 
@@ -999,7 +1022,7 @@ async function handleWelcomePage() {
                 let fetchedFromDb = false;
                 try {
                     const BACKEND = 'http://localhost:3000';
-                    const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+                    const dbRes = await backgroundFetch(`${BACKEND}/v3/get-data/${currentNetId}`);
                     if (dbRes.ok) {
                         const dbData = await dbRes.json();
                         if (dbData.profileData && dbData.timetableJSON && dbData.attendanceData && dbData.marksData) {
@@ -1017,7 +1040,7 @@ async function handleWelcomePage() {
                             await chrome.storage.local.set({ [storageKey]: constructedCache });
                             
                             try {
-                                const calRes = await fetch(`${BACKEND}/calendar`);
+                                const calRes = await backgroundFetch(`${BACKEND}/calendar`);
                                 if (calRes.ok) {
                                     const calData = await calRes.json();
                                     await chrome.storage.local.set({
@@ -3185,7 +3208,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         console.log("backgroundFetchAllData: Checking DB for latest edits and photo...");
         const BACKEND = 'http://localhost:3000';
-        const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+        const dbRes = await backgroundFetch(`${BACKEND}/v3/get-data/${currentNetId}`);
         if (dbRes.ok) {
             const dbJson = await dbRes.json();
             dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
