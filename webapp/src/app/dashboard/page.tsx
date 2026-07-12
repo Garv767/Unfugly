@@ -8,7 +8,6 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
-import { unfuglyData_gr2383 } from '@/mockData_gr2383';
 import { CalendarRange, LogOut, Rocket } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -37,7 +36,7 @@ export default function Dashboard() {
   const [cookieTsv, setCookieTsv] = useState('');
   const [cookieLoading, setCookieLoading] = useState(false);
   const [progressMsg, setProgressMsg] = useState('Initializing...');
-  const [data, setData] = useState<any>(unfuglyData_gr2383);
+  const [data, setData] = useState<any>(null);
   const [calendarData, setCalendarData] = useState<any>(null);
   const [timetableViewState, setTimetableViewState] = useState<'show' | 'hide'>('show');
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
