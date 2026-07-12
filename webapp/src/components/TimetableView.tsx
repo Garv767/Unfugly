@@ -448,38 +448,47 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
      const isActiveDay = String(mobileDayIndex + 1) === currentDayOrderObj;
 
-
-    const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
-    const handleTouchEnd = (e: React.TouchEvent) => {
-      if (!touchStart) return;
-      const touchEnd = e.changedTouches[0].clientX;
-      const dist = touchStart - touchEnd;
-      if (dist > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
-      if (dist < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
-      setTouchStart(null);
-    };
-
+     const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+     const handleTouchEnd = (e: React.TouchEvent) => {
+       if (!touchStart) return;
+       const touchEnd = e.changedTouches[0].clientX;
+       const dist = touchStart - touchEnd;
+       if (dist > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
+       if (dist < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
+       setTouchStart(null);
+     };
 
      return (
           <div className="lg:hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
               <div className="flex items-center justify-between bg-[#1e1e1e] border border-[#333] rounded-t-xl p-3 shadow-lg">
-                 <button 
-                    onClick={() => setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1)}
-                    className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
-                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                 </button>
-                 <div className="text-center">
-                    <div className="text-xl font-black text-white uppercase tracking-widest">
-                       Day Order {String(parsedData.days[mobileDayIndex]?.dayName || (mobileDayIndex + 1)).replace(/day\s*/i, '')}
-                    </div>
-                 </div>
-                 <button 
-                    onClick={() => setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1)}
-                    className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
-                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                 </button>
+                  <button 
+                     onClick={() => setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1)}
+                     className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
+                  >
+                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <div className="text-center flex items-center justify-center gap-3">
+                     <div className="text-xl font-black text-white uppercase tracking-widest">
+                        Day Order {String(parsedData.days[mobileDayIndex]?.dayName || (mobileDayIndex + 1)).replace(/day\s*/i, '')}
+                     </div>
+                     <button
+                        onClick={downloadTimetable}
+                        className="bg-[#333] hover:bg-[#444] text-white p-1.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer select-none"
+                        title="Download Timetable"
+                     >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                     </button>
+                  </div>
+                  <button 
+                     onClick={() => setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1)}
+                     className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
+                  >
+                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
               </div>
 
               <div className={`bg-[#121212] border border-t-0 border-[#333] rounded-b-xl p-4 space-y-3 shadow-lg transition-opacity duration-300 ${!isActiveDay ? 'opacity-50 grayscale-[0.3]' : 'opacity-100'}`}>
@@ -487,66 +496,56 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       const timeHeader = parsedData.headers[idx + 1] || ''; 
                       
                       const totalSlotsBefore = parsedData.days.slice(0, mobileDayIndex).reduce((acc: number, d: any) => acc + d.slots.length, 0);
-                      let rawSlotId = `slot-${totalSlotsBefore + idx + 1}`;
-                      if (slot.slot) {
-                          rawSlotId = slot.slot;
-                      } else {
-                          const rawSlotText = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
-                          const cleanSlotText = rawSlotText.split('/')[0].trim().toUpperCase();
-                          if (cleanSlotText) rawSlotId = cleanSlotText;
+                      const slotId = `slot-${totalSlotsBefore + idx + 1}`;
+
+                      const rawSlotText = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
+                      const cleanSlotText = rawSlotText.split('/')[0].trim().toUpperCase();
+
+                      const actualCourseData: Record<string, any> = courseData?.slotToCourse || courseData;
+                      const mappedCourse = actualCourseData && (actualCourseData[cleanSlotText] || actualCourseData[rawSlotText]);
+
+                      let displayTitle = slot.title;
+                      let displayRoom = slot.classroom;
+                      let displayBg = slot.bgColor !== 'transparent' && slot.bgColor ? slot.bgColor : '#333';
+                      let isReplaced = false;
+                      let isGrey = false;
+
+                      const edit = editedSlots[slotId];
+
+                      if (edit && viewState !== 'hide') {
+                          displayTitle = edit.title;
+                          displayRoom = edit.classroom;
+                          displayBg = '#FBC02D';
+                          isReplaced = true;
+                      } else if (mappedCourse && cleanSlotText !== '') {
+                          displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
+                          displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
+                          isReplaced = true;
+                      } else if (cleanSlotText !== '') {
+                          displayBg = '#585b5b';
+                          isGrey = true;
                       }
 
-                      const isPrac = rawSlotId.startsWith('P');
-                      const isExtra = rawSlotId.startsWith('L');
-                      const isTheory = rawSlotId.match(/^[A-G]/);
+                      if (!displayTitle && cleanSlotText === '') {
+                          return null;
+                      }
 
-                      let displayTitle: string = slot.title || rawSlotId;
-                      let displayRoom: string = slot.classroom || '';
-                      let displayBg: string = slot.bgColor !== 'transparent' && slot.bgColor ? slot.bgColor : '#444';
+                      // Type-based colors for mobile card sidebar
+                      if (!isReplaced || displayBg === '#333' || displayBg === 'transparent') {
+                          const isPrac = cleanSlotText.startsWith('P');
+                          const isExtra = cleanSlotText.startsWith('L');
+                          const isTheory = cleanSlotText.match(/^[A-G]/);
 
-                      if (viewState === 'hide') {
-                          // Hide mode: strip course names, show only slot IDs
-                          displayTitle = rawSlotId;
-                          displayRoom = '';
-                          displayBg = '#444';
-                      } else {
-                          // Show / Modify: apply edits then map courses
-                          if (editedSlots[rawSlotId]) {
-                              displayTitle = editedSlots[rawSlotId].title;
-                              displayRoom = editedSlots[rawSlotId].classroom;
-                              displayBg = '#FBC02D';
+                          if (isPrac || (mappedCourse && (mappedCourse as any)['Course Type']?.toLowerCase().includes('practical'))) {
+                              displayBg = '#81c784';
+                          } else if (isExtra) {
+                              displayBg = '#42a5f5';
+                          } else if (isTheory || mappedCourse) {
+                              displayBg = '#ffd54f';
                           } else {
-                              const actualCourseData: Record<string, any> = courseData?.slotToCourse || courseData;
-                              let mappedCourse = actualCourseData && actualCourseData[rawSlotId];
-                              if (!mappedCourse && rawSlotId.includes('-')) {
-                                 const parts = rawSlotId.split('-');
-                                 for (const p of parts) {
-                                    if (actualCourseData && actualCourseData[p]) {
-                                       mappedCourse = actualCourseData[p];
-                                       break;
-                                    }
-                                 }
-                              }
-                              if (mappedCourse) {
-                                  const anyMappedCourse = mappedCourse as any;
-                                  displayTitle = anyMappedCourse['Course Title'] || anyMappedCourse.title || displayTitle;
-                                  displayRoom = anyMappedCourse['Room No.'] || anyMappedCourse.classroom || anyMappedCourse.classRoom || displayRoom;
-                              }
-                              if (isPrac || (mappedCourse && (mappedCourse as any)['Course Type']?.toLowerCase().includes('practical'))) {
-                                  displayBg = '#81c784';
-                              } else if (isExtra) {
-                                  displayBg = '#42a5f5';
-                              } else if (isTheory || mappedCourse) {
-                                  displayBg = '#ffd54f';
-                              } else {
-                                  displayBg = '#555555';
-                              }
+                              displayBg = '#555555';
                           }
                       }
-
-                      // In hide mode always show cards; in show/modify skip empty ones
-                      const isEmpty = viewState !== 'hide' && (!displayTitle || displayTitle.trim() === '');
-                      if (isEmpty) return null; 
 
                       return (
                           <div 
@@ -555,13 +554,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                              style={{ borderLeftColor: displayBg, borderLeftWidth: '4px' }}
                              onClick={() => {
                                  if (isEditMode) {
-                                     handleSlotClick(rawSlotId, displayTitle, displayRoom);
+                                     handleSlotClick(slotId, displayTitle, displayRoom);
                                  }
                              }}
                           >
-                             {isEditMode && editedSlots[rawSlotId] && viewState !== 'hide' && (
+                             {isEditMode && edit && viewState !== 'hide' && (
                                  <button 
-                                     onClick={(e) => removeEdit(e, rawSlotId)}
+                                     onClick={(e) => removeEdit(e, slotId)}
                                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition"
                                  >
                                      ×
@@ -574,7 +573,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                              
                              <div className="flex items-center gap-2 mt-auto pt-2">
                                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${displayBg}22`, color: displayBg }}>
-                                     {rawSlotId}
+                                     {cleanSlotText || rawSlotText || slotId}
                                  </span>
                                  {displayRoom && (
                                      <span className="text-xs text-gray-400 flex items-center gap-1">
