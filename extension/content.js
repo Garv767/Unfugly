@@ -3179,41 +3179,43 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         fetchedData.marksData = existingData?.[storageKey]?.marksData ?? null;
     }
 
-    // Step 4: Profile photo (independent)
+    // Step 4: Profile photo & Edited Slots sync
+    let dbEditedSlots = existingData?.[storageKey]?.editedSlots ?? {};
+    let dbPhotoUrl = null;
+    try {
+        console.log("backgroundFetchAllData: Checking DB for latest edits and photo...");
+        const BACKEND = 'https://unfugly-backend.onrender.com';
+        const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+        if (dbRes.ok) {
+            const dbJson = await dbRes.json();
+            dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
+            if (dbJson.editedSlots && Object.keys(dbJson.editedSlots).length > 0) {
+                dbEditedSlots = dbJson.editedSlots;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to check DB:", e);
+    }
+
     try {
         const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
         if (cachedPhotoUrl) {
             console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
             if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
+        } else if (dbPhotoUrl) {
+            console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
+            if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
         } else {
-            console.log("backgroundFetchAllData: Checking DB for profile photo...");
-            let dbPhotoUrl = null;
-            try {
-                const BACKEND = 'https://unfugly-backend.onrender.com';
-                const dbRes = await fetch(`${BACKEND}/v3/get-data/${currentNetId}`);
-                if (dbRes.ok) {
-                    const dbJson = await dbRes.json();
-                    dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
-                }
-            } catch (e) {
-                console.error("Failed to check DB for profile photo:", e);
-            }
-
-            if (dbPhotoUrl) {
-                console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
-                if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
-            } else {
-                console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
-                const photoStartTime = performance.now();
-                const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
-                    "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
-                    ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
-                );
-                const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
-                if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
-                profilePhotoIframe.remove();
-                console.log(`[Unfugly Speed] Loading Student Profile Report took ${(performance.now() - photoStartTime).toFixed(2)} ms.`);
-            }
+            console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
+            const photoStartTime = performance.now();
+            const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
+                "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
+                ['#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn']
+            );
+            const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
+            if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
+            profilePhotoIframe.remove();
+            console.log(`[Unfugly Speed] Loading Student Profile Report took ${(performance.now() - photoStartTime).toFixed(2)} ms.`);
         }
     } catch (photoError) {
         console.error("backgroundFetchAllData: Profile photo fetch failed:", photoError);
@@ -3224,7 +3226,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         const dataToCache = {
             profileData: fetchedData.profileData,
             timetableJSON: fetchedData.timetableJSON,
-            editedSlots: existingData?.[storageKey]?.editedSlots ?? {},
+            editedSlots: dbEditedSlots,
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
             courseData: fetchedData.courseData ?? null,
