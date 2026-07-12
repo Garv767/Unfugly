@@ -93,7 +93,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         <div className="relative h-full">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
-            className="h-14 w-14 outline-none transition-transform duration-200 overflow-hidden flex items-center justify-center bg-[#1E88E5] rounded-full hover:scale-[0.98] active:scale-[0.95]"
+            className="h-14 w-14 outline-none transition-transform duration-200 overflow-hidden flex items-center justify-center bg-[#1E88E5] rounded-full hover:scale-[0.98] active:scale-[0.95] border-2 border-[#1E88E5]"
           >
             <img 
                src={`${API_URL}/api/v1/user/photo`} 

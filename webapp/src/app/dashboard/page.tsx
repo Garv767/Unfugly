@@ -286,10 +286,13 @@ export default function Dashboard() {
       {/* Top Navigation Bar (Mobile Only) */}
       <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e]/95 backdrop-blur-md border-b border-[#333] shadow-md px-5 py-4 w-full flex flex-col gap-3">
          <div className="flex justify-between items-center w-full">
-            <h2 className="text-2xl font-bold text-white tracking-tight">{activeTab}</h2>
+            <h2 className="text-2xl font-bold text-white tracking-tight mr-4">{activeTab}</h2>
             
-            </div>
-         <div id={`mobile-header-actions-${activeTab}`} className="empty:hidden w-full flex items-center overflow-x-auto custom-scrollbar hide-scrollbar"></div>
+            <div id="mobile-header-actions-Timetable" className={`${activeTab === 'Timetable' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
+            <div id="mobile-header-actions-Attendance" className={`${activeTab === 'Attendance' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
+            <div id="mobile-header-actions-Marks" className={`${activeTab === 'Marks' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
+  
+         </div>
       </header>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -349,7 +352,7 @@ export default function Dashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-4 pb-[120px] lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
+            <main className="flex-1 p-4 pb-24 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
                
                
                <div className="max-w-[1400px] mx-auto space-y-12">
