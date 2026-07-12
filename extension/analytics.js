@@ -1,4 +1,4 @@
-const BACKEND = 'https://unfugly-backend.onrender.com';
+const BACKEND = 'http://localhost:3000';
 
 // ─────────────────────────────────────────────────────────────
 // Generates an IST-formatted string: "13 Mar 2026, 1:26 am"
