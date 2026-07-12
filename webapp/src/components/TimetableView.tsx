@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -87,6 +88,14 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   const containerRef = useRef<HTMLDivElement>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [viewState, setViewState] = useState<'hide' | 'show' | 'modify'>('show');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+     setIsMobile(window.innerWidth < 1024);
+     const handleResize = () => setIsMobile(window.innerWidth < 1024);
+     window.addEventListener('resize', handleResize);
+     return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [parsedData, setParsedData] = useState<any>(null);
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
   
@@ -550,7 +559,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center mb-4 relative">
+      {/* Desktop Header */}
+      <div className="hidden lg:flex items-center mb-4 relative">
         <h2 className="text-xl font-bold text-white mr-4">Timetable</h2>
         
         <div style={{
@@ -651,6 +661,112 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
            </svg>
         </button>
       </div>
+
+      {/* Mobile Portal */}
+      {isMobile && typeof document !== 'undefined' && document.getElementById('mobile-header-actions') 
+        ? createPortal(
+            <div className="flex items-center gap-2 pb-2 overflow-x-auto w-full hide-scrollbar">
+                <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '4px',
+                    marginLeft: '0px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    gap: '4px',
+                    transition: 'all 0.3s ease'
+                }}>
+                   <button 
+                     onClick={() => { setViewState('hide'); setIsEditMode(false); }}
+                     style={{
+                        backgroundColor: viewState === 'hide' ? '#546E7A' : 'transparent',
+                        color: viewState === 'hide' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        padding: '6px 14px',
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minWidth: '65px',
+                        transform: viewState === 'hide' ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: viewState === 'hide' ? '0 4px 12px #546E7A66' : 'none'
+                     }}
+                     title="Hide Edits"
+                   >
+                     Hide
+                   </button>
+                   <button 
+                     onClick={() => { setViewState('show'); setIsEditMode(false); }}
+                     style={{
+                        backgroundColor: viewState === 'show' ? '#43A047' : 'transparent',
+                        color: viewState === 'show' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        padding: '6px 14px',
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minWidth: '65px',
+                        transform: viewState === 'show' ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: viewState === 'show' ? '0 4px 12px #43A04766' : 'none'
+                     }}
+                     title="Show/Save Edits"
+                   >
+                     {isEditMode ? 'Save' : 'Show'}
+                   </button>
+                   <button 
+                     onClick={() => { setViewState('modify'); setIsEditMode(true); }}
+                     style={{
+                        backgroundColor: viewState === 'modify' ? '#1E88E5' : 'transparent',
+                        color: viewState === 'modify' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        padding: '6px 14px',
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minWidth: '65px',
+                        transform: viewState === 'modify' ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow: viewState === 'modify' ? '0 4px 12px #1E88E566' : 'none'
+                     }}
+                     title="Edit Mode"
+                   >
+                     Modify
+                   </button>
+                </div>
+                
+                <button
+                   onClick={downloadTimetable}
+                   className="bg-[#1e1e1e] border border-[#333] hover:bg-[#2a2a2a] text-white p-2 rounded-full shadow-lg transition-colors ml-auto flex flex-shrink-0 items-center justify-center w-9 h-9"
+                   title="Download Timetable"
+                >
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                       <polyline points="7 10 12 15 17 10"></polyline>
+                       <line x1="12" y1="15" x2="12" y2="3"></line>
+                   </svg>
+                </button>
+            </div>, 
+            document.getElementById('mobile-header-actions')!
+          ) 
+        : null}
       
       {viewState === 'modify' && (
          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-400 mb-4 animate-pulse">
