@@ -36,9 +36,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-1"
-         style={{ background: 'linear-gradient(to top, rgba(18,18,18,0.98) 70%, transparent)' }}>
-      <div className="flex items-center justify-around bg-[#1c1c1e]/90 backdrop-blur-xl rounded-2xl border border-white/[0.07] shadow-[0_-4px_30px_rgba(0,0,0,0.6)] px-1 py-1.5">
+    <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-sm z-40">
+      <div className="flex items-center justify-around bg-[#1c1c1e]/80 backdrop-blur-xl rounded-[30px] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.6)] px-2 py-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = resolvedActive === tab.id;

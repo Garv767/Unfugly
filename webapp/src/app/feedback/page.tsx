@@ -205,13 +205,7 @@ export default function FeedbackPage() {
         </div>
         <p className="text-xs text-gray-500 mb-6 ml-[46px]">{totalCount} forms submitted</p>
 
-        {/* Server disclaimer */}
-        <div className="flex items-start gap-2 bg-amber-900/20 border border-amber-500/25 rounded-xl p-3 mb-6">
-          <span className="text-amber-400 text-base shrink-0">⚡</span>
-          <p className="text-amber-300/70 text-xs leading-relaxed">
-            Uses a headless browser. Expect <strong>15–30s per course</strong>. Keep this page open.
-          </p>
-        </div>
+
 
         {formsLoaded && <SettingsPanel />}
 
@@ -241,13 +235,7 @@ export default function FeedbackPage() {
       <main className="flex-1 overflow-y-auto lg:m-4 lg:ml-2 lg:bg-[#1a1a1a] lg:rounded-2xl lg:border lg:border-[#222] custom-scrollbar
                        pb-32 lg:pb-8 px-4 lg:px-8 pt-4 lg:pt-8 h-auto lg:h-[calc(100vh-32px)]">
 
-        {/* Alerts */}
-        <div className="lg:hidden flex items-start gap-2.5 bg-amber-900/20 border border-amber-500/25 rounded-xl p-3 mb-4">
-          <span className="text-amber-400 shrink-0">⚡</span>
-          <p className="text-amber-300/80 text-xs leading-relaxed">
-            Uses a headless browser — <strong>15–30s per course</strong>. Keep this page open.
-          </p>
-        </div>
+
 
         {error && (
           <div className="mb-4 flex items-start gap-2 bg-red-900/20 border border-red-500/30 text-red-400 rounded-xl p-3 text-sm">

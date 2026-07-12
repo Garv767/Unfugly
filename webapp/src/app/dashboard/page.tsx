@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [timetableViewState, setTimetableViewState] = useState<'show' | 'hide'>('show');
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [partialErrors, setPartialErrors] = useState<Record<string,string>>({});
   const [showErrorToast, setShowErrorToast] = useState(false);
   const scrapingStarted = useRef(false);
@@ -187,12 +188,36 @@ export default function Dashboard() {
       if (loading) {
           // Skeleton loader for initial cold load when no data exists yet
           return (
-             <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center space-y-6">
-                <div className="w-16 h-16 border-4 border-[#1E88E5] border-t-transparent rounded-full animate-spin"></div>
-                <div className="flex flex-col items-center gap-2">
-                   <p className="text-xl font-medium text-gray-200 animate-pulse">Loading your dashboard...</p>
-                   <p className="text-sm text-gray-500">Connecting securely to Academia</p>
-                </div>
+             <div className="min-h-screen bg-[#121212] flex flex-col lg:flex-row font-sans overflow-hidden">
+                {/* Mobile Header Skeleton */}
+                <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e] border-b border-[#333] px-6 py-4 flex justify-between items-center w-full">
+                   <div className="w-24 h-8 bg-gray-800 rounded-md animate-pulse"></div>
+                   <div className="w-10 h-10 bg-gray-800 rounded-full animate-pulse"></div>
+                </header>
+
+                {/* Desktop Sidebar Skeleton */}
+                <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col h-[calc(100vh-32px)]">
+                   <div className="w-32 h-8 bg-gray-800 rounded mb-6 animate-pulse"></div>
+                   <div className="space-y-4 mb-10">
+                     {[1,2,3,4,5,6].map(i => <div key={i} className="w-full h-5 bg-gray-800 rounded animate-pulse"></div>)}
+                   </div>
+                   <div className="w-[100px] h-[100px] mx-auto rounded-full bg-gray-800 animate-pulse mt-4"></div>
+                   <div className="mt-auto w-12 h-12 bg-gray-800 rounded-xl animate-pulse"></div>
+                </aside>
+
+                {/* Main Area Skeleton */}
+                <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 lg:pl-4">
+                   <div className="bg-[#1e1e1e] rounded-3xl p-6 lg:p-8 min-h-[calc(100vh-48px)] border border-[#333]">
+                      <div className="flex justify-between items-center mb-8">
+                         <div className="w-48 h-10 bg-gray-800 rounded-xl animate-pulse"></div>
+                      </div>
+                      <div className="space-y-4">
+                         {[1,2,3,4,5].map(i => (
+                            <div key={i} className="w-full h-24 bg-gray-800 rounded-2xl animate-pulse"></div>
+                         ))}
+                      </div>
+                   </div>
+                </main>
              </div>
           );
       }
@@ -249,38 +274,42 @@ export default function Dashboard() {
             </div>
          </div>
          
-         {/* Profile Avatar + Hamburger Menu */}
-         <div className="flex items-center gap-2">
-            {/* Avatar bubble — shows you're logged in */}
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1E88E5] to-[#1565C0] flex items-center justify-center text-white font-bold text-base shadow-lg shadow-blue-900/30 flex-shrink-0 select-none">
-               {data?.profileData?.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <button className="flex flex-col gap-1.5 p-2 bg-[#2a2a2a] rounded-lg border border-[#444] hover:bg-[#333] transition">
-               <span className="w-5 h-0.5 bg-white"></span>
-               <span className="w-5 h-0.5 bg-white"></span>
-               <span className="w-5 h-0.5 bg-white"></span>
+         {/* Profile Avatar as Dropdown Trigger */}
+         <div className="relative">
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="focus:outline-none select-none">
+               <img 
+                  src={`${API_URL}/api/v1/user/photo`} 
+                  alt="Profile" 
+                  onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
+                  className="w-10 h-10 rounded-full border-2 border-[#1E88E5] object-cover shadow-lg" 
+               />
+               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1E88E5] to-[#1565C0] flex items-center justify-center text-white font-bold text-base shadow-lg hidden">
+                  {data?.profileData?.name?.charAt(0)?.toUpperCase() || '?'}
+               </div>
             </button>
             
             {/* Dropdown Menu */}
-            <div className="absolute right-0 top-12 bg-[#2a2a2a] border border-[#444] rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all w-[250px] p-4 text-left z-50">
-               <h3 className="text-white text-lg font-bold mb-3 border-b border-[#555] pb-2">Profile</h3>
-               <div className="space-y-2 text-[13px] text-gray-300 mb-4">
-                 <div><span className="font-bold text-white">Name:</span> {data.profileData.name}</div>
-                 <div><span className="font-bold text-white">Reg No:</span> {data.profileData.registrationNo}</div>
-                 <div><span className="font-bold text-white">Program:</span> {data.profileData.programmeBranch}</div>
-                 <div><span className="font-bold text-white">Section:</span> {data.profileData.section}</div>
-                 <div><span className="font-bold text-white mt-2 block">Department:</span> {data.profileData.schoolDepartment}</div>
+            {isMobileMenuOpen && (
+               <div className="absolute right-0 top-12 bg-[#2a2a2a] border border-[#444] rounded-xl shadow-2xl transition-all w-[250px] p-4 text-left z-50">
+                  <h3 className="text-white text-lg font-bold mb-3 border-b border-[#555] pb-2">Profile</h3>
+                  <div className="space-y-2 text-[13px] text-gray-300 mb-4">
+                    <div><span className="font-bold text-white">Name:</span> {data?.profileData?.name}</div>
+                    <div><span className="font-bold text-white">Reg No:</span> {data?.profileData?.registrationNo}</div>
+                    <div><span className="font-bold text-white">Program:</span> {data?.profileData?.programmeBranch}</div>
+                    <div><span className="font-bold text-white">Section:</span> {data?.profileData?.section}</div>
+                    <div><span className="font-bold text-white mt-2 block">Department:</span> {data?.profileData?.schoolDepartment}</div>
+                  </div>
+                  <div className="mb-4 flex flex-col gap-1">
+                     <button
+                       onClick={() => router.push('/feedback')}
+                       className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#333] hover:text-white rounded-lg transition-colors flex items-center gap-3"
+                     >
+                       <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
+                     </button>
+                  </div>
+                  <button onClick={handleLogout} className="w-full py-2 bg-[#ff5252]/10 text-[#ff5252] rounded hover:bg-[#ff5252]/20 hover:scale-[1.02] active:scale-[0.98] font-bold transition-all duration-200 text-sm">Logout</button>
                </div>
-               <div className="mb-4 flex flex-col gap-1">
-                  <button
-                    onClick={() => router.push('/feedback')}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#333] hover:text-white rounded-lg transition-colors flex items-center gap-3"
-                  >
-                    <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
-                  </button>
-               </div>
-               <button onClick={handleLogout} className="w-full py-2 bg-[#ff5252]/10 text-[#ff5252] rounded hover:bg-[#ff5252]/20 hover:scale-[1.02] active:scale-[0.98] font-bold transition-all duration-200 text-sm">Logout</button>
-            </div>
+            )}
          </div>
       </header>
       

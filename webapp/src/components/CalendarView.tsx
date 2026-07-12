@@ -224,7 +224,9 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
               </div>
 
               {loading ? (
-                  <div className="p-4 text-center text-sm text-[#aaa]">Loading...</div>
+                  <div className="flex flex-col p-2.5 gap-2 animate-pulse">
+                      {[1,2,3,4,5,6].map(i => <div key={i} className="w-full h-10 bg-gray-800 rounded-md"></div>)}
+                  </div>
               ) : months.length === 0 ? (
                   <div className="p-4 text-center text-sm text-[#aaa]">No data</div>
               ) : (
@@ -267,9 +269,20 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
               className="flex-1 p-4 lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#121212] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar flex flex-col"
           >
               {loading ? (
-                  <div className="flex flex-col items-center justify-center w-full h-full gap-4 text-[#aaa] font-sans p-10">
-                      <div className="w-10 h-10 border-4 border-[#333] border-t-[#1E88E5] rounded-full animate-spin"></div>
-                      <p className="m-0 text-sm">Loading calendar...</p>
+                  <div className="w-full flex-grow flex flex-col gap-4 animate-pulse mt-4">
+                      <div className="hidden md:flex justify-between items-center mb-1">
+                          <div className="w-48 h-10 bg-gray-800 rounded-xl"></div>
+                      </div>
+                      <div className="hidden md:grid grid-cols-7 gap-2.5 w-full flex-grow">
+                          {Array.from({ length: 35 }).map((_, i) => (
+                              <div key={i} className="bg-[#1e1e1e] rounded-xl p-3 h-[100px] border border-[#333]"></div>
+                          ))}
+                      </div>
+                      <div className="md:hidden flex flex-col gap-3">
+                          {Array.from({ length: 7 }).map((_, i) => (
+                              <div key={i} className="w-full h-24 bg-[#1e1e1e] rounded-xl border border-[#333]"></div>
+                          ))}
+                      </div>
                   </div>
               ) : selectedMonth && calendarData && calendarData[selectedMonth] ? (
                   <>
