@@ -663,7 +663,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       </div>
 
       {/* Mobile Portal */}
-      {isMobile && typeof document !== 'undefined' && document.getElementById('mobile-header-actions') 
+      {isMobile && typeof document !== 'undefined' && document.getElementById('mobile-header-actions-Timetable') 
         ? createPortal(
             <div className="flex items-center gap-2 pb-2 overflow-x-auto w-full hide-scrollbar">
                 <div style={{
@@ -764,7 +764,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                    </svg>
                 </button>
             </div>, 
-            document.getElementById('mobile-header-actions')!
+            document.getElementById('mobile-header-actions-Timetable')!
           ) 
         : null}
       

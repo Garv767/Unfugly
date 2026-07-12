@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Lock, FileText, X } from 'lucide-react';
 
 export default function MarksView({ data, isBgScraping }: { data: any, isBgScraping: boolean }) {
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
@@ -106,8 +107,12 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                                 const c = (Object.values(actualCourseData) as any[]).find((c: any) => c['Course Code'] === item.CourseCode);
                                 return c ? c['Faculty Name'] : 'N/A';
                              })()}</span></span><br/>
-                             <div className="mt-1 text-[#aaa] text-[0.82em]">
-                                Type: {((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) ? '🔒 Fully Internal' : '📄 Theory (60+40)'}
+                             <div className="mt-1 text-[#aaa] text-[0.82em] flex items-center gap-1.5">
+                                <span className="text-gray-400">Type:</span> 
+                                {((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) 
+                                   ? <span className="flex items-center gap-1 text-gray-200"><Lock size={12} className="text-[#FBC02D]" /> Fully Internal</span> 
+                                   : <span className="flex items-center gap-1 text-gray-200"><FileText size={12} className="text-[#64b5f6]" /> Theory (60+40)</span>
+                                }
                              </div>
                              
                              {!((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) && (
@@ -127,8 +132,8 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                                          const extNeeded40 = Math.max(0, g.min - internalObtained);
                                          const extNeeded75 = extNeeded40 > 40 ? '—' : Math.ceil(extNeeded40 * 75 / 40);
                                          const impossible = extNeeded75 === '—' || (typeof extNeeded75 === 'number' && extNeeded75 > 75);
-                                         const rowColor = impossible ? '#E57373' : (extNeeded75 <= 37 ? '#81C784' : '#FBC02D');
-                                         const displayNeeded = impossible ? '✗' : `${extNeeded75}/75`;
+                                         const rowColor = impossible ? '#E57373' : (extNeeded75 > 70 ? '#FBC02D' : '#81C784');
+                                         const displayNeeded = impossible ? <X size={14} className="inline-block" /> : `${extNeeded75}/75`;
                                          return (
                                             <tr key={g.grade} className="border-b border-[#2a2a2a]">
                                                <td className="py-[3px] px-[6px] font-bold text-white">{g.grade}</td>

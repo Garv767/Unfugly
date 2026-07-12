@@ -33,8 +33,16 @@ export default function Dashboard() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // Auth check via cookie — no localStorage needed.
-    // If the server returns 401, the cookie is missing or expired.
+    // 1. Instantly load from localStorage for UI caching
+    const cachedStr = localStorage.getItem('dashboard_data_cache');
+    if (cachedStr) {
+      try {
+        setData(JSON.parse(cachedStr));
+        setLoading(false);
+      } catch(e) {}
+    }
+
+    // 2. Auth check via cookie — verify and fetch fresh DB cache data
     fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include' })
     .then(res => {
       if (res.status === 401) { router.push('/login'); return null; }
@@ -45,6 +53,7 @@ export default function Dashboard() {
       if (cachedData.profileData) {
           setData(cachedData);
           setLoading(false);
+          localStorage.setItem('dashboard_data_cache', JSON.stringify(cachedData));
           // Always background-scrape for fresh data
           startScraping(true);
       } else {

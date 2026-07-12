@@ -15,7 +15,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
   }, []);
 
   const predictComponent = <AttendancePredict attendanceData={data.attendanceData} courseData={data.courseData} />;
-  const mobilePortalNode = typeof document !== 'undefined' ? document.getElementById('mobile-header-actions') : null;
+  const mobilePortalNode = typeof document !== 'undefined' ? document.getElementById('mobile-header-actions-Attendance') : null;
 
   return (
     <>

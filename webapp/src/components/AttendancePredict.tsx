@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
 export default function AttendancePredict({ attendanceData, courseData }: { attendanceData: any[], courseData: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
   useEffect(() => {
     if (isOpen && !calendarData) {
       setLoading(true);
-      fetch('http://localhost:3000/api/v1/calendar')
+      fetch(`${API_URL}/api/v1/calendar`)
         .then(res => res.json())
         .then(data => {
           setCalendarData(data.calendar_json || data);

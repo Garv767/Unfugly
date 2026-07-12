@@ -244,8 +244,9 @@ export default function FeedbackPage() {
         )}
 
         {summary && (
-          <div className="mb-6 bg-green-900/15 border border-green-500/25 rounded-2xl p-5">
-            <h3 className="text-green-400 font-bold text-base mb-2 flex items-center gap-2"><CheckCircle2 size={18}/> Submission Complete!</h3>
+          <div className="mb-6 bg-[#2a2a2a] border border-[#333] shadow-lg rounded-2xl p-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#1E88E5]"></div>
+            <h3 className="text-white font-bold text-base mb-2 flex items-center gap-2"><CheckCircle2 size={18} className="text-[#64b5f6]" /> Submission Complete!</h3>
             <div className="flex flex-col gap-3">
               <div className="flex gap-2 flex-wrap">
                 <span className="bg-green-900/40 text-green-300 px-3 py-1 rounded-full text-xs font-bold">✓ {summary.success} succeeded</span>
