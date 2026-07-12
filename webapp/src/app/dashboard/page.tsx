@@ -257,21 +257,13 @@ export default function Dashboard() {
       {showErrorToast && Object.keys(partialErrors).length > 0 && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-md">
           {Object.values(partialErrors).map((msg, i) => (
-            <div key={i} className="flex items-start gap-3 bg-[#2a1a1a] border border-[#e57373]/40 rounded-xl px-4 py-3 shadow-2xl animate-pulse">
+            <div key={i} className="flex items-start gap-3 bg-[#2a2a2a] border border-[#333] rounded-xl px-4 py-3 shadow-2xl animate-pulse">
               <svg className="w-5 h-5 text-[#e57373] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <p className="text-[#e57373] text-sm">{msg}</p>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Background scraping toast */}
-      {isBgScraping && (
-        <div className="fixed bottom-20 lg:bottom-4 right-4 z-[100] flex items-center gap-3 bg-[#2a1a1a] border border-[#1E88E5]/40 rounded-xl px-4 py-3 shadow-2xl">
-          <div className="w-5 h-5 border-2 border-[#1E88E5] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-[#1E88E5] text-sm font-medium">{progressMsg}</p>
         </div>
       )}
 
@@ -296,49 +288,10 @@ export default function Dashboard() {
          <div className="flex justify-between items-center w-full">
             <h2 className="text-2xl font-bold text-white tracking-tight">{activeTab}</h2>
             
-            {/* Profile Avatar as Dropdown Trigger */}
-            <div className="relative">
-               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="focus:outline-none select-none">
-                  <img 
-                     src={`${API_URL}/api/v1/user/photo`} 
-                     alt="Profile" 
-                     onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
-                     className="w-10 h-10 rounded-full border-2 border-[#1E88E5] object-cover shadow-lg" 
-                  />
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1E88E5] to-[#1565C0] flex items-center justify-center text-white font-bold text-base shadow-lg hidden">
-                     {data?.profileData?.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-               </button>
-               
-               {/* Dropdown Menu */}
-               {isMobileMenuOpen && (
-                  <div className="absolute right-0 top-12 bg-[#2a2a2a] border border-[#444] rounded-xl shadow-2xl transition-all w-[250px] p-4 text-left z-50">
-                     <h3 className="text-white text-lg font-bold mb-3 border-b border-[#555] pb-2">Profile</h3>
-                     <div className="space-y-2 text-[13px] text-gray-300 mb-4">
-                       <div><span className="font-bold text-white">Name:</span> {data?.profileData?.name}</div>
-                       <div><span className="font-bold text-white">Reg No:</span> {data?.profileData?.registrationNo}</div>
-                       <div><span className="font-bold text-white">Program:</span> {data?.profileData?.programmeBranch}</div>
-                       <div><span className="font-bold text-white">Section:</span> {data?.profileData?.section}</div>
-                       <div><span className="font-bold text-white mt-2 block">Department:</span> {data?.profileData?.schoolDepartment}</div>
-                     </div>
-                     <div className="mb-4 flex flex-col gap-1">
-                        <button
-                          onClick={() => router.push('/feedback')}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#333] hover:text-white rounded-lg transition-colors flex items-center gap-3"
-                        >
-                          <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
-                        </button>
-                     </div>
-                     <button onClick={handleLogout} className="w-full py-2 bg-[#ff5252]/10 text-[#ff5252] rounded hover:bg-[#ff5252]/20 hover:scale-[1.02] active:scale-[0.98] font-bold transition-all duration-200 text-sm">Logout</button>
-                  </div>
-               )}
             </div>
-         </div>
-         <div id="mobile-header-actions" className="empty:hidden w-full overflow-x-auto custom-scrollbar hide-scrollbar"></div>
+         <div id={`mobile-header-actions-${activeTab}`} className="empty:hidden w-full flex items-center overflow-x-auto custom-scrollbar hide-scrollbar"></div>
       </header>
 
-      
-      
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main Layout Area */}
@@ -397,13 +350,7 @@ export default function Dashboard() {
 
             {/* Main Content */}
             <main className="flex-1 p-4 pb-[120px] lg:p-8 lg:m-4 lg:ml-2 lg:bg-[#2a2a2a] lg:rounded-2xl h-[calc(100vh-32px)] overflow-y-auto w-full relative custom-scrollbar">
-               {isBgScraping && (
-                  <div className="absolute top-4 right-6 bg-[#333] px-3 py-1.5 rounded-full text-xs text-white flex items-center shadow border border-[#444] z-50">
-                     <div className="w-3 h-3 rounded-full border-2 border-accent border-t-transparent animate-spin mr-2"></div> 
-                     Syncing latest data...
-                     <span className="ml-2 text-muted truncate max-w-[150px] italic">({progressMsg})</span>
-                  </div>
-               )}
+               
                
                <div className="max-w-[1400px] mx-auto space-y-12">
                    {/* Timetable Section */}

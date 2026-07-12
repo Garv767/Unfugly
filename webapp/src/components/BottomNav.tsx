@@ -62,7 +62,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
   return (
     <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-sm z-40">
-      <div className="flex items-center justify-around bg-[#1c1c1e]/80 backdrop-blur-xl rounded-[30px] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.6)] px-2 py-1.5">
+      <div className="flex items-center justify-between bg-[#1c1c1e]/80 backdrop-blur-xl rounded-full border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.6)] pl-2 pr-0 py-0 h-14">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = resolvedActive === tab.id;
@@ -89,29 +89,25 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         })}
 
         {/* Avatar Profile */}
-        <div className="relative flex-1 flex justify-center">
+                {/* Avatar Profile */}
+        <div className="relative h-full">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
-            className="flex flex-col items-center justify-center gap-1 py-0.5 outline-none transition-all duration-200"
+            className="h-14 w-14 outline-none transition-transform duration-200 overflow-hidden flex items-center justify-center bg-[#1E88E5] rounded-full hover:scale-[0.98] active:scale-[0.95]"
           >
-            <div className="w-7 h-7 rounded-full border-[1.5px] border-white/20 overflow-hidden shadow-sm flex items-center justify-center bg-[#1E88E5]">
-              <img 
-                 src={`${API_URL}/api/v1/user/photo`} 
-                 alt="Profile" 
-                 onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
-                 className="w-full h-full object-cover" 
-              />
-              <span className="text-white font-bold text-[10px] hidden">
-                 {profileData?.name?.charAt(0)?.toUpperCase() || '?'}
-              </span>
-            </div>
-            <span className={`text-[9px] font-bold uppercase tracking-wider transition-colors duration-200 ${isMenuOpen ? 'text-[#1E88E5]' : 'text-gray-600'}`}>
-              Profile
+            <img 
+               src={`${API_URL}/api/v1/user/photo`} 
+               alt="Profile" 
+               onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
+               className="w-full h-full object-cover" 
+            />
+            <span className="text-white font-bold text-[14px] hidden">
+               {profileData?.name?.charAt(0)?.toUpperCase() || '?'}
             </span>
           </button>
           
           {isMenuOpen && (
-            <div className="absolute right-0 bottom-16 bg-[#2a2a2a] border border-[#444] rounded-xl shadow-2xl transition-all w-[240px] p-4 text-left z-50">
+            <div className="absolute right-0 bottom-20 bg-[#2a2a2a] border border-[#444] rounded-xl shadow-2xl transition-all w-[240px] p-4 text-left z-50">
                <h3 className="text-white text-lg font-bold mb-3 border-b border-[#555] pb-2">Profile</h3>
                <div className="space-y-2 text-[12px] text-gray-300 mb-4">
                  <div><span className="font-bold text-white">Name:</span> {profileData?.name}</div>
