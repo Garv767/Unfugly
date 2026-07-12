@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import TimetableView from '@/components/TimetableView';
 import AttendancePredict from '@/components/AttendancePredict';
-import FeedbackFiller from '@/components/FeedbackFiller';
-import { CalendarDays, CheckSquare, BarChart2, CalendarRange, LogOut } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
+import { CalendarRange, LogOut, Rocket } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -249,8 +249,12 @@ export default function Dashboard() {
             </div>
          </div>
          
-         {/* Hamburger Menu & Profile Dropdown */}
-         <div className="relative group">
+         {/* Profile Avatar + Hamburger Menu */}
+         <div className="flex items-center gap-2">
+            {/* Avatar bubble — shows you're logged in */}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1E88E5] to-[#1565C0] flex items-center justify-center text-white font-bold text-base shadow-lg shadow-blue-900/30 flex-shrink-0 select-none">
+               {data?.profileData?.name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
             <button className="flex flex-col gap-1.5 p-2 bg-[#2a2a2a] rounded-lg border border-[#444] hover:bg-[#333] transition">
                <span className="w-5 h-0.5 bg-white"></span>
                <span className="w-5 h-0.5 bg-white"></span>
@@ -268,12 +272,19 @@ export default function Dashboard() {
                  <div><span className="font-bold text-white mt-2 block">Department:</span> {data.profileData.schoolDepartment}</div>
                </div>
                <div className="mb-4 flex flex-col gap-1">
-                  <FeedbackFiller asMenuItem={true} profileData={data.profileData} courseData={data.courseData} />
+                  <button
+                    onClick={() => router.push('/feedback')}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#333] hover:text-white rounded-lg transition-colors flex items-center gap-3"
+                  >
+                    <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
+                  </button>
                </div>
                <button onClick={handleLogout} className="w-full py-2 bg-[#ff5252]/10 text-[#ff5252] rounded hover:bg-[#ff5252]/20 hover:scale-[1.02] active:scale-[0.98] font-bold transition-all duration-200 text-sm">Logout</button>
             </div>
          </div>
       </header>
+      
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main Layout Area */}
             {/* Desktop Sidebar */}
@@ -309,7 +320,9 @@ export default function Dashboard() {
                   
                   {isMenuOpen && (
                      <div className="absolute left-0 bottom-[calc(100%+8px)] bg-[#1e1e1e] border border-[#444] rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all w-[240px] p-2 text-left z-50 flex flex-col gap-1">
-                        <FeedbackFiller asMenuItem={true} profileData={data.profileData} courseData={data.courseData} />
+                        <button onClick={() => router.push('/feedback')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                           <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
+                        </button>
                         
                         <button onClick={() => router.push('/calendar')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
                            <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
@@ -622,24 +635,7 @@ export default function Dashboard() {
          </div>
       </main>
 
-       {/* Bottom Navigation Bar (Mobile) */}
-       <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-[#1a1a1a] border-t border-[#333] flex justify-around items-center h-16 z-40 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
-           {[
-              { id: 'Timetable', icon: <CalendarDays size={20} /> }, 
-              { id: 'Attendance', icon: <CheckSquare size={20} /> }, 
-              { id: 'Marks', icon: <BarChart2 size={20} /> }, 
-              { id: 'Calendar', icon: <CalendarRange size={20} /> }
-           ].map((tab) => (
-              <button 
-                  key={tab.id}
-                  onClick={() => tab.id === 'Calendar' ? router.push('/calendar') : setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${activeTab === tab.id ? 'text-[#1E88E5]' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                  <span className="text-xl">{tab.icon}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider">{tab.id}</span>
-              </button>
-           ))}
-       </nav>
+       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }

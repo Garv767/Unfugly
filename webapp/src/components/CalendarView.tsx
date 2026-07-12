@@ -92,7 +92,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
           
           // Save to localStorage under unfuglyData_calendar
           const existingCacheStr = localStorage.getItem('unfuglyData_calendar');
-          let rootCache = {};
+          let rootCache: Record<string, any> = {};
           try { if (existingCacheStr) rootCache = JSON.parse(existingCacheStr); } catch(e){}
           rootCache[semKey] = { data: calendarJson, lastUpdated: new Date().toISOString() };
           localStorage.setItem('unfuglyData_calendar', JSON.stringify(rootCache));
