@@ -25,12 +25,15 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
-    const cached = localStorage.getItem('dashboard_data_cache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setProfileData(parsed.profileData);
-      } catch(e) {}
+    const netIdKey = Object.keys(localStorage).find(key => key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar');
+    if (netIdKey) {
+      const cachedStr = localStorage.getItem(netIdKey);
+      if (cachedStr) {
+        try {
+          const parsed = JSON.parse(cachedStr);
+          setProfileData(parsed.profileData);
+        } catch(e) {}
+      }
     }
   }, []);
 
@@ -114,6 +117,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                  <div><span className="font-bold text-white">Reg No:</span> {profileData?.registrationNo}</div>
                  <div><span className="font-bold text-white">Program:</span> {profileData?.programmeBranch}</div>
                  <div><span className="font-bold text-white">Section:</span> {profileData?.section}</div>
+                 <div><span className="font-bold text-white">Semester:</span> {profileData?.semester || 'N/A'}</div>
+                 <div><span className="font-bold text-white">Day Order:</span> {profileData?.dayOrder || 'N/A'}</div>
                  <div><span className="font-bold text-white mt-2 block">Department:</span> {profileData?.schoolDepartment}</div>
                </div>
                <button onClick={handleLogout} className="w-full py-2 bg-[#ff5252]/10 text-[#ff5252] rounded-lg hover:bg-[#ff5252]/20 font-bold transition-all duration-200 text-sm">

@@ -49,13 +49,16 @@ export default function Dashboard() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // 1. Instantly load from localStorage for UI caching
-    const cachedStr = localStorage.getItem('dashboard_data_cache');
-    if (cachedStr) {
-      try {
-        setData(JSON.parse(cachedStr));
-        setLoading(false);
-      } catch(e) {}
+    // 1. Instantly load from localStorage for UI caching using the self-cleaning key strategy
+    const netIdKey = Object.keys(localStorage).find(key => key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar');
+    if (netIdKey) {
+      const cachedStr = localStorage.getItem(netIdKey);
+      if (cachedStr) {
+        try {
+          setData(JSON.parse(cachedStr));
+          setLoading(false);
+        } catch(e) {}
+      }
     }
 
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
@@ -69,12 +72,16 @@ export default function Dashboard() {
       if (cachedData.profileData) {
           setData(cachedData);
           setLoading(false);
-          localStorage.setItem('dashboard_data_cache', JSON.stringify(cachedData));
+          const targetKey = `unfuglyData_${cachedData.netId}`;
+          const dataToSave = { ...cachedData };
+          delete dataToSave.netId;
+          delete dataToSave.timetableHTML;
+          localStorage.setItem(targetKey, JSON.stringify(dataToSave));
           // Always background-scrape for fresh data
-          startScraping(true);
+          startScraping(true, cachedData.netId);
       } else {
           // No cached profile at all — foreground scrape (first time user)
-          startScraping(false);
+          startScraping(false, cachedData.netId);
       }
     })
     .catch(() => startScraping(false));
@@ -93,7 +100,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  const startScraping = (isBackground = false) => {
+  const startScraping = (isBackground = false, forcedNetId?: string) => {
     if (scrapingStarted.current) return;
     scrapingStarted.current = true;
 
@@ -101,7 +108,7 @@ export default function Dashboard() {
     else setLoading(true);
 
     // net_id comes from the server via the JWT cookie — we grab it from /user/data or use a placeholder for SSE
-    const net_id = (data?.netId || data?.profileData?.registrationNo || '').toLowerCase();
+    const net_id = (forcedNetId || data?.netId || data?.profileData?.registrationNo || '').toLowerCase();
     if (net_id) {
       const eventSource = new EventSource(`${API_URL}/api/v1/scrape/progress/${net_id}`);
       eventSourceRef.current = eventSource;
