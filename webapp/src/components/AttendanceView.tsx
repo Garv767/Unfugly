@@ -16,17 +16,18 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
   }, []);
 
   useEffect(() => {
-    if (!isMobile) return;
+    // No isMobile guard — watch for the portal node as soon as component mounts
     const tryFind = () => {
       const el = document.getElementById('mobile-header-actions-Attendance');
       if (el) { setPortalNode(el); return true; }
       return false;
     };
     if (!tryFind()) {
-      const iv = setInterval(() => { if (tryFind()) clearInterval(iv); }, 50);
-      return () => clearInterval(iv);
+      const observer = new MutationObserver(() => { if (tryFind()) observer.disconnect(); });
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => observer.disconnect();
     }
-  }, [isMobile]);
+  }, []); // mount-only
 
   const predictComponent = <AttendancePredict attendanceData={data.attendanceData} courseData={data.courseData} />;
   
@@ -38,7 +39,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
          {predictComponent}
       </div>
       
-      {isMobile && portalNode ? createPortal(predictComponent, portalNode) : null}
+      {portalNode ? createPortal(predictComponent, portalNode) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {(!data.attendanceData || data.attendanceData.length === 0) && isBgScraping ? (
             Array.from({ length: 4 }).map((_, i) => (

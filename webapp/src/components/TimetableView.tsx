@@ -97,11 +97,18 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      return () => window.removeEventListener('resize', handleResize);
   }, []);
   useEffect(() => {
-    if (isMobile) {
+    // Run on mount: use MutationObserver to find portal node as soon as header is in DOM
+    const tryFind = () => {
       const el = document.getElementById('mobile-header-actions-Timetable');
-      if (el) setPortalNode(el);
+      if (el) { setPortalNode(el); return true; }
+      return false;
+    };
+    if (!tryFind()) {
+      const observer = new MutationObserver(() => { if (tryFind()) observer.disconnect(); });
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => observer.disconnect();
     }
-  }, [isMobile]);
+  }, []); // mount-only
 
   const [parsedData, setParsedData] = useState<any>(null);
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
@@ -689,8 +696,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
         </button>
       </div>
 
-      {/* Mobile Portal */}
-      {isMobile && portalNode 
+      {/* Mobile Portal — header div is hidden on desktop via lg:hidden CSS */}
+      {portalNode
         ? createPortal(
             <div className="flex items-center gap-2 pb-2 overflow-x-auto w-full hide-scrollbar">
                 <div style={{
