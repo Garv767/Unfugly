@@ -133,9 +133,10 @@ function saveEdits() {
             const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
             
             existingData.editedSlots[slotId] = { 
+                title: editedTitle,
+                classroom: editedClassroom,
                 editedTitle: editedTitle,
-                editedClassroom: editedClassroom,
-                lastUpdated: new Date().toISOString()
+                editedClassroom: editedClassroom
             };
         });
 
@@ -185,11 +186,14 @@ function loadEdits() {
                 slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
                 if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
 
+                const editedTitle = editedSlots[slotId].title ?? editedSlots[slotId].editedTitle ?? '';
+                const editedClassroom = editedSlots[slotId].classroom ?? editedSlots[slotId].editedClassroom ?? '';
+
                 const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
-                titleSpan.textContent = editedSlots[slotId].editedTitle;
+                titleSpan.textContent = editedTitle;
 
                 const classroomSpan = slot.getElementsByClassName('editedSlot-editedClassroom')[0] || document.createElement('span');
-                classroomSpan.textContent = editedSlots[slotId].editedClassroom ? `Room: ${editedSlots[slotId].editedClassroom}` : '';
+                classroomSpan.textContent = editedClassroom ? `Room: ${editedClassroom}` : '';
 
                 titleSpan.style.fontWeight = '600';
                 titleSpan.style.color = '#334';

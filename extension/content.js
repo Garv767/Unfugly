@@ -3223,34 +3223,38 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         // Fetch the absolute latest local cache to prevent overwriting edits made during the background scrape
         const latestLocal = await chrome.storage.local.get(storageKey);
         const currentLocalEdits = latestLocal?.[storageKey]?.editedSlots ?? {};
-        const lastSyncedTime = existingData?.[storageKey]?.lastUpdated 
-            ? new Date(existingData[storageKey].lastUpdated).getTime() 
-            : 0;
 
-        // Perform Last-Write-Wins merge for each slot
-        const mergedEdits = { ...dbEditedSlots };
+        // Merge both formats (LWW simple merge) and standardize all records to contain all 4 fields:
+        // { title, classroom, editedTitle, editedClassroom }
+        const mergedEdits = {};
+
+        // Start with DB edits
+        Object.keys(dbEditedSlots).forEach(slotId => {
+            const entry = dbEditedSlots[slotId];
+            if (entry) {
+                const titleVal = entry.title ?? entry.editedTitle ?? '';
+                const roomVal = entry.classroom ?? entry.editedClassroom ?? '';
+                mergedEdits[slotId] = {
+                    title: titleVal,
+                    classroom: roomVal,
+                    editedTitle: titleVal,
+                    editedClassroom: roomVal
+                };
+            }
+        });
+
+        // Overwrite with local edits (which take priority)
         Object.keys(currentLocalEdits).forEach(slotId => {
-            const localEdit = currentLocalEdits[slotId];
-            const dbEdit = dbEditedSlots[slotId];
-
-            if (!dbEdit) {
-                // If it is in local but not in DB:
-                // Only keep it if it is a new local edit made after the last sync.
-                // Otherwise, it was deleted in the DB by another client, so we discard it.
-                const localTime = localEdit.lastUpdated ? new Date(localEdit.lastUpdated).getTime() : 0;
-                if (!localEdit.lastUpdated || localTime > lastSyncedTime) {
-                    mergedEdits[slotId] = localEdit;
-                }
-            } else {
-                // In both -> compare timestamps to see which is newer
-                const localTime = localEdit.lastUpdated ? new Date(localEdit.lastUpdated).getTime() : 0;
-                const dbTime = dbEdit.lastUpdated ? new Date(dbEdit.lastUpdated).getTime() : 0;
-
-                if (localTime >= dbTime) {
-                    mergedEdits[slotId] = localEdit;
-                } else {
-                    mergedEdits[slotId] = dbEdit;
-                }
+            const entry = currentLocalEdits[slotId];
+            if (entry) {
+                const titleVal = entry.title ?? entry.editedTitle ?? '';
+                const roomVal = entry.classroom ?? entry.editedClassroom ?? '';
+                mergedEdits[slotId] = {
+                    title: titleVal,
+                    classroom: roomVal,
+                    editedTitle: titleVal,
+                    editedClassroom: roomVal
+                };
             }
         });
 

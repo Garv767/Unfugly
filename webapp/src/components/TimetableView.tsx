@@ -200,16 +200,17 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     const classroom = window.prompt('Enter classroom (optional):', defaultRoom);
     if (classroom === null) return;
 
-    const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom, lastUpdated: new Date().toISOString() } };
+    const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom } };
     setEditedSlots(newEdits);
     updateCache(newEdits);
 
-    const dbFormat: Record<string, { editedTitle: string; editedClassroom: string; lastUpdated: string }> = {};
+    const dbFormat: Record<string, { title: string; classroom: string; editedTitle: string; editedClassroom: string }> = {};
     Object.keys(newEdits).forEach(key => {
       dbFormat[key] = {
+        title: newEdits[key].title,
+        classroom: newEdits[key].classroom,
         editedTitle: newEdits[key].title,
-        editedClassroom: newEdits[key].classroom,
-        lastUpdated: newEdits[key].lastUpdated || new Date().toISOString()
+        editedClassroom: newEdits[key].classroom
       };
     });
     fetch(`${API_URL}/api/v1/user/slots`, {
@@ -229,12 +230,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       setEditedSlots(newEdits);
       updateCache(newEdits);
 
-      const dbFormat: Record<string, { editedTitle: string; editedClassroom: string; lastUpdated: string }> = {};
+      const dbFormat: Record<string, { title: string; classroom: string; editedTitle: string; editedClassroom: string }> = {};
       Object.keys(newEdits).forEach(key => {
         dbFormat[key] = {
+          title: newEdits[key].title,
+          classroom: newEdits[key].classroom,
           editedTitle: newEdits[key].title,
-          editedClassroom: newEdits[key].classroom,
-          lastUpdated: newEdits[key].lastUpdated || new Date().toISOString()
+          editedClassroom: newEdits[key].classroom
         };
       });
       fetch(`${API_URL}/api/v1/user/slots`, {
