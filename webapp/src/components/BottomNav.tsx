@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { CalendarDays, CheckSquare, BarChart2, CalendarRange, Rocket } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { UnfuglyLog } from '../utils/logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -42,8 +43,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
       await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
       localStorage.clear();
       router.push('/login');
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      UnfuglyLog.error('SYS_02', `Failed to log out: ${err.message}`);
     }
   };
   const pathname = usePathname();

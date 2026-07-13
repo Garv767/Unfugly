@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { UnfuglyLog } from '../utils/logger';
 
 interface CalendarViewProps {
   profileData?: any;
@@ -80,7 +81,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
                      return;
                  }
              }
-         } catch(e) { console.error('Failed to parse calendar from localStorage', e); }
+         } catch(e: any) { UnfuglyLog.error('SYNC_03', `Failed to parse calendar from localStorage: ${e.message}`); }
      }
      
      setLoading(true);
@@ -100,7 +101,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
           setLoading(false);
        })
        .catch(err => {
-          console.error("Failed to fetch calendar", err);
+          UnfuglyLog.error('CAL_01', `Failed to fetch calendar: ${err.message}`);
           setLoading(false);
        });
   }, [currentSemesterIndex, semesterDataCache]);

@@ -1026,7 +1026,7 @@ async function handleWelcomePage() {
                     if (dbRes.ok) {
                         const dbData = await dbRes.json();
                         if (dbData.profileData && dbData.timetableJSON && dbData.attendanceData && dbData.marksData) {
-                            console.log("handleWelcomePage: Fetched initial data from DB. Displaying...");
+                            window.UnfuglyLog.info('SYNC_01', "handleWelcomePage: Fetched initial data from DB. Displaying...");
                             
                             const constructedCache = {
                                 profileData: dbData.profileData,
@@ -1050,7 +1050,7 @@ async function handleWelcomePage() {
                                         }
                                     });
                                 }
-                            } catch(e) { console.warn("Failed fetching universal calendar on init", e); }
+                            } catch(e) { window.UnfuglyLog.warn('CAL_01', `Failed fetching universal calendar on init: ${e.message}`); }
 
                             renderProfilePanel(constructedCache.profileData, appWrapper, dayOrderInfo);
                             renderAccordionPanels(constructedCache, previousAttendanceData, appWrapper, currentNetId);
@@ -1061,11 +1061,11 @@ async function handleWelcomePage() {
                         }
                     }
                 } catch (dbErr) {
-                    console.log("handleWelcomePage: DB fetch failed or empty.", dbErr.message);
+                    window.UnfuglyLog.info('SYNC_02', `handleWelcomePage: DB fetch failed or empty: ${dbErr.message}`);
                 }
 
                 if (!fetchedFromDb) {
-                    console.log("handleWelcomePage: No complete data found in cloud. Initiating background fetch.");
+                    window.UnfuglyLog.info('SYNC_01', "handleWelcomePage: No complete data found in cloud. Initiating background fetch.");
                     if (titleElement) {
                         titleElement.textContent = "Unfugly: Fetching new data...";
                     }
@@ -1076,7 +1076,7 @@ async function handleWelcomePage() {
 
             }
         } catch (error) {
-            console.error("handleWelcomePage: Error accessing cached data or rendering UI:", error);
+            window.UnfuglyLog.error('SYS_01', `handleWelcomePage: Error accessing cached data or rendering UI: ${error.message}`);
             if (titleElement) {
                 titleElement.textContent = "Unfugly: Error loading cache. Fetching new data...";
             }
@@ -1091,7 +1091,7 @@ async function handleWelcomePage() {
         if (await processWelcomeContent()) {
             return;
         } else if (retryCount >= maxRetries) {
-            console.error("handleWelcomePage: Max retries reached for Welcome page container. Aborting.");
+            window.UnfuglyLog.error('SYS_01', "handleWelcomePage: Max retries reached for Welcome page container. Aborting.");
             displayInfoMessage("Failed to load Welcome page content. Please refresh.", 5000, 'error');
             return;
         }
@@ -1105,22 +1105,22 @@ async function handleWelcomePage() {
  * Applies direct enhancements to the timetable.
  */
 async function handleTimetablePage() {
-    console.log("handleTimetablePage: Starting process for My_Time_Table_2023_24 page.");
+    window.UnfuglyLog.info('SYS_01', "handleTimetablePage: Starting process for My_Time_Table_2023_24 page.");
     window.timetableRetryCount = 0; // Reset retry counter for this page
     tryToProcessTimetablePage();
 }
 
 async function tryToProcessTimetablePage() {
-    console.log(`tryToProcessTimetablePage: Attempt ${window.timetableRetryCount + 1}/${MAX_TIMETABLE_RETRIES}`);
+    window.UnfuglyLog.info('SYS_01', `tryToProcessTimetablePage: Attempt ${window.timetableRetryCount + 1}/${MAX_TIMETABLE_RETRIES}`);
 
     const timetableContainer = document.getElementById('zc-viewcontainer_My_Time_Table_2023_24');
     if (!timetableContainer) {
-        console.warn("tryToProcessTimetablePage: Timetable container not found. Retrying...");
+        window.UnfuglyLog.warn('SYS_01', "tryToProcessTimetablePage: Timetable container not found. Retrying...");
         if (window.timetableRetryCount < MAX_TIMETABLE_RETRIES) {
             window.timetableRetryCount++;
             setTimeout(tryToProcessTimetablePage, TIMETABLE_RETRY_DELAY);
         } else {
-            console.error("tryToProcessTimetablePage: Max retries reached for timetable container. Aborting.");
+            window.UnfuglyLog.error('SYS_01', "tryToProcessTimetablePage: Max retries reached for timetable container. Aborting.");
             displayInfoMessage("Failed to load timetable page. Please refresh.", 5000, 'error');
         }
         return;
@@ -1140,9 +1140,9 @@ async function tryToProcessTimetablePage() {
                 existingData.lastUpdated = new Date().toISOString();
                 chrome.storage.local.set({ [storageKey]: existingData }, () => {
                     if (chrome.runtime.lastError) {
-                        console.error("handleTimetablePage: Error saving timetable data to unfuglyData:", chrome.runtime.lastError);
+                        window.UnfuglyLog.error('SYNC_03', `handleTimetablePage: Error saving timetable data to unfuglyData: ${chrome.runtime.lastError.message}`);
                     } else {
-                        console.log(`handleTimetablePage: Course data for ${netId} saved to unfuglyData storage.`);
+                        window.UnfuglyLog.info('SYNC_01', `handleTimetablePage: Course data for ${netId} saved to unfuglyData storage.`);
                     }
                 });
             });
@@ -1155,12 +1155,12 @@ async function tryToProcessTimetablePage() {
             addDownloadTimetableButton(timetableTable);
             displayInfoMessage("Timetable enhanced successfully!", 3000, 'success');
         } else {
-            console.error("handleTimetablePage: Timetable table not found after data extraction.");
+            window.UnfuglyLog.error('SCRP_02', "handleTimetablePage: Timetable table not found after data extraction.");
             displayInfoMessage("Error: Timetable table not found on page.", 5000, 'error');
         }
 
     } catch (error) {
-        console.error("handleTimetablePage: Error processing timetable page:", error);
+        window.UnfuglyLog.error('SYS_01', `handleTimetablePage: Error processing timetable page: ${error.message}`);
         displayInfoMessage("An error occurred while enhancing the timetable.", 5000, 'error');
     }
 }
@@ -1170,7 +1170,7 @@ async function tryToProcessTimetablePage() {
  * Adds margin column and total marks sub-row directly to the page.
  */
 async function handleAttendancePage() {
-    console.log("handleAttendancePage: Starting process for My_Attendance page.");
+    window.UnfuglyLog.info('SYS_01', "handleAttendancePage: Starting process for My_Attendance page.");
     try {
         await waitForElement(document, '#zc-viewcontainer_My_Attendance > div > div.cntdDiv > div > table:nth-child(4)');
 
@@ -3086,7 +3086,7 @@ function addDownloadTimetableButton(timetableTable) {
  */
 async function backgroundFetchAllData(currentNetId, titleElement, previousAttendanceData, appWrapper, dayOrder) {
     if (window.isFetchingInBackground) {
-        console.log("backgroundFetchAllData: A fetch is already in progress. Aborting new request.");
+        window.UnfuglyLog.warn('SCRP_01', "backgroundFetchAllData: A fetch is already in progress. Aborting new request.");
         return;
     }
     window.isFetchingInBackground = true;
@@ -3110,7 +3110,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
     // Step 1: Course Registration (independent)
     try {
-        console.log("backgroundFetchAllData: Fetching Course Registration data natively...");
+        window.UnfuglyLog.info('SCRP_01', "backgroundFetchAllData: Fetching Course Registration data natively...");
         const regStartTime = performance.now();
         courseRegResult = await fetchCourseRegistrationData();
         batch = courseRegResult.batch;
@@ -3119,9 +3119,9 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         if (courseRegResult.registrationNo && !fetchedData.profileData?.registrationNo) {
             fetchedData.profileData.registrationNo = courseRegResult.registrationNo;
         }
-        console.log(`[Unfugly Speed] Fetching and parsing Course Registration took ${(performance.now() - regStartTime).toFixed(2)} ms.`);
+        window.UnfuglyLog.info('SCRP_01', `[Unfugly Speed] Fetching and parsing Course Registration took ${(performance.now() - regStartTime).toFixed(2)} ms.`);
     } catch (regError) {
-        console.error("backgroundFetchAllData: Course Registration failed (will use cache):", regError);
+        window.UnfuglyLog.error('SCRP_01', `backgroundFetchAllData: Course Registration failed (will use cache): ${regError.message}`);
         // Fall back to cached course/profile data
         const cachedEntry = existingData?.[storageKey];
         if (cachedEntry) {
@@ -3133,7 +3133,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     // Step 2: Unified Timetable (independent)
     try {
         if (batch && (batch === '1' || batch === '2')) {
-            console.log(`backgroundFetchAllData: Fetching Unified Timetable for Batch ${batch} natively...`);
+            window.UnfuglyLog.info('SCRP_01', `backgroundFetchAllData: Fetching Unified Timetable for Batch ${batch} natively...`);
             const ttStartTime = performance.now();
             const rawUnifiedTimetableHTML = await fetchUnifiedTimetableData(batch);
             if (rawUnifiedTimetableHTML) {
@@ -3144,34 +3144,34 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
                     fetchedData.timetableJSON = parseTableToJSON(tempTable);
                 }
             }
-            console.log(`[Unfugly Speed] Fetching Unified Timetable took ${(performance.now() - ttStartTime).toFixed(2)} ms.`);
+            window.UnfuglyLog.info('SCRP_01', `[Unfugly Speed] Fetching Unified Timetable took ${(performance.now() - ttStartTime).toFixed(2)} ms.`);
         } else if (courseRegResult?.doc) {
             const regPageTtTable = courseRegResult.doc.querySelector('table[align="center"][border="5"]');
             if (regPageTtTable && fetchedData.courseData) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = regPageTtTable.outerHTML;
                 fetchedData.timetableJSON = parseTableToJSON(tempDiv.querySelector('table'));
-                console.log("backgroundFetchAllData: Used Course Registration page timetable as fallback.");
+                window.UnfuglyLog.info('SCRP_01', "backgroundFetchAllData: Used Course Registration page timetable as fallback.");
             }
         } else {
             // Use cached timetable
             fetchedData.timetableJSON = existingData?.[storageKey]?.timetableJSON ?? null;
         }
     } catch (ttError) {
-        console.error("backgroundFetchAllData: Timetable fetch failed (will use cache):", ttError);
+        window.UnfuglyLog.error('SCRP_02', `backgroundFetchAllData: Timetable fetch failed (will use cache): ${ttError.message}`);
         fetchedData.timetableJSON = existingData?.[storageKey]?.timetableJSON ?? null;
     }
 
     // Step 3: Attendance & Marks (independent)
     try {
-        console.log("backgroundFetchAllData: Fetching Attendance and Marks data natively...");
+        window.UnfuglyLog.info('SCRP_01', "backgroundFetchAllData: Fetching Attendance and Marks data natively...");
         const attStartTime = performance.now();
         const attendanceDataResult = await fetchAttendanceData(previousAttendanceData);
         fetchedData.attendanceData = attendanceDataResult.attendanceData;
         fetchedData.marksData = attendanceDataResult.marksData;
-        console.log(`[Unfugly Speed] Fetching Attendance and Marks natively took ${(performance.now() - attStartTime).toFixed(2)} ms.`);
+        window.UnfuglyLog.info('SCRP_01', `[Unfugly Speed] Fetching Attendance and Marks natively took ${(performance.now() - attStartTime).toFixed(2)} ms.`);
     } catch (attError) {
-        console.error("backgroundFetchAllData: Attendance/Marks fetch failed (will use cache):", attError);
+        window.UnfuglyLog.error('SCRP_01', `backgroundFetchAllData: Attendance/Marks fetch failed (will use cache): ${attError.message}`);
         fetchedData.attendanceData = existingData?.[storageKey]?.attendanceData ?? null;
         fetchedData.marksData = existingData?.[storageKey]?.marksData ?? null;
     }
@@ -3180,30 +3180,30 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     let dbEditedSlots = existingData?.[storageKey]?.editedSlots ?? {};
     let dbPhotoUrl = null;
     try {
-        console.log("backgroundFetchAllData: Checking DB for latest edits and photo...");
+        window.UnfuglyLog.info('SYNC_01', "backgroundFetchAllData: Checking DB for latest edits and photo...");
         const BACKEND = 'http://localhost:3000';
         const dbRes = await backgroundFetch(`${BACKEND}/api/v1/user/get/${currentNetId}`);
         if (dbRes.ok) {
-            const dbJson = await dbRes.json();
-            dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
-            if (dbJson.editedSlots !== undefined && dbJson.editedSlots !== null) {
-                dbEditedSlots = dbJson.editedSlots;
+            const dbData = await dbRes.json();
+            dbPhotoUrl = dbData.profileData?.profile_image_url || dbData.profileData?.profilePhotoUrl;
+            if (dbData.editedSlots !== undefined && dbData.editedSlots !== null) {
+                dbEditedSlots = dbData.editedSlots;
             }
         }
     } catch (e) {
-        console.error("Failed to check DB:", e);
+        window.UnfuglyLog.error('SYNC_02', `Failed to check DB for photo/edits: ${e.message}`);
     }
 
     try {
         const cachedPhotoUrl = cachedProfileData?.profilePhotoUrl;
         if (cachedPhotoUrl) {
-            console.log("backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
+            window.UnfuglyLog.info('SCRP_03', "backgroundFetchAllData: Profile photo URL found in cache. Skipping refetch.");
             if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = cachedPhotoUrl;
         } else if (dbPhotoUrl) {
-            console.log("backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
+            window.UnfuglyLog.info('SCRP_03', "backgroundFetchAllData: Profile photo URL found in DB. Skipping scrape.");
             if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = dbPhotoUrl;
         } else {
-            console.log("backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
+            window.UnfuglyLog.info('SCRP_03', "backgroundFetchAllData: Profile photo URL not in cache or DB. Scraping...");
             const photoStartTime = performance.now();
             const { iframeDoc: profilePhotoIframeDoc, iframe: profilePhotoIframe } = await createHiddenIframe(
                 "https://academia.srmist.edu.in/#Report:Student_Profile_Report",
@@ -3212,10 +3212,10 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             const profilePhotoUrl = await extractImageUrl(profilePhotoIframeDoc);
             if (fetchedData.profileData) fetchedData.profileData.profilePhotoUrl = profilePhotoUrl;
             profilePhotoIframe.remove();
-            console.log(`[Unfugly Speed] Loading Student Profile Report took ${(performance.now() - photoStartTime).toFixed(2)} ms.`);
+            window.UnfuglyLog.info('SCRP_03', `[Unfugly Speed] Loading Student Profile Report took ${(performance.now() - photoStartTime).toFixed(2)} ms.`);
         }
     } catch (photoError) {
-        console.error("backgroundFetchAllData: Profile photo fetch failed:", photoError);
+        window.UnfuglyLog.error('SCRP_03', `backgroundFetchAllData: Profile photo fetch failed: ${photoError.message}`);
     }
 
     // Step 5: Save whatever we managed to get to cache
@@ -3263,9 +3263,9 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             lastUpdated: new Date().toISOString()
         };
         await chrome.storage.local.set({ [storageKey]: dataToCache });
-        console.log("backgroundFetchAllData: All data saved to cache (merged edits).");
+        window.UnfuglyLog.info('SYNC_01', "backgroundFetchAllData: All data saved to cache (merged edits).");
     } catch (cacheError) {
-        console.error("backgroundFetchAllData: Failed to save data to cache:", cacheError);
+        window.UnfuglyLog.error('SYNC_03', `backgroundFetchAllData: Failed to save data to cache: ${cacheError.message}`);
     }
 
     // Step 6: Update UI and sync calendar (independent)
@@ -3274,7 +3274,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         await checkAndSyncCalendar();
     } catch (calError) {
-        console.error("backgroundFetchAllData: Calendar sync failed:", calError);
+        window.UnfuglyLog.error('CAL_03', `backgroundFetchAllData: Calendar sync failed: ${calError.message}`);
     }
 
     try {
@@ -3283,7 +3283,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         if (typeof loadEdits === 'function') { loadEdits(); }
         displayInfoMessage("All new data fetched and displayed!", 3000, 'success');
     } catch (renderError) {
-        console.error("backgroundFetchAllData: Render failed:", renderError);
+        window.UnfuglyLog.error('SYS_01', `backgroundFetchAllData: Render failed: ${renderError.message}`);
         displayInfoMessage("Some data could not be loaded. Showing cached data.", 4000, 'error');
     }
 

@@ -1,3 +1,35 @@
+const getTimestamp = () => {
+  const now = new Date();
+  return now.toTimeString().split(' ')[0]; // HH:MM:SS
+};
+
+const LOG_COLORS = {
+  INFO: '#00E676',   // Neon Green
+  WARN: '#FFD600',   // Amber Yellow
+  ERROR: '#FF1744'   // Vibrant Red
+};
+
+const log = (level, code, message, ...args) => {
+  const time = getTimestamp();
+  const color = LOG_COLORS[level] || '#fff';
+  const formattedPrefix = `%c[UNFUGLY] [BG] [${time}] [${level}] [${code}]`;
+  const style = `background: #222; color: ${color}; font-weight: bold; padding: 1px 3px; border-radius: 2px;`;
+  
+  if (level === 'ERROR') {
+    console.error(formattedPrefix, style, message, ...args);
+  } else if (level === 'WARN') {
+    console.warn(formattedPrefix, style, message, ...args);
+  } else {
+    console.log(formattedPrefix, style, message, ...args);
+  }
+};
+
+const UnfuglyLog = {
+  info: (code, message, ...args) => log('INFO', code, message, ...args),
+  warn: (code, message, ...args) => log('WARN', code, message, ...args),
+  error: (code, message, ...args) => log('ERROR', code, message, ...args)
+};
+
 chrome.runtime.onUpdateAvailable.addListener(() => {
   chrome.runtime.reload();
 });
@@ -5,7 +37,7 @@ chrome.runtime.onUpdateAvailable.addListener(() => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "trigger_update") {
     chrome.runtime.requestUpdateCheck((status) => {
-      console.log("Update check status:", status);
+      UnfuglyLog.info('SYS_01', `Update check status: ${status}`);
     });
     return false;
   }
@@ -22,19 +54,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       chrome.cookies.getAll({ domain: "zoho.in" }, (cookiesZoho) => {
         const combined = [...(cookiesAcademia || []), ...(cookiesZoho || [])];
 
-        // ── DIAGNOSTIC LOG ─────────────────────────────────────────────────
-        console.log(
-          `[BG] fetch_backend → ${request.url}`,
-          `| academia cookies: ${cookiesAcademia?.length ?? 0}`,
-          `| zoho cookies: ${cookiesZoho?.length ?? 0}`,
-          `| combined: ${combined.length}`
-        );
+        UnfuglyLog.info('SYS_01', `fetch_backend → ${request.url} | academia cookies: ${cookiesAcademia?.length ?? 0} | zoho cookies: ${cookiesZoho?.length ?? 0} | combined: ${combined.length}`);
+        
         if (combined.length === 0) {
-          console.warn('[BG] WARNING: No cookies found! Auth will fail. Are you logged into Academia?');
+          UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
         } else {
-          console.log('[BG] Cookie names:', combined.map(c => c.name).join(', '));
+          UnfuglyLog.info('SYS_01', `Cookie names: ${combined.map(c => c.name).join(', ')}`);
         }
-        // ──────────────────────────────────────────────────────────────────
 
         const options = request.options || {};
         options.headers = options.headers || {};
@@ -48,12 +74,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })))
           .then(data => {
             if (!data.ok) {
-              console.error(`[BG] Backend returned ${data.status} for ${request.url}:`, data.text.slice(0, 300));
+              const errCode = data.status === 401 ? 'AUTH_02' : 'SYS_01';
+              UnfuglyLog.error(errCode, `Backend returned ${data.status} for ${request.url}: ${data.text.slice(0, 300)}`);
             }
             sendResponse({ success: true, data });
           })
           .catch(err => {
-            console.error(`[BG] fetch failed for ${request.url}:`, err.message);
+            UnfuglyLog.error('SYS_02', `fetch failed for ${request.url}: ${err.message}`);
             sendResponse({ success: false, error: err.message });
           });
       });

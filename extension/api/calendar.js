@@ -248,10 +248,10 @@ async function syncCalendarForSemester(semesterKey) {
                         console.warn(`syncCalendarForSemester: DB returned ok but no calendar_json for ${semesterKey}`);
                     }
                 } else if (resObj && resObj.data) {
-                    console.warn(`syncCalendarForSemester: DB returned ${resObj.data.status} for ${semesterKey}`);
+                    window.UnfuglyLog.warn('CAL_01', `syncCalendarForSemester: DB returned ${resObj.data.status} for ${semesterKey}`);
                 }
             } catch (error) {
-                console.error(`syncCalendarForSemester: Failed to fetch from DB for ${semesterKey}:`, error.message);
+                window.UnfuglyLog.error('CAL_02', `syncCalendarForSemester: Failed to fetch from DB for ${semesterKey}: ${error.message}`);
             }
 
             if (fetchedFromDb) return;
@@ -260,7 +260,7 @@ async function syncCalendarForSemester(semesterKey) {
             if (isCurrent) {
                 const url = `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_${semesterKey}`;
                 try {
-                    console.log(`syncCalendarForSemester: Fetching ${url} via scraping`);
+                    window.UnfuglyLog.info('CAL_03', `syncCalendarForSemester: Fetching ${url} via scraping`);
                     const rawText = await fetchCalendarRaw(url);
                     const doc = await parseCalendarHTML(rawText);
                     if (doc) {
@@ -288,27 +288,27 @@ async function syncCalendarForSemester(semesterKey) {
                                 }
                             }, (response) => {
                                 if (chrome.runtime.lastError || !response || !response.success) {
-                                    console.error("Failed to POST scraped calendar to backend:", chrome.runtime.lastError?.message || response?.error);
+                                    window.UnfuglyLog.error('CAL_02', `Failed to POST scraped calendar to backend: ${chrome.runtime.lastError?.message || response?.error}`);
                                 }
                             });
 
                             rootCalendar[semesterKey] = updatedCalendarWrap;
                             chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar });
-                            console.log(`syncCalendarForSemester: ${semesterKey} scraped and saved`);
+                            window.UnfuglyLog.info('CAL_03', `syncCalendarForSemester: ${semesterKey} scraped and saved`);
                             return resolve(updatedCalendarWrap);
                         }
                     }
                 } catch (error) {
-                    console.error(`syncCalendarForSemester: Failed to scrape ${url}`, error);
+                    window.UnfuglyLog.error('SCRP_01', `syncCalendarForSemester: Failed to scrape ${url}: ${error.message}`);
                 }
             }
 
             // 4. Fallback if everything fails
             if (cachedSem && cachedSem.data) {
-                console.log(`syncCalendarForSemester: Falling back to stale cache for ${semesterKey}`);
+                window.UnfuglyLog.info('CAL_03', `syncCalendarForSemester: Falling back to stale cache for ${semesterKey}`);
                 resolve(cachedSem);
             } else {
-                console.log(`syncCalendarForSemester: No cache available and failed to fetch/scrape ${semesterKey}`);
+                window.UnfuglyLog.warn('CAL_01', `syncCalendarForSemester: No cache available and failed to fetch/scrape ${semesterKey}`);
                 if (typeof displayInfoMessage === 'function') {
                     displayInfoMessage(`Calendar data for ${semesterKey.replace('_', '-')} is currently unavailable.`, 5000, 'error');
                 }
@@ -322,7 +322,7 @@ async function syncCalendarForSemester(semesterKey) {
  * Fetches all predefined calendar URLs natively, parses them, and stores the data per semester.
  */
 async function syncAllCalendars() {
-    console.log("syncAllCalendars: Starting native calendar sync.");
+    window.UnfuglyLog.info('CAL_03', "syncAllCalendars: Starting native calendar sync.");
     const semestersToSync = [
         "2024_25_EVEN",
         "2025_26_ODD",

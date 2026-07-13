@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
+import { UnfuglyLog } from '../utils/logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -127,8 +128,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
             editedClassroom: entry.editedClassroom ?? entry.classroom ?? ''
           };
         });
-      } catch (e) {
-        console.error("Failed to parse DB dbEditedSlots:", e);
+      } catch (e: any) {
+        UnfuglyLog.error('SYNC_02', `Failed to parse DB dbEditedSlots: ${e.message}`);
       }
     }
     return initialEdits;
@@ -165,8 +166,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
             const parsed = parseTableToJSON(table);
             setParsedData(parsed);
         }
-    } catch (e) {
-        console.error("Failed to parse timetable:", e);
+    } catch (e: any) {
+        UnfuglyLog.error('SCRP_02', `Failed to parse timetable HTML to JSON: ${e.message}`);
     }
   }, [htmlContent, timetableJSON]);
 
@@ -211,7 +212,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       },
       credentials: 'include',
       body: JSON.stringify({ edited_slots_json: newEdits })
-    }).catch(err => console.error('Failed to save edited slots to backend:', err));
+    }).catch(err => UnfuglyLog.error('SYNC_02', `Failed to save edited slots to backend: ${err.message}`));
   };
 
   const removeEdit = (e: any, slotId: string) => {
@@ -228,7 +229,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
         },
         credentials: 'include',
         body: JSON.stringify({ edited_slots_json: newEdits })
-      }).catch(err => console.error('Failed to save edited slots to backend after removal:', err));
+      }).catch(err => UnfuglyLog.error('SYNC_02', `Failed to save edited slots to backend after removal: ${err.message}`));
   };
 
   const downloadTimetable = async () => {
@@ -301,8 +302,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err) {
-      console.error('Error generating timetable image:', err);
+    } catch (err: any) {
+      UnfuglyLog.error('SYS_01', `Error generating timetable image: ${err.message}`);
     }
   };
 

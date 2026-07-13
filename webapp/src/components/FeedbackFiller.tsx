@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Rocket } from 'lucide-react';
+import { UnfuglyLog } from '../utils/logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -42,8 +43,8 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
       if (res.status === 401) return;
       const data = await res.json();
       if (data.count !== undefined) setTotalFeedbackCount(data.count);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      UnfuglyLog.error('SYS_02', `Failed to fetch feedback count: ${e.message}`);
     }
   };
 

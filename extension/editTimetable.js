@@ -83,9 +83,7 @@ function removeEdits() {
                 existingData.editedSlots = editedSlots;
                 chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: existingData }, () => {
                     if (chrome.runtime.lastError) {
-                        console.error("Error updating local storage:", chrome.runtime.lastError);
-                    } else {
-                        //console.log('Edit removed and storage updated');
+                        window.UnfuglyLog.error('SYNC_03', `Error updating local storage: ${chrome.runtime.lastError.message}`);
                     }
                 });
             });
@@ -145,9 +143,9 @@ function saveEdits() {
 
         chrome.storage.local.set({ [storageKey]: existingData }, () => {
             if (chrome.runtime.lastError) {
-                console.error("Error setting local storage:", chrome.runtime.lastError);
+                window.UnfuglyLog.error('SYNC_03', `Error setting local storage: ${chrome.runtime.lastError.message}`);
             } else {
-                console.log('Edits saved');
+                window.UnfuglyLog.info('SYNC_01', 'Edits saved successfully locally');
             }
         });
     });

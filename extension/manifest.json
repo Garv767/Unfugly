@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
-      "js": ["lib/html2canvas.min.js", "api/courseRegistration.js", "api/unifiedTimetable.js", "api/attendance.js", "api/calendar.js", "analytics.js", "content.js", "editTimetable.js", "predict.js", "imageURLScript.js"],
+      "js": ["utils/logger.js", "lib/html2canvas.min.js", "api/courseRegistration.js", "api/unifiedTimetable.js", "api/attendance.js", "api/calendar.js", "analytics.js", "content.js", "editTimetable.js", "predict.js", "imageURLScript.js"],
       "css": ["styles.css"]
     },
     {

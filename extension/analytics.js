@@ -58,7 +58,7 @@ async function syncUserData(netId, data) {
         lastUpdated:    getISTString(),
         source:         'extension'
     };
-    console.log('UP:00 Syncing user data to backend. netId:', netId, 'editedSlots:', data.editedSlots);
+    UnfuglyLog.info('SYNC_01', `Syncing user data to backend. netId: ${netId}`);
     try {
         const response = await backgroundFetch(`${BACKEND}/api/v1/user/save`, {
             method: 'POST',
@@ -70,12 +70,12 @@ async function syncUserData(netId, data) {
 
         const json = await response.json();
         if (!response.ok) {
-            console.error(`ER:01 User sync failed (HTTP ${response.status}):`, json);
+            UnfuglyLog.error('SYNC_02', `User sync failed (HTTP ${response.status}):`, json);
             return;
         }
-        console.log(`UP:01 User sync OK — count: ${json.sync_count}`);
+        UnfuglyLog.info('SYNC_01', `User sync OK — count: ${json.sync_count}`);
     } catch (err) {
-        console.error('ER:01 User sync failed:', err.message);
+        UnfuglyLog.error('SYNC_02', `User sync failed: ${err.message}`);
     }
 }
 
@@ -115,10 +115,10 @@ async function syncCalendar() {
                     lastUpdated: serverCalendar.updated_at  // ISO string for content.js 24hr check
                 }
             });
-            console.log('CAL:01 Copied fresh calendar from server');
+            UnfuglyLog.info('CAL_03', 'Copied fresh calendar from server');
             return;
             */
-            console.log('CAL:01 Skipped copying fresh calendar from server to preserve new format');
+            UnfuglyLog.info('CAL_03', 'Skipped copying fresh calendar from server to preserve new format');
         }
 
         // ── Server calendar is stale (≥ 24 hrs) — push local scraped data ──
@@ -127,7 +127,7 @@ async function syncCalendar() {
 
         if (!localCalendar?.data || Object.keys(localCalendar.data).length === 0) {
             // No local calendar data to push yet; content.js will scrape it
-            console.log('CAL:02 No local calendar data available yet');
+            UnfuglyLog.info('CAL_03', 'No local calendar data available yet');
             return;
         }
 
@@ -154,10 +154,10 @@ async function syncCalendar() {
         });
 
         if (!postRes.ok) throw new Error(`Calendar update failed: ${postRes.status}`);
-        console.log('CAL:03 Pushed local calendar to server');
+        UnfuglyLog.info('CAL_02', 'Pushed local calendar to server');
 
     } catch (err) {
-        console.error('ER:02 Calendar sync failed:', err.message);
+        UnfuglyLog.error('CAL_03', `Calendar sync failed: ${err.message}`);
     }
 }
 
