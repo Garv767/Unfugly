@@ -59,7 +59,6 @@ const TIMETABLE_RETRY_DELAY = 1000; // 1 second delay between attempts
  * @param {string} type The type of message (e.g., 'info', 'success', 'error').
  */
 function displayInfoMessage(message, duration = 3000, type = 'info') {
-    console.log(`[Message: ${type}] ${message}`);
     const msgContainer = document.getElementById('unfugly-msg-container') || document.createElement('div');
     msgContainer.id = 'unfugly-msg-container';
     msgContainer.style.cssText = `
