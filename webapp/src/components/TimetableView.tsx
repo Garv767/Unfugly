@@ -304,6 +304,72 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     }
   };
 
+  const renderEditToolbar = (isMobileView = false) => {
+    const buttons = [
+      { id: 'hide', label: 'Hide', themeColor: '#546E7A', title: 'Hide Edits' },
+      { id: 'show', label: 'Show', themeColor: '#43A047', title: 'Show/Save Edits' },
+      { id: 'modify', label: 'Modify', themeColor: '#1E88E5', title: 'Edit Mode' }
+    ];
+
+    return (
+      <div 
+        id="editMenu" 
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '4px',
+          marginLeft: isMobileView ? '0px' : '20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '14px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          gap: '4px',
+          transition: 'all 0.3s ease'
+        }}
+      >
+        {buttons.map(btn => {
+          const active = viewState === btn.id;
+          const onClick = () => {
+            setViewState(btn.id as any);
+            setIsEditMode(btn.id === 'modify');
+          };
+
+          return (
+            <button
+              key={btn.id}
+              id={`${btn.id}EditsButton`}
+              title={btn.title}
+              onClick={onClick}
+              style={{
+                backgroundColor: active ? btn.themeColor : 'transparent',
+                color: active ? 'rgba(255, 255, 255, 1)' : 'rgba(255, 255, 255, 0.8)',
+                borderWidth: 'medium',
+                borderStyle: 'none',
+                borderColor: 'currentcolor',
+                borderImage: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                padding: '6px 14px',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 500,
+                fontSize: '12px',
+                transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minWidth: '65px',
+                boxShadow: active ? `${btn.themeColor}66 0px 4px 12px` : 'none',
+                transform: active ? 'scale(1.05)' : 'scale(1)'
+              }}
+            >
+              {btn.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderDesktopTable = () => {
     if (!parsedData || !parsedData.headers || !parsedData.days) return null;
     
@@ -609,92 +675,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       {/* Desktop Header */}
       <div className="hidden lg:flex items-center mb-4 relative">
         <h2 className="text-xl font-bold text-white mr-4">Timetable</h2>
-        
-        <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '4px',
-            marginLeft: '20px',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '14px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            gap: '4px',
-            transition: 'all 0.3s ease'
-        }}>
-           <button 
-             onClick={() => { setViewState('hide'); setIsEditMode(false); }}
-             style={{
-                backgroundColor: viewState === 'hide' ? '#546E7A' : 'transparent',
-                color: viewState === 'hide' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'hide' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'hide' ? '0 4px 12px #546E7A66' : 'none'
-             }}
-             title="Hide Edits"
-           >
-             Hide
-           </button>
-           <button 
-             onClick={() => { setViewState('show'); setIsEditMode(false); }}
-             style={{
-                backgroundColor: viewState === 'show' ? '#43A047' : 'transparent',
-                color: viewState === 'show' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'show' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'show' ? '0 4px 12px #43A04766' : 'none'
-             }}
-             title="Show/Save Edits"
-           >
-             {isEditMode ? 'Save' : 'Show'}
-           </button>
-           <button 
-             onClick={() => { setViewState('modify'); setIsEditMode(true); }}
-             style={{
-                backgroundColor: viewState === 'modify' ? '#1E88E5' : 'transparent',
-                color: viewState === 'modify' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'modify' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'modify' ? '0 4px 12px #1E88E566' : 'none'
-             }}
-             title="Edit Mode"
-           >
-             Modify
-           </button>
-        </div>
+        {renderEditToolbar(false)}
         
         <button
            onClick={downloadTimetable}
@@ -713,91 +694,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       {portalNode
         ? createPortal(
             <div className="flex items-center gap-2 pb-2 overflow-x-auto w-full hide-scrollbar">
-                <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '4px',
-                    marginLeft: '0px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '14px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    gap: '4px',
-                    transition: 'all 0.3s ease'
-                }}>
-                   <button 
-                     onClick={() => { setViewState('hide'); setIsEditMode(false); }}
-                     style={{
-                        backgroundColor: viewState === 'hide' ? '#546E7A' : 'transparent',
-                        color: viewState === 'hide' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                        border: 'none',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        padding: '6px 14px',
-                        fontFamily: "'Inter', sans-serif",
-                        fontWeight: 500,
-                        fontSize: '12px',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minWidth: '65px',
-                        transform: viewState === 'hide' ? 'scale(1.05)' : 'scale(1)',
-                        boxShadow: viewState === 'hide' ? '0 4px 12px #546E7A66' : 'none'
-                     }}
-                     title="Hide Edits"
-                   >
-                     Hide
-                   </button>
-                   <button 
-                     onClick={() => { setViewState('show'); setIsEditMode(false); }}
-                     style={{
-                        backgroundColor: viewState === 'show' ? '#43A047' : 'transparent',
-                        color: viewState === 'show' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                        border: 'none',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        padding: '6px 14px',
-                        fontFamily: "'Inter', sans-serif",
-                        fontWeight: 500,
-                        fontSize: '12px',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minWidth: '65px',
-                        transform: viewState === 'show' ? 'scale(1.05)' : 'scale(1)',
-                        boxShadow: viewState === 'show' ? '0 4px 12px #43A04766' : 'none'
-                     }}
-                     title="Show/Save Edits"
-                   >
-                     {isEditMode ? 'Save' : 'Show'}
-                   </button>
-                   <button 
-                     onClick={() => { setViewState('modify'); setIsEditMode(true); }}
-                     style={{
-                        backgroundColor: viewState === 'modify' ? '#1E88E5' : 'transparent',
-                        color: viewState === 'modify' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                        border: 'none',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        padding: '6px 14px',
-                        fontFamily: "'Inter', sans-serif",
-                        fontWeight: 500,
-                        fontSize: '12px',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minWidth: '65px',
-                        transform: viewState === 'modify' ? 'scale(1.05)' : 'scale(1)',
-                        boxShadow: viewState === 'modify' ? '0 4px 12px #1E88E566' : 'none'
-                     }}
-                     title="Edit Mode"
-                   >
-                     Modify
-                   </button>
-                </div>
+                {renderEditToolbar(true)}
             </div>, 
             portalNode!
           ) 
