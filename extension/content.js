@@ -3352,7 +3352,6 @@ function highlightCurrentDayOrder(container) {
 function handleCurrentPage() {
     const hash = window.location.hash;
     removeUnfuglyFeedbackPanel();
-    console.log(`handleCurrentPage: Current hash is: ${hash}`);
     if (!window.location.href.includes('creatorapp.zoho.com/srm_university/')) {
         const tittle = document.querySelector('#tab_WELCOME > div > span');
         if (tittle) {
