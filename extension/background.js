@@ -10,17 +10,17 @@ const LOG_COLORS = {
 };
 
 const log = (level, code, message, ...args) => {
+  if (level === 'INFO') return; // Suppress INFO logs entirely in console
+  
   const time = getTimestamp();
   const color = LOG_COLORS[level] || '#fff';
   const formattedPrefix = `%c[UNFUGLY BG] ${time} ${level} | ${code}:`;
   const style = `background: #222; color: ${color}; font-weight: bold; padding: 1px 3px; border-radius: 2px;`;
   
   if (level === 'ERROR') {
-    console.error(formattedPrefix, style, message, ...args);
+    console.error(formattedPrefix, style);
   } else if (level === 'WARN') {
-    console.warn(formattedPrefix, style, message, ...args);
-  } else {
-    console.log(formattedPrefix, style, message, ...args);
+    console.warn(formattedPrefix, style);
   }
 };
 

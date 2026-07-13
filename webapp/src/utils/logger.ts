@@ -26,16 +26,16 @@ const log = (level: 'INFO' | 'WARN' | 'ERROR', code: string, message: string, ..
   const time = getTimestamp();
 
   if (typeof window !== 'undefined') {
+    if (level === 'INFO') return; // Suppress INFO logs entirely in browser console
+    
     // Browser client console log
     const color = LOG_COLORS_BROWSER[level];
     const prefix = `%c[UNFUGLY WEB] ${time} ${level} | ${code}:`;
     const style = `color: ${color}; font-weight: bold;`;
     if (level === 'ERROR') {
-      console.error(prefix, style, message, ...args);
+      console.error(prefix, style);
     } else if (level === 'WARN') {
-      console.warn(prefix, style, message, ...args);
-    } else {
-      console.log(prefix, style, message, ...args);
+      console.warn(prefix, style);
     }
   } else {
     // Node server console log (production server format: no prefix, just ANSI color and timestamp)
