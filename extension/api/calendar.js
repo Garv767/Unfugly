@@ -273,16 +273,24 @@ async function syncCalendarForSemester(semesterKey) {
                                 lastUpdated: now.toISOString()
                             };
 
-                            // POST to backend
-                            fetch(`${BACKEND}/api/v1/calendar`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    calendar_json: calendarData,
-                                    semester: semesterKey,
-                                    last_updated_ist: istTime
-                                })
-                            }).catch(e => console.error("Failed to POST scraped calendar to backend", e));
+                            // POST to backend via background proxy
+                            chrome.runtime.sendMessage({
+                                action: "fetch_backend",
+                                url: `${BACKEND}/api/v1/calendar`,
+                                options: {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        calendar_json: calendarData,
+                                        semester: semesterKey,
+                                        last_updated_ist: istTime
+                                    })
+                                }
+                            }, (response) => {
+                                if (chrome.runtime.lastError || !response || !response.success) {
+                                    console.error("Failed to POST scraped calendar to backend:", chrome.runtime.lastError?.message || response?.error);
+                                }
+                            });
 
                             rootCalendar[semesterKey] = updatedCalendarWrap;
                             chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar });
