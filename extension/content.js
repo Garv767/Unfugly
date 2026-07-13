@@ -321,11 +321,14 @@ async function checkVersion() {
         const latestPart = latestParts[i] || 0;
         if (currentPart < latestPart) {
             chrome.runtime.sendMessage({ action: "trigger_update" }); // Signal background script
-            //chrome.runtime.requestUpdateCheck();
-            //let webStoreLink = "https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce?utm_source=item-share-cb"; //Placeholder
-            displayInfoMessage(`A new Version is available, updating...`, 5000, 'critical');//Please update it  <a href="${webStoreLink}" target="_blank">here!!</a>
+            displayInfoMessage(`A new Version is available, updating...`, 5000, 'critical');
             return;
         }
+        if (currentPart > latestPart) {
+            // Current version is ahead of remote — no banner needed
+            return;
+        }
+        // Parts equal — continue to next segment
     }
 
 }

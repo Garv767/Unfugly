@@ -106,8 +106,8 @@ export default function Dashboard() {
     if (isBackground) setIsBgScraping(true);
     else setLoading(true);
 
-    // net_id comes from the server via the JWT cookie — we grab it from /user/data or use a placeholder for SSE
-    const net_id = (forcedNetId || data?.netId || data?.profileData?.registrationNo || '').toLowerCase();
+    // net_id comes exclusively from the JWT-verified server response — never use registrationNo as fallback
+    const net_id = (forcedNetId || data?.netId || '').toLowerCase();
     if (net_id) {
       const eventSource = new EventSource(`${API_URL}/api/v1/scrape/progress/${net_id}`);
       eventSourceRef.current = eventSource;
@@ -185,7 +185,7 @@ export default function Dashboard() {
             headers:     { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-              netId:          mergedData.netId || mergedData.profileData?.registrationNo?.toLowerCase(),
+              netId:          mergedData.netId,
               profileData:    mergedData.profileData,
               attendanceData: mergedData.attendanceData,
               marksData:      mergedData.marksData,
@@ -369,7 +369,7 @@ export default function Dashboard() {
                            <TimetableView 
                              htmlContent={data.timetableHTML || ''} 
                              courseData={data.courseData} 
-                             netId={data.profileData.registrationNo} 
+                             netId={data.netId} 
                              calendarData={calendarData}
                              timetableJSON={data.timetableJSON}
                              profileData={data.profileData}
