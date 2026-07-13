@@ -47,27 +47,33 @@ function getISTString() {
 // Syncs ALL user data (profile + attendance + marks + timetable)
 // ─────────────────────────────────────────────────────────────
 async function syncUserData(netId, data) {
+    const payload = {
+        netId:          netId,
+        profileData:    data.profileData,
+        attendanceData: data.attendanceData   ?? null,
+        marksData:      data.marksData        ?? null,
+        editedSlots:    data.editedSlots      ?? null,
+        timetableJSON:  data.timetableJSON    ?? null,
+        courseData:     data.courseData       ?? null,
+        lastUpdated:    getISTString(),
+        source:         'extension'
+    };
+    console.log('UP:00 Syncing user data to backend. netId:', netId, 'editedSlots:', data.editedSlots);
     try {
-        const response = await backgroundFetch(`${BACKEND}/v3/save-data`, {
+        const response = await backgroundFetch(`${BACKEND}/api/v1/user/save`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                netId:          netId,
-                profileData:    data.profileData,
-                attendanceData: data.attendanceData   ?? null,
-                marksData:      data.marksData        ?? null,
-                editedSlots:    data.editedSlots      ?? null,
-                timetableJSON:  data.timetableJSON    ?? null,
-                courseData:     data.courseData       ?? null,
-                lastUpdated:    getISTString(),
-                source:         'extension'
-            })
+            body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-        console.log('UP:01 User sync OK — count:', result.sync_count);
+        const json = await response.json();
+        if (!response.ok) {
+            console.error(`ER:01 User sync failed (HTTP ${response.status}):`, json);
+            return;
+        }
+        console.log(`UP:01 User sync OK — count: ${json.sync_count}`);
     } catch (err) {
         console.error('ER:01 User sync failed:', err.message);
     }
@@ -163,8 +169,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
     for (const [key, { newValue }] of Object.entries(changes)) {
 
-        // Only handle user data keys (not the calendar key itself)
-        if (
+        if (key === 'unfuglyData_calendar') {
+            await syncCalendar();
+        } else if (
             key.startsWith('unfuglyData_') &&
             key !== 'unfuglyData_calendar' &&
             newValue?.profileData
@@ -173,9 +180,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
             // 1. Sync full user data to backend
             await syncUserData(netId, newValue);
-
-            // 2. Sync universal calendar as a side-effect
-            await syncCalendar();
         }
     }
 });

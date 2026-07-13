@@ -1022,7 +1022,7 @@ async function handleWelcomePage() {
                 let fetchedFromDb = false;
                 try {
                     const BACKEND = 'http://localhost:3000';
-                    const dbRes = await backgroundFetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+                    const dbRes = await backgroundFetch(`${BACKEND}/api/v1/user/get/${currentNetId}`);
                     if (dbRes.ok) {
                         const dbData = await dbRes.json();
                         if (dbData.profileData && dbData.timetableJSON && dbData.attendanceData && dbData.marksData) {
@@ -1033,7 +1033,7 @@ async function handleWelcomePage() {
                                 timetableJSON: dbData.timetableJSON,
                                 attendanceData: dbData.attendanceData,
                                 marksData: dbData.marksData,
-                                editedSlots: dbData.editedSlots || {},
+                                editedSlots: dbData.editedSlots,
                                 courseData: dbData.courseData || dbData.courseSlotMap || {}
                             };
 
@@ -3208,11 +3208,11 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         console.log("backgroundFetchAllData: Checking DB for latest edits and photo...");
         const BACKEND = 'http://localhost:3000';
-        const dbRes = await backgroundFetch(`${BACKEND}/v3/get-data/${currentNetId}`);
+        const dbRes = await backgroundFetch(`${BACKEND}/api/v1/user/get/${currentNetId}`);
         if (dbRes.ok) {
             const dbJson = await dbRes.json();
             dbPhotoUrl = dbJson.profileData?.profile_image_url || dbJson.profileData?.profilePhotoUrl;
-            if (dbJson.editedSlots && Object.keys(dbJson.editedSlots).length > 0) {
+            if (dbJson.editedSlots !== undefined && dbJson.editedSlots !== null) {
                 dbEditedSlots = dbJson.editedSlots;
             }
         }
@@ -3255,10 +3255,8 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
             courseData: fetchedData.courseData ?? null,
             lastUpdated: new Date().toISOString()
         };
-        chrome.storage.local.set({ [storageKey]: dataToCache }, () => {
-            if (chrome.runtime.lastError) console.error("Error saving all data to cache:", chrome.runtime.lastError);
-            else console.log("backgroundFetchAllData: All data saved to cache.");
-        });
+        await chrome.storage.local.set({ [storageKey]: dataToCache });
+        console.log("backgroundFetchAllData: All data saved to cache.");
     } catch (cacheError) {
         console.error("backgroundFetchAllData: Failed to save data to cache:", cacheError);
     }
@@ -3275,6 +3273,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     try {
         renderProfilePanel(fetchedData.profileData, appWrapper, dayOrder);
         renderAccordionPanels(fetchedData, previousAttendanceData, appWrapper, currentNetId);
+        if (typeof loadEdits === 'function') { loadEdits(); }
         displayInfoMessage("All new data fetched and displayed!", 3000, 'success');
     } catch (renderError) {
         console.error("backgroundFetchAllData: Render failed:", renderError);
