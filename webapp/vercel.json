@@ -1,0 +1,9 @@
+{
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://unfugly-backend.onrender.com"
+  },
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["sin1"]
+}
