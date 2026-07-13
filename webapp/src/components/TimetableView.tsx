@@ -115,16 +115,16 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   
-  const [editedSlots, setEditedSlots] = useState<Record<string, { title: string; classroom: string }>>(() => {
-    let initialEdits: Record<string, { title: string; classroom: string }> = {};
+  const [editedSlots, setEditedSlots] = useState<Record<string, { editedTitle: string; editedClassroom: string }>>(() => {
+    let initialEdits: Record<string, { editedTitle: string; editedClassroom: string }> = {};
     if (dbEditedSlots && Object.keys(dbEditedSlots).length > 0) {
       try {
         const raw = typeof dbEditedSlots === 'string' ? JSON.parse(dbEditedSlots) : dbEditedSlots;
         Object.keys(raw).forEach(slotKey => {
           const entry = raw[slotKey];
           initialEdits[slotKey] = {
-            title: entry.title ?? entry.editedTitle ?? '',
-            classroom: entry.classroom ?? entry.editedClassroom ?? ''
+            editedTitle: entry.editedTitle ?? entry.title ?? '',
+            editedClassroom: entry.editedClassroom ?? entry.classroom ?? ''
           };
         });
       } catch (e) {
@@ -138,12 +138,12 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     if (dbEditedSlots && Object.keys(dbEditedSlots).length > 0) {
       try {
         const raw = typeof dbEditedSlots === 'string' ? JSON.parse(dbEditedSlots) : dbEditedSlots;
-        const newEdits: Record<string, { title: string; classroom: string }> = {};
+        const newEdits: Record<string, { editedTitle: string; editedClassroom: string }> = {};
         Object.keys(raw).forEach(slotKey => {
           const entry = raw[slotKey];
           newEdits[slotKey] = {
-            title: entry.title ?? entry.editedTitle ?? '',
-            classroom: entry.classroom ?? entry.editedClassroom ?? ''
+            editedTitle: entry.editedTitle ?? entry.title ?? '',
+            editedClassroom: entry.editedClassroom ?? entry.classroom ?? ''
           };
         });
         setEditedSlots(newEdits);
@@ -200,26 +200,17 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     const classroom = window.prompt('Enter classroom (optional):', defaultRoom);
     if (classroom === null) return;
 
-    const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom } };
+    const newEdits = { ...editedSlots, [slotId]: { editedTitle: title || slotId, editedClassroom: classroom } };
     setEditedSlots(newEdits);
     updateCache(newEdits);
 
-    const dbFormat: Record<string, { title: string; classroom: string; editedTitle: string; editedClassroom: string }> = {};
-    Object.keys(newEdits).forEach(key => {
-      dbFormat[key] = {
-        title: newEdits[key].title,
-        classroom: newEdits[key].classroom,
-        editedTitle: newEdits[key].title,
-        editedClassroom: newEdits[key].classroom
-      };
-    });
     fetch(`${API_URL}/api/v1/user/slots`, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json'
       },
       credentials: 'include',
-      body: JSON.stringify({ edited_slots_json: dbFormat })
+      body: JSON.stringify({ edited_slots_json: newEdits })
     }).catch(err => console.error('Failed to save edited slots to backend:', err));
   };
 
@@ -230,22 +221,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       setEditedSlots(newEdits);
       updateCache(newEdits);
 
-      const dbFormat: Record<string, { title: string; classroom: string; editedTitle: string; editedClassroom: string }> = {};
-      Object.keys(newEdits).forEach(key => {
-        dbFormat[key] = {
-          title: newEdits[key].title,
-          classroom: newEdits[key].classroom,
-          editedTitle: newEdits[key].title,
-          editedClassroom: newEdits[key].classroom
-        };
-      });
       fetch(`${API_URL}/api/v1/user/slots`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ edited_slots_json: dbFormat })
+        body: JSON.stringify({ edited_slots_json: newEdits })
       }).catch(err => console.error('Failed to save edited slots to backend after removal:', err));
   };
 
@@ -465,8 +447,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                     const edit = editedSlots[slotId];
 
                     if (edit && viewState !== 'hide') {
-                        displayTitle = edit.title;
-                        displayRoom = edit.classroom;
+                        displayTitle = edit.editedTitle;
+                        displayRoom = edit.editedClassroom;
                         displayBg = '#FBC02D';
                         isReplaced = true;
                     } else if (mappedCourse && cleanSlotText !== '') {
@@ -613,8 +595,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       const edit = editedSlots[slotId];
 
                       if (edit && viewState !== 'hide') {
-                          displayTitle = edit.title;
-                          displayRoom = edit.classroom;
+                          displayTitle = edit.editedTitle;
+                          displayRoom = edit.editedClassroom;
                           displayBg = '#FBC02D';
                           isReplaced = true;
                       } else if (mappedCourse && cleanSlotText !== '') {

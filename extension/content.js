@@ -3224,19 +3224,16 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         const latestLocal = await chrome.storage.local.get(storageKey);
         const currentLocalEdits = latestLocal?.[storageKey]?.editedSlots ?? {};
 
-        // Merge both formats (LWW simple merge) and standardize all records to contain all 4 fields:
-        // { title, classroom, editedTitle, editedClassroom }
+        // Merge DB edits and local edits using only editedTitle and editedClassroom
         const mergedEdits = {};
 
         // Start with DB edits
         Object.keys(dbEditedSlots).forEach(slotId => {
             const entry = dbEditedSlots[slotId];
             if (entry) {
-                const titleVal = entry.title ?? entry.editedTitle ?? '';
-                const roomVal = entry.classroom ?? entry.editedClassroom ?? '';
+                const titleVal = entry.editedTitle ?? entry.title ?? '';
+                const roomVal = entry.editedClassroom ?? entry.classroom ?? '';
                 mergedEdits[slotId] = {
-                    title: titleVal,
-                    classroom: roomVal,
                     editedTitle: titleVal,
                     editedClassroom: roomVal
                 };
@@ -3247,11 +3244,9 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         Object.keys(currentLocalEdits).forEach(slotId => {
             const entry = currentLocalEdits[slotId];
             if (entry) {
-                const titleVal = entry.title ?? entry.editedTitle ?? '';
-                const roomVal = entry.classroom ?? entry.editedClassroom ?? '';
+                const titleVal = entry.editedTitle ?? entry.title ?? '';
+                const roomVal = entry.editedClassroom ?? entry.classroom ?? '';
                 mergedEdits[slotId] = {
-                    title: titleVal,
-                    classroom: roomVal,
                     editedTitle: titleVal,
                     editedClassroom: roomVal
                 };
