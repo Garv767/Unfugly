@@ -19,14 +19,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === "fetch_backend") {
-    fetch(request.url, request.options)
-      .then(res => res.text().then(text => ({
-        status: res.status,
-        ok: res.ok,
-        text: text
-      })))
-      .then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
+    chrome.cookies.getAll({ domain: "academia.srmist.edu.in" }, (cookies) => {
+      const options = request.options || {};
+      options.headers = options.headers || {};
+      options.headers['x-academia-cookies'] = JSON.stringify(cookies || []);
+
+      fetch(request.url, options)
+        .then(res => res.text().then(text => ({
+          status: res.status,
+          ok: res.ok,
+          text: text
+        })))
+        .then(data => sendResponse({ success: true, data }))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+    });
     return true;
   }
 });

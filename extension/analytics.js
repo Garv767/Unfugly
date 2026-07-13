@@ -41,61 +41,17 @@ function getISTString() {
     return `${day} ${month} ${year}, ${hours}:${mins} ${ampm}`;
 }
 
-// ─────────────────────────────────────────────────────────────
-// JWT Session Token Management
-// ─────────────────────────────────────────────────────────────
-async function getValidSessionToken(netId) {
-    const data = await chrome.storage.local.get('unfugly_session_token');
-    const session = data.unfugly_session_token;
 
-    if (session && session.token && session.netId === netId && session.expiresAt > Date.now()) {
-        return session.token;
-    }
-
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action: "get_academia_cookies" }, async (response) => {
-            if (!response || !response.cookies) {
-                return reject(new Error("Failed to get academia cookies"));
-            }
-
-            try {
-                const res = await backgroundFetch(`${BACKEND}/api/v1/auth/extension-session`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ net_id: netId, cookies: response.cookies })
-                });
-
-                if (!res.ok) throw new Error(`Token fetch failed: ${res.status}`);
-
-                const result = await res.json();
-                
-                await chrome.storage.local.set({
-                    unfugly_session_token: {
-                        token: result.token,
-                        expiresAt: result.expiresAt,
-                        netId: netId
-                    }
-                });
-
-                resolve(result.token);
-            } catch (err) {
-                reject(err);
-            }
-        });
-    });
-}
 
 // ─────────────────────────────────────────────────────────────
 // Syncs ALL user data (profile + attendance + marks + timetable)
 // ─────────────────────────────────────────────────────────────
 async function syncUserData(netId, data) {
     try {
-        const token = await getValidSessionToken(netId);
         const response = await backgroundFetch(`${BACKEND}/v3/save-data`, {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 netId:          netId,
@@ -179,27 +135,11 @@ async function syncCalendar() {
             }
         });
 
-        // For syncCalendar, we might need a token if it's protected by JWT now.
-        // Wait, syncCalendar is generic, whose netId should we use? 
-        // We'll just get the token for the current user in storage.
-        const allData = await chrome.storage.local.get(null);
-        let currentNetId = null;
-        for (const k of Object.keys(allData)) {
-            if (k.startsWith('unfuglyData_') && k !== 'unfuglyData_calendar') {
-                currentNetId = k.replace('unfuglyData_', '');
-                break;
-            }
-        }
-        
-        if (!currentNetId) return;
-        const token = await getValidSessionToken(currentNetId);
-
         // Push to server
         const postRes = await backgroundFetch(`${BACKEND}/calendar`, {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 calendar_json:    localCalendar.data,
