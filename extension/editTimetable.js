@@ -83,9 +83,7 @@ function removeEdits() {
                 existingData.editedSlots = editedSlots;
                 chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: existingData }, () => {
                     if (chrome.runtime.lastError) {
-                        console.error("Error updating local storage:", chrome.runtime.lastError);
-                    } else {
-                        //console.log('Edit removed and storage updated');
+                        window.UnfuglyLog.error('SYNC_03', `Error updating local storage: ${chrome.runtime.lastError.message}`);
                     }
                 });
             });
@@ -133,6 +131,8 @@ function saveEdits() {
             const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
             
             existingData.editedSlots[slotId] = { 
+                title: editedTitle,
+                classroom: editedClassroom,
                 editedTitle: editedTitle,
                 editedClassroom: editedClassroom
             };
@@ -143,9 +143,9 @@ function saveEdits() {
 
         chrome.storage.local.set({ [storageKey]: existingData }, () => {
             if (chrome.runtime.lastError) {
-                console.error("Error setting local storage:", chrome.runtime.lastError);
+                window.UnfuglyLog.error('SYNC_03', `Error setting local storage: ${chrome.runtime.lastError.message}`);
             } else {
-                console.log('Edits saved');
+                window.UnfuglyLog.info('SYNC_01', 'Edits saved successfully locally');
             }
         });
     });
@@ -184,11 +184,14 @@ function loadEdits() {
                 slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
                 if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
 
+                const editedTitle = editedSlots[slotId].title ?? editedSlots[slotId].editedTitle ?? '';
+                const editedClassroom = editedSlots[slotId].classroom ?? editedSlots[slotId].editedClassroom ?? '';
+
                 const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
-                titleSpan.textContent = editedSlots[slotId].editedTitle;
+                titleSpan.textContent = editedTitle;
 
                 const classroomSpan = slot.getElementsByClassName('editedSlot-editedClassroom')[0] || document.createElement('span');
-                classroomSpan.textContent = editedSlots[slotId].editedClassroom ? `Room: ${editedSlots[slotId].editedClassroom}` : '';
+                classroomSpan.textContent = editedClassroom ? `Room: ${editedClassroom}` : '';
 
                 titleSpan.style.fontWeight = '600';
                 titleSpan.style.color = '#334';
