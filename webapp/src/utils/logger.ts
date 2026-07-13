@@ -28,7 +28,7 @@ const log = (level: 'INFO' | 'WARN' | 'ERROR', code: string, message: string, ..
   if (typeof window !== 'undefined') {
     // Browser client console log
     const color = LOG_COLORS_BROWSER[level];
-    const prefix = `%c[UNFUGLY] [WEB] [${time}] [${level}] [${code}]`;
+    const prefix = `%c[UNFUGLY WEB] ${time} ${level} | ${code}:`;
     const style = `color: ${color}; font-weight: bold;`;
     if (level === 'ERROR') {
       console.error(prefix, style, message, ...args);
@@ -41,7 +41,7 @@ const log = (level: 'INFO' | 'WARN' | 'ERROR', code: string, message: string, ..
     // Node server console log (production server format: no prefix, just ANSI color and timestamp)
     const color = LOG_COLORS_NODE[level];
     const reset = LOG_COLORS_NODE.RESET;
-    const formatted = `[${time}] ${color}[${level}] [${code}]${reset} ${message}`;
+    const formatted = `[${time}] ${color}${level}${reset} | ${code}: ${message}`;
     if (level === 'ERROR') {
       console.error(formatted, ...args);
     } else if (level === 'WARN') {

@@ -919,7 +919,7 @@ async function handleWelcomePage() {
     const processWelcomeContent = async () => {
         const welcomeContainer = document.getElementById('zc-viewcontainer_WELCOME');
         if (!welcomeContainer) {
-            console.warn(`processWelcomeContent: Welcome container not found yet. Retry ${retryCount + 1}/${maxRetries}.`);
+            // console.warn(`processWelcomeContent: Welcome container not found yet. Retry ${retryCount + 1}/${maxRetries}.`);
             retryCount++;
             return false;
         }
@@ -936,9 +936,9 @@ async function handleWelcomePage() {
         if (dayOrderSpan) {
             dayOrderInfo = dayOrderSpan.textContent.trim();
             dayOrderInfo = dayOrderInfo.replace(/Day Order:/, '');
-            console.log("handleWelcomePage: Extracted Day Order:", dayOrderInfo);
+            // console.log("handleWelcomePage: Extracted Day Order:", dayOrderInfo);
         } else {
-            console.warn("handleWelcomePage: Day Order element not found.");
+            // console.warn("handleWelcomePage: Day Order element not found.");
         }
 
         const titleElement = welcomeContainer.querySelector('span');
@@ -983,13 +983,13 @@ async function handleWelcomePage() {
         const currentNetId = getNetId(); // Get Net ID from the main page
         if (!currentNetId) {
             displayInfoMessage("Could not determine Net ID. Data might not be personalized.", 5000, 'error');
-            console.warn("handleWelcomePage: Could not determine current Net ID. Using fallback 'anonymous_user'.");
+            // console.warn("handleWelcomePage: Could not determine current Net ID. Using fallback 'anonymous_user'.");
             // If Net ID can't be found, we can't do user-specific caching
             backgroundFetchAllData('anonymous_user', titleElement, [], appWrapper, dayOrderInfo); // Fetch fresh data
             //console.log("dayorderInfo passed to backgorundfetchalldata:", dayOrderInfo);
             return true; // Indicate that processing has started
         }
-        console.log("handleWelcomePage: Determined current Net ID:", currentNetId);
+        // console.log("handleWelcomePage: Determined current Net ID:", currentNetId);
 
         let cachedData = null;
         let previousAttendanceData = [];
@@ -3339,9 +3339,9 @@ function highlightCurrentDayOrder(container) {
     }
 
     if (currentDayOrder === -1 || isNaN(currentDayOrder)) {
-        console.warn("highlightCurrentDayOrder: Could not determine current Day Order. No rows will be highlighted.");
+        // console.warn("highlightCurrentDayOrder: Could not determine current Day Order. No rows will be highlighted.");
     } else {
-        console.log(`highlightCurrentDayOrder: Dulling out rows other than Day Order ${currentDayOrder}.`);
+        // console.log(`highlightCurrentDayOrder: Dulling out rows other than Day Order ${currentDayOrder}.`);
     }
 }
 

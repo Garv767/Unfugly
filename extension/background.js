@@ -12,7 +12,7 @@ const LOG_COLORS = {
 const log = (level, code, message, ...args) => {
   const time = getTimestamp();
   const color = LOG_COLORS[level] || '#fff';
-  const formattedPrefix = `%c[UNFUGLY] [BG] [${time}] [${level}] [${code}]`;
+  const formattedPrefix = `%c[UNFUGLY BG] ${time} ${level} | ${code}:`;
   const style = `background: #222; color: ${color}; font-weight: bold; padding: 1px 3px; border-radius: 2px;`;
   
   if (level === 'ERROR') {
@@ -54,12 +54,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       chrome.cookies.getAll({ domain: "zoho.in" }, (cookiesZoho) => {
         const combined = [...(cookiesAcademia || []), ...(cookiesZoho || [])];
 
-        UnfuglyLog.info('SYS_01', `fetch_backend → ${request.url} | academia cookies: ${cookiesAcademia?.length ?? 0} | zoho cookies: ${cookiesZoho?.length ?? 0} | combined: ${combined.length}`);
-        
         if (combined.length === 0) {
           UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
-        } else {
-          UnfuglyLog.info('SYS_01', `Cookie names: ${combined.map(c => c.name).join(', ')}`);
         }
 
         const options = request.options || {};

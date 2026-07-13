@@ -13,7 +13,7 @@
     const log = (level, code, message, ...args) => {
         const time = getTimestamp();
         const color = LOG_COLORS[level] || '#fff';
-        const formattedPrefix = `%c[UNFUGLY] [CS] [${time}] [${level}] [${code}]`;
+        const formattedPrefix = `%c[UNFUGLY CS] ${time} ${level} | ${code}:`;
         const style = `color: ${color}; font-weight: bold;`;
         
         if (level === 'ERROR') {
