@@ -187,8 +187,7 @@ function getCurrentSemesterKey() {
  * @param {string} semesterKey - e.g., '2025_26_ODD'
  */
 async function syncCalendarForSemester(semesterKey) {
-    // const BACKEND = 'https://unfugly-backend.onrender.com';
-    const BACKEND = 'http://localhost:3000';
+    const BACKEND = 'https://unfugly-backend.onrender.com';
     const isCurrent = semesterKey === getCurrentSemesterKey();
 
     return new Promise((resolve) => {

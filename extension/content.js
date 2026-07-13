@@ -1020,7 +1020,7 @@ async function handleWelcomePage() {
 
                 let fetchedFromDb = false;
                 try {
-                    const BACKEND = 'http://localhost:3000';
+                    const BACKEND = 'https://unfugly-backend.onrender.com';
                     const dbRes = await backgroundFetch(`${BACKEND}/api/v1/user/get/${currentNetId}`);
                     if (dbRes.ok) {
                         const dbData = await dbRes.json();
@@ -3180,7 +3180,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
     let dbPhotoUrl = null;
     try {
         window.UnfuglyLog.info('SYNC_01', "backgroundFetchAllData: Checking DB for latest edits and photo...");
-        const BACKEND = 'http://localhost:3000';
+        const BACKEND = 'https://unfugly-backend.onrender.com';
         const dbRes = await backgroundFetch(`${BACKEND}/api/v1/user/get/${currentNetId}`);
         if (dbRes.ok) {
             const dbData = await dbRes.json();

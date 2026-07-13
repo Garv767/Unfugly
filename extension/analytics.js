@@ -1,4 +1,4 @@
-const BACKEND = 'http://localhost:3000';
+const BACKEND = 'https://unfugly-backend.onrender.com';
 
 function backgroundFetch(url, options = {}) {
     return new Promise((resolve, reject) => {
