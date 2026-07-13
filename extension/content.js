@@ -3220,17 +3220,51 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
     // Step 5: Save whatever we managed to get to cache
     try {
+        // Fetch the absolute latest local cache to prevent overwriting edits made during the background scrape
+        const latestLocal = await chrome.storage.local.get(storageKey);
+        const currentLocalEdits = latestLocal?.[storageKey]?.editedSlots ?? {};
+        const lastSyncedTime = existingData?.[storageKey]?.lastUpdated 
+            ? new Date(existingData[storageKey].lastUpdated).getTime() 
+            : 0;
+
+        // Perform Last-Write-Wins merge for each slot
+        const mergedEdits = { ...dbEditedSlots };
+        Object.keys(currentLocalEdits).forEach(slotId => {
+            const localEdit = currentLocalEdits[slotId];
+            const dbEdit = dbEditedSlots[slotId];
+
+            if (!dbEdit) {
+                // If it is in local but not in DB:
+                // Only keep it if it is a new local edit made after the last sync.
+                // Otherwise, it was deleted in the DB by another client, so we discard it.
+                const localTime = localEdit.lastUpdated ? new Date(localEdit.lastUpdated).getTime() : 0;
+                if (!localEdit.lastUpdated || localTime > lastSyncedTime) {
+                    mergedEdits[slotId] = localEdit;
+                }
+            } else {
+                // In both -> compare timestamps to see which is newer
+                const localTime = localEdit.lastUpdated ? new Date(localEdit.lastUpdated).getTime() : 0;
+                const dbTime = dbEdit.lastUpdated ? new Date(dbEdit.lastUpdated).getTime() : 0;
+
+                if (localTime >= dbTime) {
+                    mergedEdits[slotId] = localEdit;
+                } else {
+                    mergedEdits[slotId] = dbEdit;
+                }
+            }
+        });
+
         const dataToCache = {
             profileData: fetchedData.profileData,
             timetableJSON: fetchedData.timetableJSON,
-            editedSlots: dbEditedSlots,
+            editedSlots: mergedEdits,
             attendanceData: fetchedData.attendanceData,
             marksData: fetchedData.marksData,
             courseData: fetchedData.courseData ?? null,
             lastUpdated: new Date().toISOString()
         };
         await chrome.storage.local.set({ [storageKey]: dataToCache });
-        console.log("backgroundFetchAllData: All data saved to cache.");
+        console.log("backgroundFetchAllData: All data saved to cache (merged edits).");
     } catch (cacheError) {
         console.error("backgroundFetchAllData: Failed to save data to cache:", cacheError);
     }

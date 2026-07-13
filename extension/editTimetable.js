@@ -134,7 +134,8 @@ function saveEdits() {
             
             existingData.editedSlots[slotId] = { 
                 editedTitle: editedTitle,
-                editedClassroom: editedClassroom
+                editedClassroom: editedClassroom,
+                lastUpdated: new Date().toISOString()
             };
         });
 

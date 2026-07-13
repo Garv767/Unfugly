@@ -200,15 +200,16 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     const classroom = window.prompt('Enter classroom (optional):', defaultRoom);
     if (classroom === null) return;
 
-    const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom } };
+    const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom, lastUpdated: new Date().toISOString() } };
     setEditedSlots(newEdits);
     updateCache(newEdits);
 
-    const dbFormat: Record<string, { editedTitle: string; editedClassroom: string }> = {};
+    const dbFormat: Record<string, { editedTitle: string; editedClassroom: string; lastUpdated: string }> = {};
     Object.keys(newEdits).forEach(key => {
       dbFormat[key] = {
         editedTitle: newEdits[key].title,
-        editedClassroom: newEdits[key].classroom
+        editedClassroom: newEdits[key].classroom,
+        lastUpdated: newEdits[key].lastUpdated || new Date().toISOString()
       };
     });
     fetch(`${API_URL}/api/v1/user/slots`, {
@@ -227,6 +228,23 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       delete newEdits[slotId];
       setEditedSlots(newEdits);
       updateCache(newEdits);
+
+      const dbFormat: Record<string, { editedTitle: string; editedClassroom: string; lastUpdated: string }> = {};
+      Object.keys(newEdits).forEach(key => {
+        dbFormat[key] = {
+          editedTitle: newEdits[key].title,
+          editedClassroom: newEdits[key].classroom,
+          lastUpdated: newEdits[key].lastUpdated || new Date().toISOString()
+        };
+      });
+      fetch(`${API_URL}/api/v1/user/slots`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ edited_slots_json: dbFormat })
+      }).catch(err => console.error('Failed to save edited slots to backend after removal:', err));
   };
 
   const downloadTimetable = async () => {
