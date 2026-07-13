@@ -11,6 +11,10 @@
     "https://*.srmist.edu.in/*",
     "https://creatorapp.zoho.com/srm_university/*",
     "https://unfugly-backend.onrender.com/*",
+    "https://*.srmist.edu.in/*",
+    "https://*.zoho.in/*",
+    "https://*.zoho.com/*",
+    "https://*.zohocdn.com/*",
     "http://localhost:3000/*"
   ],
   "content_scripts": [

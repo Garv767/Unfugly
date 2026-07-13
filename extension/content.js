@@ -2969,88 +2969,62 @@ function addDownloadTimetableButton(timetableTable) {
         console.warn("addDownloadTimetableButton: Timetable table not provided.");
         return;
     }
-    const captionElement = timetableTable.querySelector('caption.t1');
-    if (!captionElement) {
-        console.warn("addDownloadTimetableButton: Caption element with class 't1' not found.");
-        return;
-    }
 
-    // Apply flexbox to the caption to align its content and the new button
-    //captionElement.style.cssText = `display: t and-bhat  on; margin-top: 5px; justify-content: space-between; align-items: center;`;
-    captionElement.style.display = 'table-caption'; // Ensure it behaves like a caption
-    captionElement.style.backgroundColor = '#2c2c2c';
-    captionElement.style.color = '#fff'; // Ensure text is visible
-    captionElement.textContent = "Your Timetable by Unfugly";
-    captionElement.style.marginTop = '5px';
+    const timetablePanel = timetableTable.closest('.unfugly-panel');
+    const captionElement = timetableTable.querySelector('caption.t1');
+
     // Find an existing button to prevent duplicates
-    let downloadButton = captionElement ? captionElement.querySelector('#downloadTimetableButton') : null;
+    let downloadButton = (timetablePanel || captionElement)?.querySelector('#downloadTimetableButton');
+    const buttonContainer = timetablePanel || captionElement || timetableTable.parentNode;
 
     if (!downloadButton) {
-        if (!captionElement) {
-            console.warn("addDownloadTimetableButton: Caption element with class 't1' not found. Appending button to parent.");
-            // Fallback: create a div and append to table's parent
-            const buttonContainer = document.createElement('div');
-            buttonContainer.style.cssText = `
-                display: flex;
-                justify-content: flex-end;
-                padding: 5px;
-                width: 100%;
-            `;
-            timetableTable.parentNode.insertBefore(buttonContainer, timetableTable);
-            captionElement = buttonContainer; // Use this as the target for button
-        } else {
-            //captionElement.style.display = 'flex';
-            captionElement.style.justifyContent = 'space-between';
-            captionElement.style.alignItems = 'center';
-        }
-
         downloadButton = document.createElement('button');
         downloadButton.id = 'downloadTimetableButton';
-        const downloadImage = document.createElement('img');
-        const extensionId = chrome.runtime.id; // Get extension ID dynamically
-        downloadImage.src = `chrome-extension://${extensionId}/images/dwnld.png`; // Path to your download icon
-        downloadImage.alt = 'Download Timetable';
-        downloadImage.style.width = '24px';
-        downloadImage.style.height = '24px';
-        downloadImage.style.verticalAlign = 'middle';
-        downloadButton.innerHTML = '';
-        downloadButton.appendChild(downloadImage);
+        downloadButton.title = 'Download Timetable';
+        downloadButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
         downloadButton.style.cssText = `
-            background-color: transparent;
-            border: none;
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 2;
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            color: white;
+            padding: 0;
+            border-radius: 9999px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
             cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            
-            justify-content: center;
-            align-items: center;
-            width: 30px;
-            height: 30px;
         `;
-        downloadButton.onmouseover = () => downloadButton.style.opacity = '0.8';
-        downloadButton.onmouseout = () => downloadButton.style.opacity = '1';
+        downloadButton.onmouseover = () => {
+            downloadButton.style.backgroundColor = '#2a2a2a';
+            downloadButton.style.transform = 'scale(1.03)';
+        };
+        downloadButton.onmouseout = () => {
+            downloadButton.style.backgroundColor = '#1e1e1e';
+            downloadButton.style.transform = 'scale(1)';
+        };
 
-        const qrImage = document.createElement('img');
-        qrImage.src = `chrome-extension://${extensionId}/images/shareqr.png`; // Path
-        //qrImage.style.width = '35px';
-        //qrImage.style.height = '35px';
-        //qrImage.style.verticalAlign = 'middle';
-        //qrImage.style.align =  'right';
-        qrImage.style.cssText = `
-            background-color: transparent;
-            border: none;
-            align: right;
-            padding: 0;
-            margin-left: 10px;
-            vertical-align: middle;
-            justify-content: center;
-            align-items: center;
-            width: 30px;
-            height: 30px;
-        `;
-
-        captionElement.appendChild(downloadButton);
-        //captionElement.appendChild(qrImage); // Append QR code image to caption
+        if (timetablePanel) {
+            if (!timetablePanel.style.position || timetablePanel.style.position === 'static') {
+                timetablePanel.style.position = 'relative';
+            }
+            timetablePanel.appendChild(downloadButton);
+        } else if (captionElement) {
+            captionElement.style.position = 'relative';
+            captionElement.appendChild(downloadButton);
+        } else {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = `position: relative; width: 100%;`;
+            timetableTable.parentNode.insertBefore(wrapper, timetableTable);
+            wrapper.appendChild(downloadButton);
+            wrapper.appendChild(timetableTable);
+        }
     }
 
     // Re-attach event listener to ensure it works on dynamically added tables
