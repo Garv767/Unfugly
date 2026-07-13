@@ -40,7 +40,18 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
-      // No localStorage — the JWT is now an HttpOnly cookie set by the server.
+      // Clear all old dashboard cache keys to ensure a clean slate
+      Object.keys(localStorage).forEach(key => {
+        if (
+          key === 'dashboard_data_cache' || 
+          key === 'unfugly_net_id' || 
+          key.startsWith('timetable_edits_') ||
+          (key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar')
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);

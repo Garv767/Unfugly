@@ -130,11 +130,6 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       } catch (e) {
         console.error("Failed to parse DB dbEditedSlots:", e);
       }
-    } else {
-      const saved = localStorage.getItem(`timetable_edits_${netId}`);
-      if (saved) {
-        try { initialEdits = JSON.parse(saved); } catch(e) { }
-      }
     }
     return initialEdits;
   });
@@ -153,15 +148,6 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
         });
         setEditedSlots(newEdits);
       } catch(e) {}
-    } else if (netId) {
-      // If DB is empty, try loading from local storage
-      const saved = localStorage.getItem(`timetable_edits_${netId}`);
-      if (saved) {
-        try { 
-            const parsed = JSON.parse(saved);
-            setEditedSlots(parsed);
-        } catch(e) {}
-      }
     }
   }, [dbEditedSlots, netId]);
 
@@ -193,6 +179,20 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       }
   }, [calendarData]);
 
+  const updateCache = (newEdits: any) => {
+    const netIdKey = Object.keys(localStorage).find(key => key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar');
+    if (netIdKey) {
+        try {
+            const cacheStr = localStorage.getItem(netIdKey);
+            if (cacheStr) {
+                const cache = JSON.parse(cacheStr);
+                cache.editedSlots = newEdits;
+                localStorage.setItem(netIdKey, JSON.stringify(cache));
+            }
+        } catch(e) {}
+    }
+  };
+
   const handleSlotClick = (slotId: string, defaultTitle: string, defaultRoom: string) => {
     const title = window.prompt('Enter course title:', defaultTitle);
     if (title === null) return; 
@@ -202,7 +202,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
     const newEdits = { ...editedSlots, [slotId]: { title: title || slotId, classroom } };
     setEditedSlots(newEdits);
-    localStorage.setItem(`timetable_edits_${netId}`, JSON.stringify(newEdits));
+    updateCache(newEdits);
 
     const dbFormat: Record<string, { editedTitle: string; editedClassroom: string }> = {};
     Object.keys(newEdits).forEach(key => {
@@ -226,7 +226,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       const newEdits = { ...editedSlots };
       delete newEdits[slotId];
       setEditedSlots(newEdits);
-      localStorage.setItem(`timetable_edits_${netId}`, JSON.stringify(newEdits));
+      updateCache(newEdits);
   };
 
   const downloadTimetable = async () => {
@@ -798,18 +798,6 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                      Modify
                    </button>
                 </div>
-                
-                <button
-                   onClick={downloadTimetable}
-                   className="bg-[#1e1e1e] border border-[#333] hover:bg-[#2a2a2a] text-white p-2 rounded-full shadow-lg transition-colors ml-auto flex flex-shrink-0 items-center justify-center w-9 h-9"
-                   title="Download Timetable"
-                >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                       <polyline points="7 10 12 15 17 10"></polyline>
-                       <line x1="12" y1="15" x2="12" y2="3"></line>
-                   </svg>
-                </button>
             </div>, 
             portalNode!
           ) 

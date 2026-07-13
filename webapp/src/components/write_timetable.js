@@ -377,7 +377,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                  onClick={(e) => removeEdit(e, slotId)}
                                  style={{ position:'absolute', top:'2px', right:'2px', background:'#E53935', color:'white', border:'none', borderRadius:'50%', width:'18px', height:'18px', fontSize:'12px', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', zIndex:10 }}
                                >
-                                 ×
+                                 ï¿½
                                </button>
                            )}
                            
@@ -411,8 +411,66 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     );
   };
 
-  const renderMobileTable = () => {
-     if (!parsedData || !parsedData.days || parsedData.days.length === 0) return null;
+  const renderEditToolbar = () => (
+      <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '4px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '14px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          gap: '4px',
+          transition: 'all 0.3s ease',
+      }}>
+         {['hide', 'show', 'modify'].map(state => {
+             const label = state === 'hide' ? 'Hide' : state === 'show' ? (isEditMode ? 'Save' : 'Show') : 'Modify';
+             const title = state === 'hide' ? 'Hide Edits' : state === 'show' ? 'Show/Save Edits' : 'Edit Mode';
+             const themeColor = state === 'hide' ? '#546E7A' : state === 'show' ? '#43A047' : '#1E88E5';
+             const active = viewState === state;
+             const onClick = () => {
+                 if (state === 'hide') {
+                     setViewState('hide');
+                     setIsEditMode(false);
+                 } else if (state === 'show') {
+                     setViewState('show');
+                     setIsEditMode(false);
+                 } else {
+                     setViewState('modify');
+                     setIsEditMode(true);
+                 }
+             };
+             return (
+                 <button
+                   key={state}
+                   onClick={onClick}
+                   title={title}
+                   style={{
+                      backgroundColor: active ? themeColor : 'transparent',
+                      color: active ? '#fff' : 'rgba(255, 255, 255, 0.8)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      padding: '6px 14px',
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 500,
+                      fontSize: '12px',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      minWidth: '65px',
+                      transform: active ? 'scale(1.05)' : 'scale(1)',
+                      boxShadow: active ? `0 4px 12px ${themeColor}66` : 'none',
+                   }}
+                 >
+                   {label}
+                 </button>
+             );
+         })}
+      </div>
+  );
+
      
      const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
      const isActiveDay = String(mobileDayIndex + 1) === currentDayOrderObj;
@@ -438,12 +496,16 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                  </button>
               </div>
 
-              <div className={\g-[#121212] border border-t-0 border-[#333] rounded-b-xl p-4 space-y-3 shadow-lg transition-opacity duration-300 \\}>
+              <div className="flex flex-col gap-3 bg-[#1e1e1e] border border-[#333] rounded-b-xl p-3 shadow-lg">
+                  {renderEditToolbar()}
+              </div>
+
+              <div className="bg-[#121212] border border-t-0 border-[#333] rounded-b-xl p-4 space-y-3 shadow-lg transition-opacity duration-300">
                   {parsedData.days[mobileDayIndex]?.slots?.map((slot: any, idx: number) => {
                       const timeHeader = parsedData.headers[idx + 1] || ''; 
                       
                       const totalSlotsBefore = parsedData.days.slice(0, mobileDayIndex).reduce((acc: number, d: any) => acc + d.slots.length, 0);
-                      let rawSlotId = \slot-\\;
+                      let rawSlotId = 'slot-';
                       if (slot.slot) {
                           rawSlotId = slot.slot;
                       } else {
@@ -498,7 +560,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       return (
                           <div 
                              key={idx} 
-                             className={\g-[#1e1e1e] border border-[#333] rounded-lg p-3 flex flex-col relative overflow-hidden \\}
+                             className="bg-[#1e1e1e] border border-[#333] rounded-lg p-3 flex flex-col relative overflow-hidden"
                              style={{ borderLeftColor: displayBg, borderLeftWidth: '4px' }}
                              onClick={() => {
                                  if (isEditMode) {
@@ -511,7 +573,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                      onClick={(e) => removeEdit(e, rawSlotId)}
                                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition"
                                  >
-                                     ×
+                                     ï¿½
                                  </button>
                              )}
                              <div className="flex justify-between items-start mb-1">
@@ -540,95 +602,9 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center mb-4 relative">
+      <div className="flex items-center mb-4 relative gap-3">
         <h2 className="text-xl font-bold text-white mr-4">Timetable</h2>
-        
-        <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '4px',
-            marginLeft: '20px',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '14px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            gap: '4px',
-            transition: 'all 0.3s ease'
-        }}>
-           <button 
-             onClick={() => { setViewState('hide'); setIsEditMode(false); }}
-             style={{
-                backgroundColor: viewState === 'hide' ? '#546E7A' : 'transparent',
-                color: viewState === 'hide' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'hide' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'hide' ? '0 4px 12px #546E7A66' : 'none'
-             }}
-             title="Hide Edits"
-           >
-             Hide
-           </button>
-           <button 
-             onClick={() => { setViewState('show'); setIsEditMode(false); }}
-             style={{
-                backgroundColor: viewState === 'show' ? '#43A047' : 'transparent',
-                color: viewState === 'show' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'show' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'show' ? '0 4px 12px #43A04766' : 'none'
-             }}
-             title="Show/Save Edits"
-           >
-             {isEditMode ? 'Save' : 'Show'}
-           </button>
-           <button 
-             onClick={() => { setViewState('modify'); setIsEditMode(true); }}
-             style={{
-                backgroundColor: viewState === 'modify' ? '#1E88E5' : 'transparent',
-                color: viewState === 'modify' ? '#fff' : 'rgba(255, 255, 255, 0.8)',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minWidth: '65px',
-                transform: viewState === 'modify' ? 'scale(1.05)' : 'scale(1)',
-                boxShadow: viewState === 'modify' ? '0 4px 12px #1E88E566' : 'none'
-             }}
-             title="Edit Mode"
-           >
-             Modify
-           </button>
-        </div>
-        
+        {renderEditToolbar()}
         <button
            onClick={downloadTimetable}
            className="bg-[#1e1e1e] border border-[#333] hover:bg-[#2a2a2a] text-white p-2 rounded-full shadow-lg transition-colors ml-auto flex items-center justify-center w-9 h-9"
