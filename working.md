@@ -22,10 +22,9 @@ This causes 401 rejections even though `JSESSIONID` is present and the session m
 ### Root Cause
 Zoho may have stopped issuing `_iamadt_client_*` tokens in the browser session. The `_iamtt` is a transient cookie used during login redirect, not persisted.
 
-### Fix Applied (2026-07-14 Update)
-1. **Protected Calendar Endpoints:** Added `verifyJWT` middleware to the `GET /api/v1/calendar` and `POST /api/v1/calendar` routes in the backend to ensure auth.
-2. **Fixed Frontend Fetches:** Updated `fetch` calls in the Next.js webapp (`Dashboard`, `CalendarView`, `AttendancePredict`) to use `credentials: 'include'` so that they don't fail with 401 Unauthorized after protecting the route.
-3. **Appended `net_id` from Extension:** Modified `extension/api/calendar.js` to dynamically look up `getNetId()` and append `net_id=${netId}` to the backend requests. This ensures the backend correctly registers the action against `user_net_id` rather than defaulting to `extension_user`.
+### Fix Applied (2026-07-14 Update #2)
+1. **Extension Image Script Robustness**: Added a safety check in `extension/imageURLScript.js` to ensure the "Select All" toggle doesn't uncheck columns if they were already selected. Softened the CSS selector to detect the image even if Handsontable hasn't fully rendered the parent wrappers.
+2. **Backend Image Scraping**: Introduced a new backend step during `/api/v1/scrape/all`. The backend will now directly fetch `Student_Profile_Report` and parse the payload via Regex to locate the `image-download` URL, eliminating the need for the webapp to rely purely on the extension to fetch profile photos.
 
 ### Files Modified
 - `extension/manifest.json` — Added root domain permissions (`zoho.in`, `zoho.com`, `srmist.edu.in`)
