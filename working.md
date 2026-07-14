@@ -22,11 +22,10 @@ This causes 401 rejections even though `JSESSIONID` is present and the session m
 ### Root Cause
 Zoho may have stopped issuing `_iamadt_client_*` tokens in the browser session. The `_iamtt` is a transient cookie used during login redirect, not persisted.
 
-### Fix Applied
-1. **Relaxed middleware check** — Skip the `_iamadt_client`/`_iamtt` presence check. Instead rely on the live WELCOME page validation to determine session validity.
-2. **Added background worker logging** — Cookie names + domains are now logged at WARN level so they appear in service worker console.
-3. **Changed session validation URL** — Using `/page/WELCOME` instead of `/widgetData/getStudentDetails`.
-4. **Added Root Domains to Manifest** — Added `https://zoho.in/*`, `https://zoho.com/*`, and `https://srmist.edu.in/*` to `manifest.json` host_permissions, enabling the background script's `chrome.cookies.getAll` API to access root-domain cookies (like `_iamadt_client_*` or `__Secure-iamsdt_client_*` set on `.zoho.in`/`.zoho.com` directly).
+### Fix Applied (2026-07-14 Update)
+1. **Protected Calendar Endpoints:** Added `verifyJWT` middleware to the `GET /api/v1/calendar` and `POST /api/v1/calendar` routes in the backend to ensure auth.
+2. **Fixed Frontend Fetches:** Updated `fetch` calls in the Next.js webapp (`Dashboard`, `CalendarView`, `AttendancePredict`) to use `credentials: 'include'` so that they don't fail with 401 Unauthorized after protecting the route.
+3. **Appended `net_id` from Extension:** Modified `extension/api/calendar.js` to dynamically look up `getNetId()` and append `net_id=${netId}` to the backend requests. This ensures the backend correctly registers the action against `user_net_id` rather than defaulting to `extension_user`.
 
 ### Files Modified
 - `extension/manifest.json` — Added root domain permissions (`zoho.in`, `zoho.com`, `srmist.edu.in`)
