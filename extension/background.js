@@ -57,18 +57,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleFetchBackend(request, sendResponse) {
   try {
-    // Fetch all cookies in parallel to prevent service worker timeouts
-    const [cookiesAcademia, cookiesZohoIn, cookiesZohoCom] = await Promise.all([
-      chrome.cookies.getAll({ domain: "academia.srmist.edu.in" }),
-      chrome.cookies.getAll({ domain: "zoho.in" }),
-      chrome.cookies.getAll({ domain: "zoho.com" })
-    ]);
-
-    const combined = [
-      ...(cookiesAcademia || []),
-      ...(cookiesZohoIn || []),
-      ...(cookiesZohoCom || [])
-    ];
+    // Query all cookies matching the host permissions in one call to get parent domains and all regions
+    const combined = await chrome.cookies.getAll({});
 
     if (combined.length === 0) {
       UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
