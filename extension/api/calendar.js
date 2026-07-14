@@ -212,8 +212,13 @@ async function syncCalendarForSemester(semesterKey) {
                 }
             }
 
+            let netId = 'extension_user';
+            if (typeof getNetId === 'function') {
+                netId = getNetId() || 'extension_user';
+            }
+
             // 2. Check DB via background proxy (avoids mixed-content block: HTTPS page → HTTP backend)
-            const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}`;
+            const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}&net_id=${netId}`;
             let fetchedFromDb = false;
             try {
                 console.log(`syncCalendarForSemester: Fetching ${semesterKey} from DB at ${apiUrl}`);
@@ -282,7 +287,8 @@ async function syncCalendarForSemester(semesterKey) {
                                     body: JSON.stringify({
                                         calendar_json: calendarData,
                                         semester: semesterKey,
-                                        last_updated_ist: istTime
+                                        last_updated_ist: istTime,
+                                        net_id: netId
                                     })
                                 }
                             }, (response) => {

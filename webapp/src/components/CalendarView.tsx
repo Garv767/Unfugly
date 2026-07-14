@@ -85,7 +85,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
      }
      
      setLoading(true);
-     fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`)
+     fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`, { credentials: 'include' })
        .then(res => res.json())
        .then(data => {
           const calendarJson = data.calendar_json || data;

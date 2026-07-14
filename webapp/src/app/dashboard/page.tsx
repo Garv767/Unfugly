@@ -86,7 +86,7 @@ export default function Dashboard() {
     .catch(() => startScraping(false));
 
     // Fetch calendar data
-    fetch(`${API_URL}/api/v1/calendar`)
+    fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include' })
       .then(res => res.json())
       .then(calData => setCalendarData(calData))
       .catch(() => {});
