@@ -19,8 +19,8 @@ async function extractImageUrl(doc) {
         // Ensuring the report interface is fully loaded before interacting
         await waitForElement(doc, '#listReportMainContainer .ht_clone_top th.zcReport_HeaderEditColumn', 5000);
         
-        const imgSelector = '#listReportMainContainer > div.ht_master.handsontable > div > div > div > table > tbody > tr > td.zcReport_Image.zc-mapping-field > a > img';
-        const existingImg = doc.querySelector(imgSelector);
+        const simpleImgSelector = 'td.zcReport_Image.zc-mapping-field img, td[data-col="Photo"] img';
+        const existingImg = doc.querySelector(simpleImgSelector);
         if (existingImg && existingImg.src) {
             console.log("[Unfugly] Image already visible! Extracted URL immediately.");
             return existingImg.src;
@@ -41,9 +41,14 @@ async function extractImageUrl(doc) {
         // This ensures the photo column is visible in the handsontable report
         const allCheckbox = doc.getElementById('show-hide-col-all');
         if (allCheckbox) {
-            //console.log("[Unfugly] Select All checkbox identified. Updating selection...");
-            // Standard .click() used to trigger internal Zoho event listeners
-            allCheckbox.click();
+            // Only click if it's not already checked, otherwise we might uncheck everything!
+            if (!allCheckbox.checked) {
+                //console.log("[Unfugly] Select All checkbox identified. Updating selection...");
+                // Standard .click() used to trigger internal Zoho event listeners
+                allCheckbox.click();
+            } else {
+                console.log("[Unfugly] 'Select All' is already checked. Proceeding...");
+            }
         } else {
             console.warn("[Unfugly] Warning: 'Select All' checkbox not found in DOM.");
         }
@@ -62,9 +67,8 @@ async function extractImageUrl(doc) {
             
             // 4. EXTRACT IMAGE URL
             // Using the specific selector provided for the profile image
-            const imgSelector = '#listReportMainContainer > div.ht_master.handsontable > div > div > div > table > tbody > tr > td.zcReport_Image.zc-mapping-field > a > img';
-            const profileImg = doc.querySelector(imgSelector);
-            
+            const profileImg = doc.querySelector(simpleImgSelector);
+
             if (profileImg && profileImg.src) {
                 console.log("[Unfugly] Success! Extracted Image URL:");
                 return profileImg.src;
