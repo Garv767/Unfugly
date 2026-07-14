@@ -18,9 +18,9 @@ const log = (level, code, message, ...args) => {
   const style = `background: #222; color: ${color}; font-weight: bold; padding: 1px 3px; border-radius: 2px;`;
   
   if (level === 'ERROR') {
-    console.error(formattedPrefix, style);
+    console.error(formattedPrefix, style, message, ...args);
   } else if (level === 'WARN') {
-    console.warn(formattedPrefix, style);
+    console.warn(formattedPrefix, style, message, ...args);
   }
 };
 
@@ -57,8 +57,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleFetchBackend(request, sendResponse) {
   try {
-    // Query all cookies matching the host permissions in one call to get parent domains and all regions
-    const combined = await chrome.cookies.getAll({});
+    // Query cookies specifically for the required domains, including partitioned ones if any
+    const getCookiesForDomain = async (domain) => {
+      const unpartitioned = await chrome.cookies.getAll({ domain });
+      let partitioned = [];
+      try {
+        partitioned = await chrome.cookies.getAll({ domain, partitionKey: {} });
+      } catch (e) {
+        // partitionKey might not be supported in older Chrome versions
+      }
+      return [...unpartitioned, ...partitioned];
+    };
+
+    const srmCookies = await getCookiesForDomain("srmist.edu.in");
+    const zohoInCookies = await getCookiesForDomain("zoho.in");
+    const zohoComCookies = await getCookiesForDomain("zoho.com");
+    
+    // Combine and deduplicate by name+domain+path
+    const allCookies = [...srmCookies, ...zohoInCookies, ...zohoComCookies];
+    const seen = new Set();
+    const combined = allCookies.filter(c => {
+      const key = `${c.name}@${c.domain}@${c.path}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Log the names+domains of the cookies we are sending for debugging
+    const cookieDetails = combined.map(c => `${c.name} (${c.domain})`);
+    console.warn(`[UNFUGLY BG] Sending ${combined.length} cookies to backend:`, cookieDetails);
 
     if (combined.length === 0) {
       UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
@@ -68,8 +95,18 @@ async function handleFetchBackend(request, sendResponse) {
     options.headers = options.headers || {};
     options.headers['x-academia-cookies'] = JSON.stringify(combined);
 
-    const res = await fetch(request.url, options);
-    const text = await res.text();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout
+    options.signal = controller.signal;
+
+    let text;
+    let res;
+    try {
+      res = await fetch(request.url, options);
+      text = await res.text();
+    } finally {
+      clearTimeout(timeoutId);
+    }
     
     const data = {
       status: res.status,

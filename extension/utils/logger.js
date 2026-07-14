@@ -19,9 +19,9 @@
         const style = `color: ${color}; font-weight: bold;`;
         
         if (level === 'ERROR') {
-            console.error(formattedPrefix, style);
+            console.error(formattedPrefix, style, message, ...args);
         } else if (level === 'WARN') {
-            console.warn(formattedPrefix, style);
+            console.warn(formattedPrefix, style, message, ...args);
         }
     };
 

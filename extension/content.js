@@ -1041,19 +1041,9 @@ async function handleWelcomePage() {
 
                             await chrome.storage.local.set({ [storageKey]: constructedCache });
                             
-                            try {
-                                const calRes = await backgroundFetch(`${BACKEND}/calendar`);
-                                if (calRes.ok) {
-                                    const calData = await calRes.json();
-                                    await chrome.storage.local.set({
-                                        unfuglyData_calendar: {
-                                            data: calData.calendar_json,
-                                            lastUpdated: calData.updated_at
-                                        }
-                                    });
-                                }
-                            } catch(e) { window.UnfuglyLog.warn('CAL_01', `Failed fetching universal calendar on init: ${e.message}`); }
-
+                            // DEPRECATED: Old universal calendar fetch removed to prevent schema conflicts
+                            // Calendar logic is now natively handled by extension/api/calendar.js per semester.
+                            
                             renderProfilePanel(constructedCache.profileData, appWrapper, dayOrderInfo);
                             renderAccordionPanels(constructedCache, previousAttendanceData, appWrapper, currentNetId);
                             if (titleElement) {

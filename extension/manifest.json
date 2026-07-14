@@ -1,18 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Unfugly",
-  "version": "2.0.0",
+  "version": "2.0.01",
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
     "cookies",
     "storage"
   ],
   "host_permissions": [
+    "https://srmist.edu.in/*",
     "https://*.srmist.edu.in/*",
     "https://creatorapp.zoho.com/srm_university/*",
     "https://unfugly-backend.onrender.com/*",
-    "https://*.srmist.edu.in/*",
+    "https://zoho.in/*",
     "https://*.zoho.in/*",
+    "https://zoho.com/*",
     "https://*.zoho.com/*",
     "https://*.zohocdn.com/*"
   ],
