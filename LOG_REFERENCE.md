@@ -138,15 +138,20 @@ Step 3  →  GET  redirectFromLogin      → sets JSESSIONID, cli_rgn, zalb_*, _
 | 3 | Zoho returns HTTP 200 + `"Invalid password"` JSON silently passing | `pwRes.ok` check only tests HTTP status, but Zoho uses HTTP 200 for auth failures with `status_code: 500` in JSON | Added JSON `status_code >= 400` check after parsing body |
 | 4 | Content-Type mismatch | Accidentally overrode to `application/json` — real browser uses `application/x-www-form-urlencoded` even for JSON body | Reverted to `BROWSER_HEADERS` default |
 | 5 | `fetch_cookies.js` showing wrong user's cookies | `.limit(1)` with no filter returned any row in DB | Added `.eq('user_net_id', 'gr2383')` |
+| 6 | `redirect_url: NONE` on every login (2026-07-14) | Academia changed portal path from `/portal/` → `/app/portal/`. All `serviceurl` params mismatched Zoho's registered app URL | Updated `REDIRECT_FROM_LOGIN` constant to use `/app/portal/` |
 
 ### The SIGNIN_LANDING URL (critical)
 
 ```js
-const SIGNIN_LANDING = `${ACADEMIA_BASE}/accounts/p/${ZOHO_ORG_ID}/signin?hide_fp=true&orgtype=40&service_language=en&css_url=/49910842/academia-academic-services/downloadPortalCustomCss/login&dcc=true&serviceurl=${encodeURIComponent(ACADEMIA_BASE + '/portal/academia-academic-services/redirectFromLogin')}`;
+// As of 2026-07-14 — uses /app/portal/ (without /app/ = redirect_url: NONE)
+const REDIRECT_FROM_LOGIN = `${ACADEMIA_BASE}/app/portal/academia-academic-services/redirectFromLogin`;
+const SIGNIN_LANDING = `${ACADEMIA_BASE}/accounts/p/${ZOHO_ORG_ID}/signin?hide_fp=true&orgtype=40&service_language=en&css_url=/49910842/academia-academic-services/downloadPortalCustomCss/login&dcc=true&serviceurl=${encodeURIComponent(ACADEMIA_BASE + '/app/portal/academia-academic-services/redirectFromLogin')}`;
 ```
 
 This is extracted from Chrome DevTools → Network tab → Referer header on the `/lookup/` request.  
 **If login breaks again**, capture a fresh manual login's Network tab and compare the Referer on the lookup call.
+
+> **Root cause tracked 2026-07-14**: Academia changed the portal redirect path from `/portal/` → `/app/portal/`. This caused `redirect_url: NONE` from Zoho on every password auth, as the serviceurl Zoho was given no longer matched the registered app URL.
 
 ### What cookies the full login should produce
 
