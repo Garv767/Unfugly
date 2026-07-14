@@ -51,34 +51,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "fetch_backend") {
     chrome.cookies.getAll({ domain: "academia.srmist.edu.in" }, (cookiesAcademia) => {
-      chrome.cookies.getAll({ domain: "zoho.in" }, (cookiesZoho) => {
-        const combined = [...(cookiesAcademia || []), ...(cookiesZoho || [])];
+      chrome.cookies.getAll({ domain: "zoho.in" }, (cookiesZohoIn) => {
+        chrome.cookies.getAll({ domain: "zoho.com" }, (cookiesZohoCom) => {
+          const combined = [
+            ...(cookiesAcademia || []),
+            ...(cookiesZohoIn || []),
+            ...(cookiesZohoCom || [])
+          ];
 
-        if (combined.length === 0) {
-          UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
-        }
+          if (combined.length === 0) {
+            UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
+          }
 
-        const options = request.options || {};
-        options.headers = options.headers || {};
-        options.headers['x-academia-cookies'] = JSON.stringify(combined);
+          const options = request.options || {};
+          options.headers = options.headers || {};
+          options.headers['x-academia-cookies'] = JSON.stringify(combined);
 
-        fetch(request.url, options)
-          .then(res => res.text().then(text => ({
-            status: res.status,
-            ok: res.ok,
-            text: text
-          })))
-          .then(data => {
-            if (!data.ok) {
-              const errCode = data.status === 401 ? 'AUTH_02' : 'SYS_01';
-              UnfuglyLog.error(errCode, `Backend returned ${data.status} for ${request.url}: ${data.text.slice(0, 300)}`);
-            }
-            sendResponse({ success: true, data });
-          })
-          .catch(err => {
-            UnfuglyLog.error('SYS_02', `fetch failed for ${request.url}: ${err.message}`);
-            sendResponse({ success: false, error: err.message });
-          });
+          fetch(request.url, options)
+            .then(res => res.text().then(text => ({
+              status: res.status,
+              ok: res.ok,
+              text: text
+            })))
+            .then(data => {
+              if (!data.ok) {
+                const errCode = data.status === 401 ? 'AUTH_02' : 'SYS_01';
+                UnfuglyLog.error(errCode, `Backend returned ${data.status} for ${request.url}: ${data.text.slice(0, 300)}`);
+              }
+              sendResponse({ success: true, data });
+            })
+            .catch(err => {
+              UnfuglyLog.error('SYS_02', `fetch failed for ${request.url}: ${err.message}`);
+              sendResponse({ success: false, error: err.message });
+            });
+        });
       });
     });
     return true;
