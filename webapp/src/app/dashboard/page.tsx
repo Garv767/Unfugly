@@ -125,6 +125,7 @@ export default function Dashboard() {
     fetch(`${API_URL}/api/v1/scrape/all`, {
       method:      'POST',
       credentials: 'include',
+      headers:     { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
     })
     .then(res => res.json())
     .then(scrapedData => {
@@ -318,7 +319,7 @@ export default function Dashboard() {
                </div>
                <div className="flex justify-center mt-10 mb-4">
                   <img 
-                     src={`${API_URL}/api/v1/user/photo`} 
+                     src={`${API_URL}/api/v1/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
                      alt="Profile" 
                      onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
                      className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 

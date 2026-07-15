@@ -99,7 +99,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             className="h-14 w-14 outline-none transition-transform duration-200 overflow-hidden flex items-center justify-center bg-[#1E88E5] rounded-full hover:scale-[0.98] active:scale-[0.95] border-2 border-[#1E88E5]"
           >
             <img 
-               src={`${API_URL}/api/v1/user/photo`} 
+               src={`${API_URL}/api/v1/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
                alt="Profile" 
                onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
                className="w-full h-full object-cover" 
