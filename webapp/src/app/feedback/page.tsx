@@ -26,14 +26,14 @@ export default function FeedbackPage() {
   const [summary, setSummary] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/feedback/count`, { credentials: 'include' })
+    fetch(`${API_URL}/api/v1/feedback/count`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
       .then(r => r.json()).then(d => { if (d.count !== undefined) setTotalCount(d.count); }).catch(() => {});
   }, []);
 
   const loadForms = async () => {
     setExtracting(true); setError('');
     try {
-      const res = await fetch(`${API_URL}/api/v1/feedback/fields`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/v1/feedback/fields`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch forms');
       setPendingCourses(data.courses || []);
@@ -59,7 +59,7 @@ export default function FeedbackPage() {
     setSubmissionStatus(statusInit);
     try {
       const res = await fetch(`${API_URL}/api/v1/feedback/batch`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
         credentials: 'include', body: JSON.stringify({ submissions }),
       });
       const data = await res.json();
@@ -68,7 +68,7 @@ export default function FeedbackPage() {
       data.results.forEach((r: any) => { finalStatus[r.rowIndex] = { status: r.success ? 'success' : 'error', error: r.error, filledCount: r.filledCount }; });
       setSubmissionStatus(finalStatus);
       setSummary({ total: data.total_submitted, success: data.success_count, failure: data.failure_count, validationWarnings: data.validation_warnings });
-      fetch(`${API_URL}/api/v1/feedback/count`, { credentials: 'include' })
+      fetch(`${API_URL}/api/v1/feedback/count`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
         .then(r => r.json()).then(d => { if (d.count !== undefined) setTotalCount(d.count); }).catch(() => {});
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }

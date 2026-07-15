@@ -37,9 +37,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
 
   const fetchFeedbackCount = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/feedback/count`, {
-        credentials: 'include'
-      });
+      const res = await fetch(`${API_URL}/api/v1/feedback/count`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } });
       if (res.status === 401) return;
       const data = await res.json();
       if (data.count !== undefined) setTotalFeedbackCount(data.count);
@@ -53,9 +51,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
     setError('');
     
     try {
-      const res = await fetch(`${API_URL}/api/v1/feedback/fields`, {
-        credentials: 'include'
-      });
+      const res = await fetch(`${API_URL}/api/v1/feedback/fields`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } });
       const data = await res.json();
       
       if (!res.ok) {
@@ -154,9 +150,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
     try {
       const res = await fetch(`${API_URL}/api/v1/feedback/batch`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
         credentials: 'include',
         body: JSON.stringify({ submissions })
       });

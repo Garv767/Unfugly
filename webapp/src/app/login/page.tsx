@@ -17,7 +17,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Check if already authenticated by hitting the /user/data endpoint.
     // The HttpOnly cookie will be sent automatically by the browser.
-    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include' })
+    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
       .then(res => { if (res.ok) router.push('/dashboard'); })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -34,13 +34,14 @@ export default function LoginPage() {
 
       const res = await fetch(`${API_URL}/api/v1/auth/login`, {
         method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
         credentials: 'include', // Required to receive the HttpOnly cookie
         body:        JSON.stringify({ username: finalUsername, password }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.token) localStorage.setItem('unfugly_token', data.token);
 
       // Clear all old dashboard cache keys to ensure a clean slate
       Object.keys(localStorage).forEach(key => {

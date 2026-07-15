@@ -19,7 +19,7 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
   useEffect(() => {
     if (isOpen && !calendarData) {
       setLoading(true);
-      fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include' })
+      fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
         .then(res => res.json())
         .then(data => {
           setCalendarData(data.calendar_json || data);

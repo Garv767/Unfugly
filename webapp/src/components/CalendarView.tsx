@@ -85,7 +85,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
      }
      
      setLoading(true);
-     fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`, { credentials: 'include' })
+     fetch(`${API_URL}/api/v1/calendar?semester=${semKey}`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
        .then(res => res.json())
        .then(data => {
           const calendarJson = data.calendar_json || data;

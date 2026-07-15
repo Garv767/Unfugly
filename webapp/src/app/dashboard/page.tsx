@@ -61,7 +61,7 @@ export default function Dashboard() {
     }
 
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
-    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include' })
+    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
     .then(res => {
       if (res.status === 401) { router.push('/login'); return null; }
       return res.json();
@@ -86,7 +86,7 @@ export default function Dashboard() {
     .catch(() => startScraping(false));
 
     // Fetch calendar data
-    fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include' })
+    fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
       .then(res => res.json())
       .then(calData => setCalendarData(calData))
       .catch(() => {});
@@ -182,7 +182,7 @@ export default function Dashboard() {
           // Save back to DB only if we got useful new data
           fetch(`${API_URL}/api/v1/user/save`, {
             method:      'POST',
-            headers:     { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
             credentials: 'include',
             body: JSON.stringify({
               netId:          mergedData.netId,
