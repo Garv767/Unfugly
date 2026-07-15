@@ -47,7 +47,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                      {item.CourseCode} - {(() => {
                          if (!data.courseData) return '';
                          const actualCourseData = data.courseData.slotToCourse || data.courseData;
-                         const c = (Object.values(actualCourseData) as any[]).find((c: any) => c['Course Code'] === item.CourseCode);
+                         const c = (Object.values(actualCourseData) as any[]).find((c: any) => c && c['Course Code'] === item.CourseCode);
                          return c ? c['Course Title'] : '';
                      })()}
                   </h3>
