@@ -2062,8 +2062,11 @@ function renderProfilePanel(profileData, container, dayOrder) {
         <p><strong>Semester:</strong> ${profileData.semester || 'N/A'}</p>
         <p><strong>Day Order:</strong> ${dayOrderToday || 'N/A'}</p>
         <p><strong>Department:</strong> ${profileData.schoolDepartment || 'N/A'}</p>
-        <div class="profile-photo-container" style="margin-top: 15px; text-align: center;">
-            <img id="unfugly-profile-photo" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #1E88E5; box-shadow: 0 4px 8px rgba(0,0,0,0.3); object-fit: cover; background-color: #444;" />
+        <div class="profile-photo-container" style="margin-top: 15px; text-align: center; position: relative; display: inline-block; width: 100%;">
+            <img id="unfugly-profile-photo" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #1E88E5; box-shadow: 0 4px 8px rgba(0,0,0,0.3); object-fit: cover; background-color: #444; display: block; margin: 0 auto;" />
+            <div id="unfugly-profile-initials" style="display: none; width: 80px; height: 80px; border-radius: 50%; border: 3px solid #1E88E5; background: linear-gradient(135deg, rgba(30,136,229,0.3), rgba(30,136,229,0.1)); color: #1E88E5; font-size: 24px; font-weight: 700; align-items: center; justify-content: center; margin: 0 auto; letter-spacing: 2px; user-select: none;">
+                ${(profileData.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
         </div>
         <div id="unfugly-profile-details-wrapper"></div>
     `;
@@ -2176,6 +2179,11 @@ function renderProfilePanel(profileData, container, dayOrder) {
 
     const profileImgElement = profilePanel.querySelector('#unfugly-profile-photo');
     if (profileImgElement) {
+        const initialsEl = profilePanel.querySelector('#unfugly-profile-initials');
+        profileImgElement.addEventListener('error', () => {
+            profileImgElement.style.display = 'none';
+            if (initialsEl) initialsEl.style.display = 'flex';
+        });
         secureImageSrc(profileImgElement);
     }
 }

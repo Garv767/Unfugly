@@ -298,7 +298,6 @@ export default function Dashboard() {
             <div id="mobile-header-actions-Timetable" className={`${activeTab === 'Timetable' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
             <div id="mobile-header-actions-Attendance" className={`${activeTab === 'Attendance' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
             <div id="mobile-header-actions-Marks" className={`${activeTab === 'Marks' ? 'flex' : 'hidden'} items-center justify-end overflow-x-auto custom-scrollbar hide-scrollbar ml-auto`}></div>
-  
          </div>
       </header>
 
@@ -324,8 +323,8 @@ export default function Dashboard() {
                      onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
                      className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 
                   />
-                  <div className={`w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-[#1E88E5]/20 flex items-center justify-center text-4xl font-bold text-[#1E88E5] shadow-lg hidden`}>
-                     {data.profileData.name ? data.profileData.name.charAt(0).toUpperCase() : 'U'}
+                  <div className="hidden w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-gradient-to-br from-[#1E88E5]/30 to-[#1E88E5]/10 flex items-center justify-center text-3xl font-bold text-[#1E88E5] shadow-lg tracking-wide select-none">
+                     {data.profileData.name ? data.profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}
                   </div>
                </div>
                

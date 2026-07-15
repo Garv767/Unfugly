@@ -93,7 +93,6 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         })}
 
         {/* Avatar Profile */}
-                {/* Avatar Profile */}
         <div className="relative h-full">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
@@ -105,8 +104,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
                className="w-full h-full object-cover" 
             />
-            <span className="text-white font-bold text-[14px] hidden">
-               {profileData?.name?.charAt(0)?.toUpperCase() || '?'}
+            <span className="text-white font-bold text-[13px] tracking-wide hidden">
+               {profileData?.name ? profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : '?'}
             </span>
           </button>
           
