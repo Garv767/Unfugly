@@ -32,7 +32,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
       if (cachedStr) {
         try {
           const parsed = JSON.parse(cachedStr);
-          setProfileData(parsed.profileData);
+          setProfileData(parsed?.profileData || null);
         } catch(e) {}
       }
     }
