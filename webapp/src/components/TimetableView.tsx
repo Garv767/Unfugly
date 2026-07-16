@@ -122,6 +122,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       try {
         const raw = typeof dbEditedSlots === 'string' ? JSON.parse(dbEditedSlots) : dbEditedSlots;
         Object.keys(raw).forEach(slotKey => {
+          if (slotKey === 'last_edited') return; // skip meta-key
           const entry = raw[slotKey];
           initialEdits[slotKey] = {
             editedTitle: entry.editedTitle ?? entry.title ?? '',
@@ -141,6 +142,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
         const raw = typeof dbEditedSlots === 'string' ? JSON.parse(dbEditedSlots) : dbEditedSlots;
         const newEdits: Record<string, { editedTitle: string; editedClassroom: string }> = {};
         Object.keys(raw).forEach(slotKey => {
+          if (slotKey === 'last_edited') return; // skip meta-key
           const entry = raw[slotKey];
           newEdits[slotKey] = {
             editedTitle: entry.editedTitle ?? entry.title ?? '',

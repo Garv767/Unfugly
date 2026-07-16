@@ -29,7 +29,8 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
     }
   }, []); // mount-only
 
-  const predictComponent = <AttendancePredict attendanceData={data.attendanceData} courseData={data.courseData} />;
+  const safeData = data || { attendanceData: [], courseData: {}, marksData: [] };
+  const predictComponent = <AttendancePredict attendanceData={safeData.attendanceData} courseData={safeData.courseData} />;
   
 
   return (
@@ -41,7 +42,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
       
       {portalNode ? createPortal(predictComponent, portalNode) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {(!data.attendanceData || data.attendanceData.length === 0) && isBgScraping ? (
+        {(!safeData.attendanceData || safeData.attendanceData.length === 0) && isBgScraping ? (
             Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="rounded-xl p-4 shadow-lg bg-[#1e1e1e] border border-[#333] h-[140px] animate-pulse flex flex-col justify-between">
                     <div className="flex justify-between">
@@ -55,7 +56,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
                     </div>
                 </div>
             ))
-        ) : data.attendanceData?.map((item: any, i: number) => {
+        ) : safeData.attendanceData?.map((item: any, i: number) => {
            let bgColor = '#1e1e1e';
            let borderColor = '#333';
            let marginText = '';

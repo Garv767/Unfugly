@@ -94,10 +94,22 @@ export default function Dashboard() {
       startScraping(true);
     });
 
-    // Fetch calendar data
-    fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
-      .then(res => res.json())
-      .then(calData => setCalendarData(calData))
+    // Fetch calendar data — must include the current semester param
+    // Semester is derived from the cached profile data or defaults to the current academic year.
+    const currentSemester = (() => {
+      try {
+        const netIdKey = Object.keys(localStorage).find(k => k.startsWith('unfuglyData_') && k !== 'unfuglyData_calendar');
+        const cached = netIdKey ? JSON.parse(localStorage.getItem(netIdKey) || '{}') : {};
+        return cached?.profileData?.semester || null;
+      } catch { return null; }
+    })();
+    const calendarParams = currentSemester ? `?semester=${encodeURIComponent(currentSemester)}` : '';
+    fetch(`${API_URL}/api/v1/calendar${calendarParams}`, {
+      credentials: 'include',
+      headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(calData => { if (calData && !calData.error) setCalendarData(calData.calendar_json || calData); })
       .catch(() => {});
 
     return () => {
@@ -115,8 +127,20 @@ export default function Dashboard() {
     if (isBackground) setIsBgScraping(true);
     else setLoading(true);
 
-    // net_id comes exclusively from the JWT-verified server response — never use registrationNo as fallback
-    const net_id = (forcedNetId || data?.netId || '').toLowerCase();
+    // net_id: prefer server-verified value, then decode from JWT token in localStorage,
+    // then fall back to the netId already in state.
+    let net_id = (forcedNetId || data?.netId || '').toLowerCase();
+    if (!net_id) {
+      // Try to decode from localStorage JWT (for new users where /user/data returned 404)
+      try {
+        const token = localStorage.getItem('unfugly_token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload?.net_id) net_id = payload.net_id.toLowerCase();
+        }
+      } catch {}
+    }
+
     if (net_id) {
       const eventSource = new EventSource(`${API_URL}/api/v1/scrape/progress/${net_id}`);
       eventSourceRef.current = eventSource;
@@ -139,6 +163,8 @@ export default function Dashboard() {
     .then(res => res.json())
     .then(scrapedData => {
       if (scrapedData.error) {
+        // Reset guard so user can retry without a full reload
+        scrapingStarted.current = false;
         setLoading(false);
         setIsBgScraping(false);
         if (isBackground) {
@@ -189,23 +215,27 @@ export default function Dashboard() {
           setIsBgScraping(false);
           sessionStorage.setItem('unfugly_bg_scraped', '1');
 
-          // Save back to DB only if we got useful new data
-          fetch(`${API_URL}/api/v1/user/save`, {
-            method:      'POST',
-            headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
-            credentials: 'include',
-            body: JSON.stringify({
-              netId:          mergedData.netId,
-              profileData:    mergedData.profileData,
-              attendanceData: mergedData.attendanceData,
-              marksData:      mergedData.marksData,
-              timetable_html: mergedData.timetableHTML,
-              timetableJSON:  mergedData.timetableJSON,
-              courseData:     mergedData.courseData,
-              source:         'webapp',
-              lastUpdated:    new Date().toISOString()
-            })
-          });
+          // Save back to DB only if we got useful new data and have a valid netId
+          const saveNetId = mergedData.netId || net_id;
+          if (saveNetId && mergedData.profileData?.name) {
+            fetch(`${API_URL}/api/v1/user/save`, {
+              method:      'POST',
+              headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
+              credentials: 'include',
+              body: JSON.stringify({
+                netId:          saveNetId,
+                profileData:    mergedData.profileData,
+                attendanceData: mergedData.attendanceData,
+                marksData:      mergedData.marksData,
+                timetable_html: mergedData.timetableHTML,
+                timetableJSON:  mergedData.timetableJSON,
+                courseData:     mergedData.courseData,
+                editedSlots:    mergedData.editedSlots,
+                source:         'webapp',
+                lastUpdated:    new Date().toISOString()
+              })
+            }).catch(() => {});
+          }
           return mergedData;
       });
     })
@@ -423,8 +453,6 @@ export default function Dashboard() {
 
          </div>
       </main>
-
-       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }

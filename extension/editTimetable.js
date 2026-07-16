@@ -64,10 +64,9 @@ function removeEdits() {
         cell.prepend(removeButton);
 
         removeButton.onclick = (event) => {
-            event.stopPropagation(); // Prevent triggering the slot click event
+            event.stopPropagation();
             cell.classList.remove('edited-slot');
             cell.style.backgroundColor = cell.dataset.originalBg;
-            //console.log(cell.dataset.originalBg, "Reverted slot :", cell.style.backgroundColor);
             const titleSpan = cell.getElementsByClassName('editedSlot-editedTitle')[0];
             const classroomSpan = cell.getElementsByClassName('editedSlot-editedClassroom')[0];
             if(titleSpan) titleSpan.remove();
@@ -75,20 +74,24 @@ function removeEdits() {
             cell.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'block';
             const originalClassroomSpan = cell.getElementsByClassName('editedSlot-originalClassroom')[0];
             if(originalClassroomSpan) originalClassroomSpan.style.display = 'block';
-            chrome.storage.local.get(`unfuglyData_${currentNetId}`, (result) => {
-                const existingData = result[`unfuglyData_${currentNetId}`] || {};
-                const editedSlots = existingData.editedSlots || {};
-                const slotId = cell.id; //.title.slice(6).trim();
-                delete editedSlots[slotId];
-                existingData.editedSlots = editedSlots;
-                chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: existingData }, () => {
+
+            // BUG-03 fix: re-read storage immediately before writing to avoid race condition
+            chrome.storage.local.get(`unfuglyData_${currentNetId}`, (freshResult) => {
+                const freshData = freshResult[`unfuglyData_${currentNetId}`] || {};
+                const slots = Object.assign({}, freshData.editedSlots || {});
+                const slotId = cell.id;
+                delete slots[slotId];
+                // Add last_edited timestamp for cross-device conflict resolution
+                slots.last_edited = new Date().toISOString();
+                freshData.editedSlots = slots;
+                chrome.storage.local.set({ [`unfuglyData_${currentNetId}`]: freshData }, () => {
                     if (chrome.runtime.lastError) {
                         window.UnfuglyLog.error('SYNC_03', `Error updating local storage: ${chrome.runtime.lastError.message}`);
                     }
                 });
             });
             removeButton.remove();
-        }
+        };
     });
 }
 
@@ -115,47 +118,52 @@ function editTimetable() {
     });      
 }
 
-function saveEdits() {
+// BUG-03 fix: rewritten to re-read storage immediately before writing,
+// preventing the race condition with backgroundFetchAllData concurrent writes.
+// MED-06 fix: stores only editedTitle/editedClassroom (normalized schema).
+async function saveEdits() {
     const timetable = document.querySelector('#timetable-content-container > table');
-    const editedSlots = timetable.querySelectorAll('td.edited-slot');
+    const editedSlotEls = timetable.querySelectorAll('td.edited-slot');
     currentNetId = getNetId();
     const storageKey  = `unfuglyData_${currentNetId}`;
-    
-    chrome.storage.local.get(storageKey, (result) => {
-        const existingData = result[storageKey] || {};
-        existingData.editedSlots = existingData.editedSlots || {};
-        
-        editedSlots.forEach(slot => {
-            const slotId = slot.id;
-            const editedTitle = slot.getElementsByClassName('editedSlot-editedTitle') ? slot.getElementsByClassName('editedSlot-editedTitle')[0].textContent : '';
-            const editedClassroom = slot.getElementsByClassName('editedSlot-editedClassroom') ? slot.getElementsByClassName('editedSlot-editedClassroom')[0].textContent.replace('Room: ', '') : '';
-            
-            existingData.editedSlots[slotId] = { 
-                title: editedTitle,
-                classroom: editedClassroom,
-                editedTitle: editedTitle,
-                editedClassroom: editedClassroom
-            };
-        });
 
-        const removedFromEdits = timetable.getElementsByClassName('removeEditButton');
-        Array.from(removedFromEdits).forEach(button => button.remove());
+    // Collect edits from DOM before the async read to avoid stale DOM access
+    const pendingEdits = {};
+    editedSlotEls.forEach(slot => {
+        const slotId = slot.id;
+        const editedTitle = slot.getElementsByClassName('editedSlot-editedTitle')[0]?.textContent || '';
+        const editedClassroom = (slot.getElementsByClassName('editedSlot-editedClassroom')[0]?.textContent || '').replace('Room: ', '');
+        // MED-06: normalized schema — only editedTitle/editedClassroom, no legacy title/classroom keys
+        pendingEdits[slotId] = { editedTitle, editedClassroom };
+    });
 
-        chrome.storage.local.set({ [storageKey]: existingData }, () => {
-            if (chrome.runtime.lastError) {
-                window.UnfuglyLog.error('SYNC_03', `Error setting local storage: ${chrome.runtime.lastError.message}`);
-            } else {
-                window.UnfuglyLog.info('SYNC_01', 'Edits saved successfully locally');
-            }
-        });
+    // Re-read the absolute latest state from storage immediately before writing
+    const freshResult = await chrome.storage.local.get(storageKey).catch(() => ({}));
+    const freshData = freshResult[storageKey] || {};
+    const existingEdits = Object.assign({}, freshData.editedSlots || {});
+    // Remove last_edited meta-key before merging slot entries
+    delete existingEdits.last_edited;
+
+    // Merge: pending DOM edits overwrite whatever is in storage
+    const mergedEdits = { ...existingEdits, ...pendingEdits };
+    // Add last_edited timestamp for cross-device conflict resolution
+    mergedEdits.last_edited = new Date().toISOString();
+
+    freshData.editedSlots = mergedEdits;
+
+    const removedFromEdits = timetable.getElementsByClassName('removeEditButton');
+    Array.from(removedFromEdits).forEach(button => button.remove());
+
+    chrome.storage.local.set({ [storageKey]: freshData }, () => {
+        if (chrome.runtime.lastError) {
+            window.UnfuglyLog.error('SYNC_03', `Error setting local storage: ${chrome.runtime.lastError.message}`);
+        } else {
+            window.UnfuglyLog.info('SYNC_01', 'Edits saved successfully locally (merged, normalized schema)');
+        }
     });
 
     const editableSlots = timetable.querySelectorAll('td[style*="rgb(88, 91, 91)"], td.replaced-slot');
-        editableSlots.forEach(slot => {
-            //if (slot.style.display !== 'none') {
-                slot.onclick = null;
-            
-        });
+    editableSlots.forEach(slot => { slot.onclick = null; });
     displayInfoMessage("Edits saved successfully!", 3000, 'success');
 }
 
@@ -171,6 +179,8 @@ function loadEdits() {
         const existingData = result[storageKey] || {};
         const editedSlots = existingData.editedSlots || {};
         Object.keys(editedSlots).forEach(slotId => {
+            // Skip the last_edited timestamp meta-key (not a real slot)
+            if (slotId === 'last_edited') return;
             /*if(!slotId) {
                 console.log("Empty slotId found in storage, skipping.");
             } else {
@@ -184,8 +194,9 @@ function loadEdits() {
                 slot.getElementsByClassName('editedSlot-originalTitle')[0].style.display = 'none'; //? slot.getElementsByClassName('editedSlot-originalTitle')[0].textContent : '';
                 if(slot.getElementsByClassName('editedSlot-originalClassroom')[0]) slot.getElementsByClassName('editedSlot-originalClassroom')[0].style.display = 'none';
 
-                const editedTitle = editedSlots[slotId].title ?? editedSlots[slotId].editedTitle ?? '';
-                const editedClassroom = editedSlots[slotId].classroom ?? editedSlots[slotId].editedClassroom ?? '';
+                // MED-06: prefer normalized schema, fall back to legacy keys for old data
+                const editedTitle    = editedSlots[slotId].editedTitle    ?? editedSlots[slotId].title    ?? '';
+                const editedClassroom = editedSlots[slotId].editedClassroom ?? editedSlots[slotId].classroom ?? '';
 
                 const titleSpan = slot.getElementsByClassName('editedSlot-editedTitle')[0] || document.createElement('span');
                 titleSpan.textContent = editedTitle;
