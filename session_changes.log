@@ -1,0 +1,27 @@
+# Unfugly Session Changes Log (2026-07-16)
+
+This log tracks step-by-step changes during the debugging session.
+
+## Initial Analysis
+- Identified database foreign key constraint violation on new user signups because `user_logs` was upserted prior to `users`.
+- Pinpointed client-side crashes where `data` is `null` but properties like `timetableHTML` are read.
+- Identified `BottomNav` loading logic attempting to read `profileData` on a parsed object that evaluates to `null`.
+- Spotted missing `unfugly_net_id` in `localStorage`, which prevented background sync progress tracking.
+
+## Edits Applied
+### 1. Backend DB Constraint Fixes (routes/v1/auth.js)
+- Implemented user placeholder record upserts in `users` table prior to `user_logs` table inserts for both native `/login` and `/extension-session` routes.
+- Added explicit checking of Supabase response errors for all cookie/log upsert queries to prevent silent backend database failures.
+
+### 2. Frontend Safeguards (page.tsx & BottomNav.tsx)
+- Modified `Dashboard` outer guard to check for `loading` state only, allowing the main layout to render on fallback data when no cache profile is available.
+- Formulated a default fallback `uiData` structure that prevents `Cannot read properties of null` TypeErrors for all subcomponents when `data` state is null.
+- Corrected `BottomNav` JSON parsing using optional chaining (`parsed?.profileData`) to prevent TypeError crashes when local storage evaluates to `null`.
+- Ignored `/api/v1/user/data` network responses that contain error payloads (like 404), triggering the background scraper flow directly.
+
+## Build Verification
+- Ran `npm run build` in `webapp/` — compiled successfully in 9.8s with no TypeScript or compilation errors.
+- All 8 static pages generated without errors: `/`, `/login`, `/dashboard`, `/calendar`, `/feedback`, `/_not-found`, `/icon.png`.
+
+## Session Complete ✅
+All planned fixes applied and verified.

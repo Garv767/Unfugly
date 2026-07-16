@@ -68,22 +68,31 @@ export default function Dashboard() {
     })
     .then(cachedData => {
       if (!cachedData) return;
-      if (cachedData.profileData) {
-          setData(cachedData);
-          setLoading(false);
-          const targetKey = `unfuglyData_${cachedData.netId}`;
-          const dataToSave = { ...cachedData };
-          delete dataToSave.netId;
-          delete dataToSave.timetableHTML;
-          localStorage.setItem(targetKey, JSON.stringify(dataToSave));
-          // Always background-scrape for fresh data
-          startScraping(true, cachedData.netId);
-      } else {
-          // No cached profile at all — foreground scrape (first time user)
-          startScraping(false, cachedData.netId);
+      if (cachedData.error) {
+        setLoading(false);
+        startScraping(true);
+        return;
       }
+      // Set data even if profileData is null (for graceful degradation)
+      setData(cachedData);
+      setLoading(false);
+      
+      // Only save to localStorage if we have any data
+      if (cachedData.profileData || cachedData.attendanceData || cachedData.marksData || cachedData.timetableHTML) {
+        const targetKey = `unfuglyData_${cachedData.netId}`;
+        const dataToSave = { ...cachedData };
+        delete dataToSave.netId;
+        delete dataToSave.timetableHTML;
+        localStorage.setItem(targetKey, JSON.stringify(dataToSave));
+      }
+      
+      // Always background-scrape for fresh data regardless of cached data state
+      startScraping(true, cachedData.netId);
     })
-    .catch(() => startScraping(false));
+    .catch(() => {
+      setLoading(false);
+      startScraping(true);
+    });
 
     // Fetch calendar data
     fetch(`${API_URL}/api/v1/calendar`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
@@ -218,45 +227,54 @@ export default function Dashboard() {
 
   const [error, setError] = useState('');
 
-  if (!data || !data.profileData) {
-      if (loading) {
-          // Skeleton loader for initial cold load when no data exists yet
-          return (
-             <div className="min-h-screen bg-[#121212] flex flex-col lg:flex-row font-sans overflow-hidden">
-                {/* Mobile Header Skeleton */}
-                <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e] border-b border-[#333] px-6 py-4 flex justify-between items-center w-full">
-                   <div className="w-24 h-8 bg-gray-800 rounded-md animate-pulse"></div>
-                   <div className="w-10 h-10 bg-gray-800 rounded-full animate-pulse"></div>
-                </header>
+  if (loading) {
+      // Skeleton loader for initial cold load when no data exists yet
+      return (
+         <div className="min-h-screen bg-[#121212] flex flex-col lg:flex-row font-sans overflow-hidden">
+            {/* Mobile Header Skeleton */}
+            <header className="lg:hidden sticky top-0 z-50 bg-[#1e1e1e] border-b border-[#333] px-6 py-4 flex justify-between items-center w-full">
+               <div className="w-24 h-8 bg-gray-800 rounded-md animate-pulse"></div>
+               <div className="w-10 h-10 bg-gray-800 rounded-full animate-pulse"></div>
+            </header>
 
-                {/* Desktop Sidebar Skeleton */}
-                <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col h-[calc(100vh-32px)]">
-                   <div className="w-32 h-8 bg-gray-800 rounded mb-6 animate-pulse"></div>
-                   <div className="space-y-4 mb-10">
-                     {[1,2,3,4,5,6].map(i => <div key={i} className="w-full h-5 bg-gray-800 rounded animate-pulse"></div>)}
-                   </div>
-                   <div className="w-[100px] h-[100px] mx-auto rounded-full bg-gray-800 animate-pulse mt-4"></div>
-                   <div className="mt-auto w-12 h-12 bg-gray-800 rounded-xl animate-pulse"></div>
-                </aside>
+            {/* Desktop Sidebar Skeleton */}
+            <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col h-[calc(100vh-32px)]">
+               <div className="w-32 h-8 bg-gray-800 rounded mb-6 animate-pulse"></div>
+               <div className="space-y-4 mb-10">
+                 {[1,2,3,4,5,6].map(i => <div key={i} className="w-full h-5 bg-gray-800 rounded animate-pulse"></div>)}
+               </div>
+               <div className="w-[100px] h-[100px] mx-auto rounded-full bg-gray-800 animate-pulse mt-4"></div>
+               <div className="mt-auto w-12 h-12 bg-gray-800 rounded-xl animate-pulse"></div>
+            </aside>
 
-                {/* Main Area Skeleton */}
-                <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 lg:pl-4">
-                   <div className="bg-[#1e1e1e] rounded-3xl p-6 lg:p-8 min-h-[calc(100vh-48px)] border border-[#333]">
-                      <div className="flex justify-between items-center mb-8">
-                         <div className="w-48 h-10 bg-gray-800 rounded-xl animate-pulse"></div>
-                      </div>
-                      <div className="space-y-4">
-                         {[1,2,3,4,5].map(i => (
-                            <div key={i} className="w-full h-24 bg-gray-800 rounded-2xl animate-pulse"></div>
-                         ))}
-                      </div>
-                   </div>
-                </main>
-             </div>
-          );
-      }
-      if (!error) return null;
+            {/* Main Area Skeleton */}
+            <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 lg:pl-4">
+               <div className="bg-[#1e1e1e] rounded-3xl p-6 lg:p-8 min-h-[calc(100vh-48px)] border border-[#333]">
+                  <div className="flex justify-between items-center mb-8">
+                     <div className="w-48 h-10 bg-gray-800 rounded-xl animate-pulse"></div>
+                  </div>
+                  <div className="space-y-4">
+                     {[1,2,3,4,5].map(i => (
+                        <div key={i} className="w-full h-24 bg-gray-800 rounded-2xl animate-pulse"></div>
+                     ))}
+                  </div>
+               </div>
+            </main>
+         </div>
+      );
   }
+
+  // Create robust uiData fallback mapping to prevent client-side TypeError crashes when data is null/empty
+  const uiData = data || {
+      profileData: null,
+      attendanceData: [],
+      marksData: [],
+      timetableHTML: null,
+      timetableJSON: null,
+      courseData: {},
+      editedSlots: {},
+      netId: ''
+  };
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col lg:flex-row font-sans overflow-hidden">
@@ -309,13 +327,21 @@ export default function Dashboard() {
             <aside className="hidden lg:flex w-[260px] xl:w-[300px] bg-[#2a2a2a] m-4 mr-2 rounded-2xl p-6 flex-col flex-shrink-0 h-[calc(100vh-32px)] overflow-y-auto custom-scrollbar">
                <h2 className="text-white text-2xl font-bold mb-6">Profile</h2>
                <div className="space-y-4 text-[14px] text-gray-300 font-medium">
-                 <div><span className="font-bold text-white">Name:</span> {data.profileData.name}</div>
-                 <div><span className="font-bold text-white">Reg No:</span> {data.profileData.registrationNo}</div>
-                 <div><span className="font-bold text-white">Program:</span> {data.profileData.programmeBranch}</div>
-                 <div><span className="font-bold text-white">Section:</span> {data.profileData.section}</div>
-                 <div><span className="font-bold text-white">Semester:</span> {data.profileData.semester || '4'}</div>
-                 <div><span className="font-bold text-white">Day Order:</span> {data.profileData.dayOrder || 'No Day Order'}</div>
-                 <div><span className="font-bold text-white mt-2 block">Department:</span> {data.profileData.schoolDepartment}</div>
+                 {uiData.profileData ? (
+                   <>
+                     <div><span className="font-bold text-white">Name:</span> {uiData.profileData.name}</div>
+                     <div><span className="font-bold text-white">Reg No:</span> {uiData.profileData.registrationNo}</div>
+                     <div><span className="font-bold text-white">Program:</span> {uiData.profileData.programmeBranch}</div>
+                     <div><span className="font-bold text-white">Section:</span> {uiData.profileData.section}</div>
+                     <div><span className="font-bold text-white">Semester:</span> {uiData.profileData.semester || '4'}</div>
+                     <div><span className="font-bold text-white">Day Order:</span> {uiData.profileData.dayOrder || 'No Day Order'}</div>
+                     <div><span className="font-bold text-white mt-2 block">Department:</span> {uiData.profileData.schoolDepartment}</div>
+                   </>
+                 ) : (
+                   <div className="text-red-400 font-medium">
+                     Profile page currently unavailable. Please try again later.
+                   </div>
+                 )}
                </div>
                <div className="flex justify-center mt-10 mb-4">
                   <img 
@@ -325,7 +351,7 @@ export default function Dashboard() {
                      className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 
                   />
                   <div className="hidden w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-gradient-to-br from-[#1E88E5]/30 to-[#1E88E5]/10 flex items-center justify-center text-3xl font-bold text-[#1E88E5] shadow-lg tracking-wide select-none">
-                     {data.profileData.name ? data.profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}
+                     {uiData.profileData?.name ? uiData.profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}
                   </div>
                </div>
                
@@ -347,7 +373,7 @@ export default function Dashboard() {
                         </button>
                         
                         <div className="px-4 py-2 mt-1 border-t border-[#333] text-sm text-gray-300 font-bold truncate">
-                           {data.profileData.name}
+                           {uiData.profileData?.name || 'Profile Unavailable'}
                         </div>
                         
                         <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm font-bold text-[#ff5252] hover:bg-[#ff5252]/10 hover:translate-x-1 active:scale-[0.98] rounded-lg transition-all duration-200 flex items-center gap-3">
@@ -365,15 +391,15 @@ export default function Dashboard() {
                <div className="max-w-[1400px] mx-auto space-y-12 pb-4 lg:pb-0">
                    {/* Timetable Section */}
                    <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block pb-16' : 'hidden lg:block'}`}>
-                       {(data.timetableHTML || (data.timetableJSON && data.timetableJSON.days)) ? (
+                       {(uiData.timetableHTML || (uiData.timetableJSON && uiData.timetableJSON.days)) ? (
                            <TimetableView 
-                             htmlContent={data.timetableHTML || ''} 
-                             courseData={data.courseData} 
-                             netId={data.netId} 
+                             htmlContent={uiData.timetableHTML || ''} 
+                             courseData={uiData.courseData} 
+                             netId={uiData.netId} 
                              calendarData={calendarData}
-                             timetableJSON={data.timetableJSON}
-                             profileData={data.profileData}
-                             dbEditedSlots={data.editedSlots}
+                             timetableJSON={uiData.timetableJSON}
+                             profileData={uiData.profileData}
+                             dbEditedSlots={uiData.editedSlots}
                            />
                        ) : (isBgScraping && (
                            <div className="w-full h-[300px] rounded-xl bg-[#1e1e1e] border border-[#333] animate-pulse flex items-center justify-center">
@@ -385,14 +411,14 @@ export default function Dashboard() {
              
              {/* Attendance Section */}
              <div className={`lg:min-w-[700px] ${activeTab === 'Attendance' ? 'block pb-16' : 'hidden lg:block'}`}>
-                <AttendanceView data={data} isBgScraping={isBgScraping} />
+                <AttendanceView data={uiData} isBgScraping={isBgScraping} />
              </div>
 
              
              {/* Marks Section */}
              <div className={`lg:min-w-[700px] ${activeTab === 'Marks' ? 'block pb-32' : 'hidden lg:block'}`}>
                 <h2 className="text-2xl font-bold text-white mb-6 hidden lg:block">Marks</h2>
-                <MarksView data={data} isBgScraping={isBgScraping} />
+                <MarksView data={uiData} isBgScraping={isBgScraping} />
              </div>
 
          </div>
