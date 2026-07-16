@@ -1,0 +1,145 @@
+# Unfugly System Flow Document - Complete Technical Specifications
+
+This document outlines the detailed step-by-step operations, endpoints, data schemas, caching models, and fallbacks for the Chrome Extension, Web Application (Desktop & Mobile), and the Node.js Backend scraper.
+
+---
+
+## 1. CHROME EXTENSION FLOW
+
+### 1.1 Initialization and Injection
+1. The extension matches matching patterns on `https://academia.srmist.edu.in/*` and injects `content.js` and `styles.css`.
+2. On page load, `content.js` runs a MutationObserver to locate the main Academia navigation menu.
+3. The menu tab labeled **"Welcome"** (originally pointing to `/page/WELCOME`) is renamed to **"Unfuglied"**.
+4. When a user clicks the **"Unfuglied"** tab:
+   - Intercepts Academia's default iframe loading mechanism.
+   - Injects a wrapper element (`#unfugly-app-wrapper`) directly into the active tab's viewport.
+   - Renders the custom Unfugly dashboard container inside this wrapper.
+
+### 1.2 User Identification & Caching
+1. Extracts the student's unique NetID from the navbar element selector `#zc-account-settings > a > span.navbar_user_name` (e.g. `ab5992`).
+2. Checks local storage for cached student data using the key `unfuglyData_${netId}` via `chrome.storage.local.get`.
+   - **Cache Hit (Complete)**: Instantly renders the cached timetable, attendance cards, marks, and profile fields. Initiates a silent background scrape via native API fetches to check for updates, updating both the local cache and Supabase DB on changes.
+   - **Cache Miss (Empty)**: Displays a loading skeleton/animation and instantly triggers a foreground scrape.
+   - **Cache Hit (Partial)**: Renders whatever cached arrays are present, displaying loading states on missing segments, and initiates a prioritized background scrape for missing data.
+
+### 1.3 Native API Scraper (Client-Side Got/Fetch)
+If scraping is triggered, the extension sends requests directly to the Academia subpages using the user's active browser cookies:
+1. **Profile & Course Registry Info**:
+   - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_2023_24`
+   - Scrapes student name, registration number, branch, section, semester, and maps registered course codes to their respective slots (`courseSlotMap` e.g., slot `A` maps to Course `21MAB102T`).
+2. **Timetable HTML & JSON**:
+   - Inspects the student's batch extracted from course details.
+   - URL for Batch 1: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Unified_Time_Table_2025_Batch_1`
+   - URL for Batch 2: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Unified_Time_Table_2025_batch_2`
+   - Extracts the structural timetable grid (`timetableJSON` and raw `timetableHTML`).
+3. **Attendance & Marks**:
+   - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Attendance`
+   - Scrapes the attendance percentages, conducted hours, absent hours, classes skip/needs ratios, and parses the internal assessment grades, tests, and assignment marks.
+4. **Academic Calendar**:
+   - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2026_27_ODD` (updates based on the current semester identifier).
+   - Formats and saves calendar events under the `unfuglyData_calendar` storage key.
+
+### 1.4 API Safety & Backend Synchronization
+1. To secure user data and prevent harvesting, the extension communicates with the backend by requesting `chrome.runtime.sendMessage({ action: "fetch_backend", url, options })`.
+2. The background script (`background.js`) fetches cookies from all associated domains (`srmist.edu.in`, `zoho.in`, `zoho.com`), deduplicates them, and attaches them as a JSON string inside the custom header `x-academia-cookies`.
+3. The backend middleware validates these cookies against the live Academia `/page/WELCOME` page.
+   - **Valid Session (HTTP 200)**: Backend returns requested database cache.
+   - **Expired Session (Redirect to signin)**: The backend rejects with a `401` error, signaling the extension to fallback to local scraping or prompt the user to refresh their Academia tab.
+
+---
+
+## 2. WEB APPLICATION FLOW (DESKTOP & MOBILE)
+
+### 2.1 Route `/login` (Authentication Flow)
+1. User enters their SRM email/NetID and password.
+2. The frontend POSTs credentials to `${API_URL}/api/v1/auth/login`.
+3. The backend attempts a native 2-step Zoho authentication:
+   - Resolves any concurrent session limits automatically by terminating old sessions.
+   - Stores the validated Academia cookie jar in Supabase `user_logs` and hashes the user's password using `bcrypt` (salted with a secret pepper).
+   - **Crucial database step**: Since `user_logs` has a foreign key constraint on the `users` table, the backend first inserts/upserts a placeholder user record into `users` (`user_net_id`, `name = net_id.toUpperCase()`), and then inserts into `user_logs`.
+4. The server returns a JWT cookie (`unfugly_token`) and JSON payload containing the JWT token.
+5. The frontend saves the token under the `unfugly_token` key in `localStorage`.
+6. Clears all stale dashboard local cache keys (`dashboard_data_cache`, `unfugly_net_id`, etc.) and redirects to `/dashboard`.
+
+### 2.2 Route `/dashboard` (Dashboard Lifecycle)
+1. **Local Storage Cold Load**:
+   - Immediately checks `localStorage` for keys starting with `unfuglyData_` (e.g. `unfuglyData_ab5992`).
+   - If found, parses the string, sets the `data` state, and toggles `loading` to `false` for an instantaneous UI load.
+2. **Server Verification**:
+   - Requests `${API_URL}/api/v1/user/data` sending `Authorization: Bearer <token>` header.
+   - **Response 401**: Redirects to `/login`.
+   - **Response 404 (New User)**: The dashboard bypasses setting state from this error payload, toggles `loading` to `false`, and triggers `startScraping(true)` in the background.
+   - **Response 200 (Success)**: Sets `data` state to the returned DB cache, writes data to `localStorage` under `unfuglyData_${netId}`, and triggers background sync.
+3. **Background Progressive Scrape (SSE Progress stream)**:
+   - Resolves the student NetID from local state or cached JWT parameters.
+   - Establishes a Server-Sent Events (SSE) link to `${API_URL}/api/v1/scrape/progress/${netId}`.
+   - Displays real-time toast/banner messages showing scraping stages ("Fetching profile...", "Generating timetable...", "Persisting data...").
+   - Triggers POST `${API_URL}/api/v1/scrape/all`.
+   - Upon completion, merges the returned payload (`scrapedData`) with existing states and saves it back to the database by POSTing to `${API_URL}/api/v1/user/save`.
+4. **Crash Prevention & Safe Fallback Layouts**:
+   - Outer guard `if (loading)` blocks rendering only while active. If loading completes with no data in state (e.g. initial sync delay), it allows the UI to render.
+   - Maps a default `uiData` fallback object (`const uiData = data || { profileData: null, attendanceData: [], marksData: [], courseData: {}, editedSlots: {} }`) to supply safe properties to subcomponents, preventing `Cannot read properties of null` TypeErrors.
+   - `BottomNav` accesses cached local profile entries using optional chaining (`parsed?.profileData || null`) to handle empty cache states.
+5. **Desktop vs. Mobile Rendering Layouts**:
+   - **Desktop Layout**: Displays a permanent sidebar showing the profile details card (name, department, section, registration number, semester), initials-based fallback avatar, and log out menu; renders active tab components (`TimetableView`, `AttendanceView`, `MarksView`) in a grid.
+   - **Mobile Layout**: Renders a clean top header showing the active tab name; places a floating `BottomNav` bar at the bottom with tab toggles, an expandable profile drawer, and custom navigation overrides.
+6. **Authenticated Image Proxy**:
+   - Image tags (`<img>`) cannot natively send custom `Authorization` Bearer headers.
+   - The frontend loads profile photos by calling `${API_URL}/api/v1/user/photo?token=${localStorage.getItem('unfugly_token')}`.
+   - The backend `verifyJWT` checks for `req.query.token` and proxies the student image securely.
+
+### 2.3 Route `/feedback` (Fastrack Auto-filler)
+1. Fetches total form history count from `${API_URL}/api/v1/feedback/count`.
+2. When the user clicks **"Load Pending Feedback Forms"**:
+   - Webapp requests `${API_URL}/api/v1/feedback/fields`.
+   - Backend opens a headless browser session with the user's cookies, navigates to Academia's feedback page, extracts pending courses, rows, options, and text field requirements, and returns them as JSON.
+3. Frontend renders course cards and a settings panel:
+   - Users can toggle "Same rating for all" (Very Good, Excellent, etc.) or set them individually.
+   - Users can customize comments for all courses or fill them per course card.
+4. When clicking **"Submit All"**:
+   - Frontend POSTs a payload structure of submissions to `${API_URL}/api/v1/feedback/batch`.
+   - The backend logs in, navigates to each form, fills the corresponding radios and textareas, submits the form, and updates the sync metrics.
+   - Frontend updates the submission status (success/error/submitting) per card.
+
+### 2.4 Route `/calendar` (Academic Planner)
+1. Fetches current planner records from `${API_URL}/api/v1/calendar`.
+2. Renders a grid-based calendar view split by month.
+3. Support offline fallbacks with built-in planner datasets if the backend is unreachable.
+
+---
+
+## 3. BACKEND API & SCRAPER CORE
+
+### 3.1 Tech Stack & Middleware
+- Built on **Express.js**, using **got-scraping** for rapid JSON/page fetches and **Playwright (Chromium)** for automated browser actions (Feedback forms).
+- Connected to **Supabase** via JS client libraries for database operations.
+- **`verifyJWT` Auth Middleware**:
+  - **Mode 1 (Extension)**: Checks `req.headers['x-academia-cookies']`. Parses cookies, checks validation cache (5 min TTL) to avoid hitting SRM rate limits, fetches the live Academia `/page/WELCOME` url with the cookie header, validates that it doesn't redirect to Zoho, updates cookie array in Supabase `user_logs`, and passes to `next()`.
+  - **Mode 2 (Webapp)**: Extracts token from cookies (`req.cookies.unfugly_token`), authorization header (`Bearer <token>`), or query parameters (`req.query.token`). Decodes payload via JWT secret, and sets `req.user`.
+
+### 3.2 Main API Endpoint Handlers
+1. **`POST /api/v1/auth/login`**:
+   - Mimics a real browser request to Zoho accounts.
+   - Terminates concurrent sessions if Zoho issues a block warning page.
+   - Exhanges temporary identity transfer tokens (`_iamtt`) for active session identities.
+   - Hashes credentials and records cookies in Supabase.
+   - First inserts/upserts a placeholder student record in `users` (`user_net_id`, `name = net_id.toUpperCase()`) to avoid foreign key violations when saving cookies to `user_logs`.
+2. **`POST /api/v1/auth/extension-session`**:
+   - Saves cookies received from the extension.
+   - Validates live status, upserts a user placeholder into the `users` table, and updates `user_logs` cookies.
+3. **`GET /api/v1/user/data`**:
+   - Queries `users` and `user_logs` tables.
+   - Combines user profile fields and synchronized timetables/marks/attendance arrays. Returns 404 if no records exist.
+4. **`POST /api/v1/user/save`**:
+   - Upserts detailed profile fields (retrieved from scraping) to `users` and academic data to `user_logs`, resolving the initial login placeholder values.
+5. **`GET /api/v1/user/photo`**:
+   - Serves the user's profile image.
+   - If the URL in DB is a relative path (e.g. `/srm_university/...`), sanitizes the slashes and prepends `ACADEMIA_BASE`.
+   - If `profile_image_url` is null in the database, it initiates a live fallback scraper request to `Student_Profile_Report` via `got-scraping`, extracts the image source via Regex, cleans the URL, updates the `users` table, and proxies the image.
+6. **`POST /api/v1/scrape/all`**:
+   - Fetches Academia timetable, batch registry, attendance, and marks.
+   - Runs extracted text through parsing helpers.
+   - If any endpoint fails, it falls back to previously saved DB logs to prevent losing visual data blocks (graceful partial failure reporting).
+7. **`GET /api/v1/scrape/progress/:net_id`**:
+   - Returns a Server-Sent Events (SSE) text stream.
+   - Scraper files emit progress messages (`emitProgress`) to let clients render visual sync stages.
