@@ -7,16 +7,16 @@ This document outlines the detailed step-by-step operations, endpoints, data sch
 ## 1. CHROME EXTENSION FLOW
 
 ### 1.1 Initialization and Injection
-1. The extension matches matching patterns on `https://academia.srmist.edu.in/*` and injects `content.js` and `styles.css`.
+1. The extension matches pattern `https://academia.srmist.edu.in/*` and injects `content.js` and `styles.css`.
 2. On page load, `content.js` runs a MutationObserver to locate the main Academia navigation menu.
 3. The menu tab labeled **"Welcome"** (originally pointing to `/page/WELCOME`) is renamed to **"Unfuglied"**.
 4. When a user clicks the **"Unfuglied"** tab:
-   - Intercepts Academia's default iframe loading mechanism.
+   - Intercepts Academia's default SPA loading mechanism.
    - Injects a wrapper element (`#unfugly-app-wrapper`) directly into the active tab's viewport.
    - Renders the custom Unfugly dashboard container inside this wrapper.
 
 ### 1.2 User Identification & Caching
-1. Extracts the student's unique NetID from the navbar element selector `#zc-account-settings > a > span.navbar_user_name` (e.g. `ab5992`).
+1. Extracts the student's unique NetID from the navbar element selector `#zc-account-settings > a > span.navbar_user_name` (e.g. `gr2383`).
 2. Checks local storage for cached student data using the key `unfuglyData_${netId}` via `chrome.storage.local.get`.
    - **Cache Hit (Complete)**: Instantly renders the cached timetable, attendance cards, marks, and profile fields. Initiates a silent background scrape via native API fetches to check for updates, updating both the local cache and Supabase DB on changes.
    - **Cache Miss (Empty)**: Displays a loading skeleton/animation and instantly triggers a foreground scrape.
@@ -26,20 +26,107 @@ This document outlines the detailed step-by-step operations, endpoints, data sch
 If scraping is triggered, the extension sends requests directly to the Academia subpages using the user's active browser cookies:
 1. **Profile & Course Registry Info**:
    - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_2023_24`
-   - Scrapes student name, registration number, branch, section, semester, and maps registered course codes to their respective slots (`courseSlotMap` e.g., slot `A` maps to Course `21MAB102T`).
+   - Scrapes student name, registration number, branch, section, semester, and maps registered course codes to their respective slots (`courseSlotMap`).
+   - *Example parsed courseData structure*:
+     ```json
+     {
+       "B": {
+         "Credit": "4",
+         "Room No.": "1102",
+         "Course Code": "21MAB102T",
+         "Course Title": "Advanced Calculus and Complex Analysis",
+         "Faculty Name": "Dr. Jishnu Sen (103873)"
+       }
+     }
+     ```
 2. **Timetable HTML & JSON**:
    - Inspects the student's batch extracted from course details.
    - URL for Batch 1: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Unified_Time_Table_2025_Batch_1`
    - URL for Batch 2: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Unified_Time_Table_2025_batch_2`
-   - Extracts the structural timetable grid (`timetableJSON` and raw `timetableHTML`).
+   - Extracts structural timetable grid parameters.
+   - *Example parsed timetableJSON structure*:
+     ```json
+     {
+       "days": [
+         {
+           "dayName": "Day 1",
+           "slots": [
+             {
+               "title": "P1",
+               "bgColor": "lightgreen"
+             }
+           ]
+         }
+       ],
+       "headers": ["Time", "08:00 - 08:50", "08:50 - 09:40"],
+       "extraSlotFlag": true
+     }
+     ```
 3. **Attendance & Marks**:
    - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Attendance`
-   - Scrapes the attendance percentages, conducted hours, absent hours, classes skip/needs ratios, and parses the internal assessment grades, tests, and assignment marks.
+   - *Example parsed attendanceData structure*:
+     ```json
+     [
+       {
+         "isLocked": true,
+         "courseCode": "21MAB102T",
+         "courseType": "Theory",
+         "percentage": 77,
+         "absentHours": "N/A",
+         "courseTitle": "Advanced Calculus and Complex Analysis",
+         "classesToSkip": 0,
+         "hoursConducted": "N/A",
+         "attendedClasses": "N/A",
+         "classesToAttend": 0
+       }
+     ]
+     ```
+   - *Example parsed marksData structure*:
+     ```json
+     [
+       {
+         "Components": [
+           {
+             "MaxMarks": 15,
+             "ComponentName": "FT-III",
+             "ObtainedMarks": 3.15
+           }
+         ],
+         "CourseCode": "21MAB102T",
+         "CourseType": "Theory",
+         "CourseTitle": "Advanced Calculus and Complex Analysis",
+         "TotalMaxMarks": 60,
+         "TotalObtainedMarks": 34.1
+       }
+     ]
+     ```
 4. **Academic Calendar**:
-   - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2026_27_ODD` (updates based on the current semester identifier).
-   - Formats and saves calendar events under the `unfuglyData_calendar` storage key.
+   - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_2026_27_ODD`
+   - *Example parsed calendarData structure*:
+     ```json
+     {
+       "2026_27_ODD": {
+         "data": {
+           "Aug '26": {
+             "1": {
+               "day": "Sat",
+               "dayOrder": "-",
+               "event": "Enrolment Day Starts"
+             }
+           }
+         },
+         "lastUpdated": "2026-07-16T15:15:16.079Z"
+       }
+     }
+     ```
 
-### 1.4 API Safety & Backend Synchronization
+### 1.5 Timetable Edited Slots Flow (Extension & Webapp)
+1. **Custom Edits Entry**: In the timetable view, users can click on any unallocated (grey) slot to open an edit dialog modal where they input custom course details (e.g. course title and classroom).
+2. **Local Persistence**: These modifications are written to `localStorage` under `timetable_edits_${netId}` (for instant client loads) and merged into the `editedSlots` object field of the cached data.
+3. **Database Synchronization**: During sync triggers, this `editedSlots` object payload is sent to the backend `/api/v1/user/save` endpoint to update the `edited_slots` JSON column in the Supabase `user_logs` table.
+4. **UI Integration**: On mounting, `TimetableView` fetches the custom configurations and overlays them directly onto the template slots parsed from `timetableJSON`. Toggling the **"Hide Edits"** state dynamically switches whether custom slots show as filled or fallback to empty grey layouts.
+
+### 1.6 API Safety & Backend Synchronization
 1. To secure user data and prevent harvesting, the extension communicates with the backend by requesting `chrome.runtime.sendMessage({ action: "fetch_backend", url, options })`.
 2. The background script (`background.js`) fetches cookies from all associated domains (`srmist.edu.in`, `zoho.in`, `zoho.com`), deduplicates them, and attaches them as a JSON string inside the custom header `x-academia-cookies`.
 3. The backend middleware validates these cookies against the live Academia `/page/WELCOME` page.
@@ -50,16 +137,21 @@ If scraping is triggered, the extension sends requests directly to the Academia 
 
 ## 2. WEB APPLICATION FLOW (DESKTOP & MOBILE)
 
-### 2.1 Route `/login` (Authentication Flow)
-1. User enters their SRM email/NetID and password.
-2. The frontend POSTs credentials to `${API_URL}/api/v1/auth/login`.
-3. The backend attempts a native 2-step Zoho authentication:
-   - Resolves any concurrent session limits automatically by terminating old sessions.
-   - Stores the validated Academia cookie jar in Supabase `user_logs` and hashes the user's password using `bcrypt` (salted with a secret pepper).
-   - **Crucial database step**: Since `user_logs` has a foreign key constraint on the `users` table, the backend first inserts/upserts a placeholder user record into `users` (`user_net_id`, `name = net_id.toUpperCase()`), and then inserts into `user_logs`.
-4. The server returns a JWT cookie (`unfugly_token`) and JSON payload containing the JWT token.
-5. The frontend saves the token under the `unfugly_token` key in `localStorage`.
-6. Clears all stale dashboard local cache keys (`dashboard_data_cache`, `unfugly_net_id`, etc.) and redirects to `/dashboard`.
+### 2.1 Route `/login` (Authentication & New User DB Signup Flow)
+1. **User Request**: User enters email/NetID and password and hits submit.
+2. **API Call**: Webapp POSTs credentials to `${API_URL}/api/v1/auth/login`.
+3. **Backend Authentication & Session Setup**:
+   - Resolves concurrent session limits (auto-deletes blocks if Zoho triggers "sessions-reminder").
+   - Fetches redirect chains to finalize the Academia application session.
+   - Hashes user password with `bcrypt` (salted with a pepper).
+4. **New User Database Upsert Flow (Constraint Safety)**:
+   - Supabase schema has a foreign key constraint linking `user_logs.user_net_id` to `users.user_net_id`.
+   - To avoid constraint failures (`violates foreign key constraint`), the backend executes a two-step transaction:
+     1. First, upserts a placeholder row to the `users` table: `{ user_net_id: net_id, name: net_id.toUpperCase() }`.
+     2. Second, upserts auth credentials to `user_logs`: `{ user_net_id: net_id, password_hash: newHash, academia_cookies: cookies }`.
+     - Explicit error handling is wrapped around both steps; if database updates fail, errors are caught, logged, and thrown, preventing invalid logins from succeeding.
+5. **Token Generation**: The server returns a signed JWT cookie (`unfugly_token`) and JSON payload containing the JWT token.
+6. **Frontend Handshake**: Frontend stores the token as `unfugly_token` in `localStorage`, clears any stale caches (`dashboard_data_cache`, `timetable_edits_*`), and navigates to `/dashboard`.
 
 ### 2.2 Route `/dashboard` (Dashboard Lifecycle)
 1. **Local Storage Cold Load**:
@@ -88,58 +180,98 @@ If scraping is triggered, the extension sends requests directly to the Academia 
    - The frontend loads profile photos by calling `${API_URL}/api/v1/user/photo?token=${localStorage.getItem('unfugly_token')}`.
    - The backend `verifyJWT` checks for `req.query.token` and proxies the student image securely.
 
-### 2.3 Route `/feedback` (Fastrack Auto-filler)
-1. Fetches total form history count from `${API_URL}/api/v1/feedback/count`.
-2. When the user clicks **"Load Pending Feedback Forms"**:
-   - Webapp requests `${API_URL}/api/v1/feedback/fields`.
-   - Backend opens a headless browser session with the user's cookies, navigates to Academia's feedback page, extracts pending courses, rows, options, and text field requirements, and returns them as JSON.
-3. Frontend renders course cards and a settings panel:
-   - Users can toggle "Same rating for all" (Very Good, Excellent, etc.) or set them individually.
-   - Users can customize comments for all courses or fill them per course card.
-4. When clicking **"Submit All"**:
-   - Frontend POSTs a payload structure of submissions to `${API_URL}/api/v1/feedback/batch`.
-   - The backend logs in, navigates to each form, fills the corresponding radios and textareas, submits the form, and updates the sync metrics.
-   - Frontend updates the submission status (success/error/submitting) per card.
+### 2.3 Profile Photo URL Scraping & Formatting Flow
+1. **Extension Image Fetch**:
+   - The extension reads the `Student_Profile_Report` HTML page using active cookies.
+   - Uses a RegExp match to find the relative download link: `src=\\"([^"\']*download-file[^"\']*)\\"` or `src=['"]([^'"]*download-file[^'"]*)['"]`.
+   - Prepend `ACADEMIA_BASE` (e.g. `https://academia.srmist.edu.in`), strips out slash escape characters (`\/` to `/`), converts XML entities (`&amp;` to `&`), and discards the preview parameter (`&isPreview=...`).
+2. **Backend Image Fallback Scraper**:
+   - When webapp requests `${API_URL}/api/v1/user/photo`, if the DB contains a relative path starting with `/`, the backend dynamically sanitizes it (prepending domain, converting entities).
+   - If the DB field is null, the backend makes an immediate request to `/report/Student_Profile_Report` via `got-scraping` using the cached user session. It parses out the image URL, sanitizes it, updates the `users` table row, and proxies the raw image binary to the webapp image tag.
 
-### 2.4 Route `/calendar` (Academic Planner)
-1. Fetches current planner records from `${API_URL}/api/v1/calendar`.
-2. Renders a grid-based calendar view split by month.
-3. Support offline fallbacks with built-in planner datasets if the backend is unreachable.
+### 2.4 Route `/feedback` (Fastrack Auto-filler & Form Filling Flow)
+1. **Forms Discovery**: When clicking **"Load Pending Feedback Forms"**, the frontend sends a GET request to `${API_URL}/api/v1/feedback/fields`.
+2. **Playwright Extraction (Backend)**:
+   - Backend scraper launches a headless Playwright instance and injects the user's active session cookies.
+   - Navigates to the Academia feedback modules, scans the DOM for pending evaluations, and extracts the list of courses.
+   - Scrapes input drop-downs, rating selections, textarea comments, and target page parameters, sending them back to the frontend.
+3. **Form Submission Routing**: When the user clicks **"Submit All"**, the webapp packages individual user settings and comments per course row and POSTs it to `${API_URL}/api/v1/feedback/batch`.
+4. **Playwright Automation Submission**:
+   - Backend iterates over the batch list using Playwright.
+   - Navigates to the corresponding feedback links, auto-selects radio inputs based on selected rating values (e.g. Excellent), fills textarea elements with custom comments, and programmatically submits each form.
+   - Streams status updates to the client and reports sync results on success.
 
 ---
 
-## 3. BACKEND API & SCRAPER CORE
+## 3. DATA PERSISTENCE & INTEGRATED CACHE OBJECT
 
-### 3.1 Tech Stack & Middleware
-- Built on **Express.js**, using **got-scraping** for rapid JSON/page fetches and **Playwright (Chromium)** for automated browser actions (Feedback forms).
-- Connected to **Supabase** via JS client libraries for database operations.
-- **`verifyJWT` Auth Middleware**:
-  - **Mode 1 (Extension)**: Checks `req.headers['x-academia-cookies']`. Parses cookies, checks validation cache (5 min TTL) to avoid hitting SRM rate limits, fetches the live Academia `/page/WELCOME` url with the cookie header, validates that it doesn't redirect to Zoho, updates cookie array in Supabase `user_logs`, and passes to `next()`.
-  - **Mode 2 (Webapp)**: Extracts token from cookies (`req.cookies.unfugly_token`), authorization header (`Bearer <token>`), or query parameters (`req.query.token`). Decodes payload via JWT secret, and sets `req.user`.
-
-### 3.2 Main API Endpoint Handlers
-1. **`POST /api/v1/auth/login`**:
-   - Mimics a real browser request to Zoho accounts.
-   - Terminates concurrent sessions if Zoho issues a block warning page.
-   - Exhanges temporary identity transfer tokens (`_iamtt`) for active session identities.
-   - Hashes credentials and records cookies in Supabase.
-   - First inserts/upserts a placeholder student record in `users` (`user_net_id`, `name = net_id.toUpperCase()`) to avoid foreign key violations when saving cookies to `user_logs`.
-2. **`POST /api/v1/auth/extension-session`**:
-   - Saves cookies received from the extension.
-   - Validates live status, upserts a user placeholder into the `users` table, and updates `user_logs` cookies.
-3. **`GET /api/v1/user/data`**:
-   - Queries `users` and `user_logs` tables.
-   - Combines user profile fields and synchronized timetables/marks/attendance arrays. Returns 404 if no records exist.
-4. **`POST /api/v1/user/save`**:
-   - Upserts detailed profile fields (retrieved from scraping) to `users` and academic data to `user_logs`, resolving the initial login placeholder values.
-5. **`GET /api/v1/user/photo`**:
-   - Serves the user's profile image.
-   - If the URL in DB is a relative path (e.g. `/srm_university/...`), sanitizes the slashes and prepends `ACADEMIA_BASE`.
-   - If `profile_image_url` is null in the database, it initiates a live fallback scraper request to `Student_Profile_Report` via `got-scraping`, extracts the image source via Regex, cleans the URL, updates the `users` table, and proxies the image.
-6. **`POST /api/v1/scrape/all`**:
-   - Fetches Academia timetable, batch registry, attendance, and marks.
-   - Runs extracted text through parsing helpers.
-   - If any endpoint fails, it falls back to previously saved DB logs to prevent losing visual data blocks (graceful partial failure reporting).
-7. **`GET /api/v1/scrape/progress/:net_id`**:
-   - Returns a Server-Sent Events (SSE) text stream.
-   - Scraper files emit progress messages (`emitProgress`) to let clients render visual sync stages.
+### 3.1 Unified cache schema structure `unfuglyData_${netId}`:
+```json
+{
+  "attendanceData": [
+    {
+      "courseCode": "21MAB102T",
+      "courseTitle": "Advanced Calculus and Complex Analysis",
+      "courseType": "Theory",
+      "percentage": 77,
+      "attendedClasses": "N/A",
+      "absentHours": "N/A",
+      "hoursConducted": "N/A",
+      "classesToAttend": 0,
+      "classesToSkip": 0,
+      "isLocked": true
+    }
+  ],
+  "courseData": {
+    "B": {
+      "Course Code": "21MAB102T",
+      "Course Title": "Advanced Calculus and Complex Analysis",
+      "Credit": "4",
+      "Faculty Name": "Dr. Jishnu Sen (103873)",
+      "Room No.": "1102"
+    }
+  },
+  "editedSlots": {},
+  "lastUpdated": "2026-07-16T17:51:08.354Z",
+  "marksData": [
+    {
+      "CourseCode": "21MAB102T",
+      "CourseTitle": "Advanced Calculus and Complex Analysis",
+      "CourseType": "Theory",
+      "TotalMaxMarks": 60,
+      "TotalObtainedMarks": 34.1,
+      "Components": [
+        {
+          "ComponentName": "FT-III",
+          "MaxMarks": 15,
+          "ObtainedMarks": 3.15
+        }
+      ]
+    }
+  ],
+  "profileData": {
+    "name": "ANJELINA BERA",
+    "programmeBranch": "B.Tech",
+    "registrationNo": "RA2511050010004",
+    "schoolDepartment": "Computer Science and Engineering(CS BCT)",
+    "section": "AS2",
+    "semester": "2"
+  },
+  "timetableJSON": {
+    "days": [
+      {
+        "dayName": "Day 1",
+        "slots": [
+          {
+            "bgColor": "lightgreen",
+            "title": "P1"
+          }
+        ]
+      }
+    ],
+    "extraSlotFlag": true,
+    "headers": ["Time", "08:00 - 08:50"]
+  }
+}
+```
+*Note: Any successful scraping or custom timetable slot editing triggers an immediate update to the client's `localStorage` and a sync to the remote database to ensure structural parity.*
