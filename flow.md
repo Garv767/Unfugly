@@ -123,14 +123,14 @@ If scraping is triggered, the extension sends requests directly to the Academia 
 ### 1.5 Timetable Edited Slots Flow (Extension & Webapp)
 1. **Custom Edits Entry**: In the timetable view, users can click on any unallocated (grey) slot to open an edit dialog modal where they input custom course details (e.g. course title and classroom).
 2. **Local Persistence**: These modifications are written to `localStorage` under `timetable_edits_${netId}` (for instant client loads) and merged into the `editedSlots` object field of the cached data.
-3. **Database Synchronization**: During sync triggers, this `editedSlots` object payload is sent to the backend `/api/v1/user/save` endpoint to update the `edited_slots` JSON column in the Supabase `user_logs` table.
+3. **Database Synchronization**: During sync triggers, this `editedSlots` object payload is sent to the backend `/api/v1/user/save` endpoint to update the `edited_slots` JSON column in the Supabase `user_logs` table. To protect against race conditions, the frontend explicitly includes `editedSlots` in the POST payload, and the backend queries and preserves the existing database cache if the client payload is omitted, preventing custom entries from being overwritten.
 4. **UI Integration**: On mounting, `TimetableView` fetches the custom configurations and overlays them directly onto the template slots parsed from `timetableJSON`. Toggling the **"Hide Edits"** state dynamically switches whether custom slots show as filled or fallback to empty grey layouts.
 
 ### 1.6 API Safety & Backend Synchronization
 1. To secure user data and prevent harvesting, the extension communicates with the backend by requesting `chrome.runtime.sendMessage({ action: "fetch_backend", url, options })`.
 2. The background script (`background.js`) fetches cookies from all associated domains (`srmist.edu.in`, `zoho.in`, `zoho.com`), deduplicates them, and attaches them as a JSON string inside the custom header `x-academia-cookies`.
 3. The backend middleware validates these cookies against the live Academia `/page/WELCOME` page.
-   - **Valid Session (HTTP 200)**: Backend returns requested database cache.
+   - **Valid Session (HTTP 200)**: Backend returns requested database cache. During validation, the backend parses the verified student NetID directly from the HTML response (specifically using a regex match on the `navbar_user_name` span class) and stores the `netId` inside the verification cache alongside the timestamp. This guarantees requests map securely to the real logged-in NetID and prevents unauthenticated spoofing fallbacks.
    - **Expired Session (Redirect to signin)**: The backend rejects with a `401` error, signaling the extension to fallback to local scraping or prompt the user to refresh their Academia tab.
 
 ---

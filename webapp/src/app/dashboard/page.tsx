@@ -202,6 +202,7 @@ export default function Dashboard() {
               timetable_html: mergedData.timetableHTML,
               timetableJSON:  mergedData.timetableJSON,
               courseData:     mergedData.courseData,
+              editedSlots:    mergedData.editedSlots,
               source:         'webapp',
               lastUpdated:    new Date().toISOString()
             })
