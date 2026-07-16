@@ -83,10 +83,6 @@ async function handleFetchBackend(request, sendResponse) {
       return true;
     });
 
-    // Log the names+domains of the cookies we are sending for debugging
-    const cookieDetails = combined.map(c => `${c.name} (${c.domain})`);
-    console.warn(`[UNFUGLY BG] Sending ${combined.length} cookies to backend:`, cookieDetails);
-
     if (combined.length === 0) {
       UnfuglyLog.warn('AUTH_01', 'No cookies found! Auth will fail. Are you logged into Academia?');
     }

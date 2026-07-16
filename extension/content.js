@@ -1648,9 +1648,12 @@ async function handleFeedbackPage() {
 
 /*Handles academic planner page*/
 async function handleAcademicPlannerPage() {
-    console.log("handleAcademicPlannerPage: Triggering background sync only (UI injection disabled).");
-    if (typeof syncAllCalendars === 'function') {
-        syncAllCalendars().catch(e => console.error("Calendar sync failed:", e));
+    const hash = window.location.hash || '';
+    const match = hash.match(/Academic_Planner_([A-Za-z0-9_]+)/);
+    const semKey = match ? match[1] : getCurrentSemesterKey();
+    console.log(`handleAcademicPlannerPage: Triggering background sync for semester ${semKey} only.`);
+    if (typeof syncCalendarForSemester === 'function') {
+        syncCalendarForSemester(semKey).catch(e => console.error("Calendar sync failed:", e));
     }
 }
 

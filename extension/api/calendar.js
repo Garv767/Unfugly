@@ -198,14 +198,12 @@ async function syncCalendarForSemester(semesterKey) {
             // 1. Check Local Storage
             if (cachedSem && cachedSem.data) {
                 if (!isCurrent) {
-                    console.log(`syncCalendarForSemester: Found ${semesterKey} in cache (Old Sem). Skipping DB.`);
                     return resolve(cachedSem);
                 } else {
                     const lastUpdateDate = new Date(cachedSem.lastUpdated);
                     if (!isNaN(lastUpdateDate)) {
                         const diffInHours = (new Date() - lastUpdateDate) / (1000 * 60 * 60);
                         if (diffInHours < 24) {
-                            console.log(`syncCalendarForSemester: Cache for ${semesterKey} is fresh (<24h). Skipping DB.`);
                             return resolve(cachedSem);
                         }
                     }
@@ -221,13 +219,11 @@ async function syncCalendarForSemester(semesterKey) {
             const apiUrl = `${BACKEND}/api/v1/calendar?semester=${semesterKey}&net_id=${netId}`;
             let fetchedFromDb = false;
             try {
-                console.log(`syncCalendarForSemester: Fetching ${semesterKey} from DB at ${apiUrl}`);
                 const resObj = await new Promise((promResolve) => {
                     chrome.runtime.sendMessage(
                         { action: "fetch_backend", url: apiUrl, options: { method: "GET" } },
                         (response) => {
                             if (chrome.runtime.lastError) {
-                                console.warn(`syncCalendarForSemester: sendMessage error for ${semesterKey}:`, chrome.runtime.lastError.message);
                                 promResolve(null);
                             } else {
                                 promResolve(response);
@@ -235,7 +231,6 @@ async function syncCalendarForSemester(semesterKey) {
                         }
                     );
                 });
-                console.log(`syncCalendarForSemester: DB response for ${semesterKey}:`, resObj?.data?.status, resObj?.success);
                 if (resObj && resObj.success && resObj.data.ok) {
                     const json = JSON.parse(resObj.data.text);
                     if (json && json.calendar_json) {
@@ -245,11 +240,8 @@ async function syncCalendarForSemester(semesterKey) {
                         };
                         rootCalendar[semesterKey] = updatedCalendarWrap;
                         chrome.storage.local.set({ 'unfuglyData_calendar': rootCalendar });
-                        console.log(`syncCalendarForSemester: ${semesterKey} fetched from DB and saved`);
                         fetchedFromDb = true;
                         return resolve(updatedCalendarWrap);
-                    } else {
-                        console.warn(`syncCalendarForSemester: DB returned ok but no calendar_json for ${semesterKey}`);
                     }
                 } else if (resObj && resObj.data) {
                     window.UnfuglyLog.warn('CAL_01', `syncCalendarForSemester: DB returned ${resObj.data.status} for ${semesterKey}`);
@@ -327,15 +319,6 @@ async function syncCalendarForSemester(semesterKey) {
  * Fetches all predefined calendar URLs natively, parses them, and stores the data per semester.
  */
 async function syncAllCalendars() {
-    window.UnfuglyLog.info('CAL_03', "syncAllCalendars: Starting native calendar sync.");
-    const semestersToSync = [
-        "2024_25_EVEN",
-        "2025_26_ODD",
-        "2025_26_EVEN",
-        "2026_27_ODD"
-    ];
-
-    for (const sem of semestersToSync) {
-        await syncCalendarForSemester(sem);
-    }
+    const currentSem = getCurrentSemesterKey();
+    await syncCalendarForSemester(currentSem);
 }
