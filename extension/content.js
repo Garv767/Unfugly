@@ -3229,6 +3229,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
         // Start with DB edits
         Object.keys(dbEditedSlots).forEach(slotId => {
+            if (slotId === 'last_edited') return; // skip meta-key
             const entry = dbEditedSlots[slotId];
             if (entry) {
                 const titleVal = entry.editedTitle ?? entry.title ?? '';
@@ -3242,6 +3243,7 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
 
         // Overwrite with local edits (which take priority)
         Object.keys(currentLocalEdits).forEach(slotId => {
+            if (slotId === 'last_edited') return; // skip meta-key
             const entry = currentLocalEdits[slotId];
             if (entry) {
                 const titleVal = entry.editedTitle ?? entry.title ?? '';

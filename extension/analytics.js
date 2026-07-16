@@ -41,18 +41,27 @@ function getISTString() {
     return `${day} ${month} ${year}, ${hours}:${mins} ${ampm}`;
 }
 
-
+// ─────────────────────────────────────────────────────────────
+// Debounce map — keyed by netId, ensures only one save fires
+// per 5-second window even if storage.onChanged fires 3+ times
+// during a background scrape cycle (MED-05 fix)
+// ─────────────────────────────────────────────────────────────
+const _syncTimers = {};
 
 // ─────────────────────────────────────────────────────────────
 // Syncs ALL user data (profile + attendance + marks + timetable)
 // ─────────────────────────────────────────────────────────────
 async function syncUserData(netId, data) {
+    // Strip last_edited meta-key from editedSlots before sending to backend
+    const editedSlots = data.editedSlots ? { ...data.editedSlots } : null;
+    if (editedSlots) delete editedSlots.last_edited;
+
     const payload = {
         netId:          netId,
         profileData:    data.profileData,
         attendanceData: data.attendanceData   ?? null,
         marksData:      data.marksData        ?? null,
-        editedSlots:    data.editedSlots      ?? null,
+        editedSlots:    editedSlots           ?? null,
         timetableJSON:  data.timetableJSON    ?? null,
         courseData:     data.courseData       ?? null,
         lastUpdated:    getISTString(),
@@ -89,7 +98,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
         if (key === 'unfuglyData_calendar') {
             // DEPRECATED: Calendar syncing is now handled per-semester by api/calendar.js
-            // Removing old syncCalendar calls to prevent infinite loops and schema conflicts.
             continue;
         } else if (
             key.startsWith('unfuglyData_') &&
@@ -98,8 +106,17 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
         ) {
             const netId = key.replace('unfuglyData_', '');
 
-            // 1. Sync full user data to backend
-            await syncUserData(netId, newValue);
+            // MED-05: Debounce — collapse multiple rapid storage writes into one save call
+            if (_syncTimers[netId]) clearTimeout(_syncTimers[netId]);
+            _syncTimers[netId] = setTimeout(async () => {
+                delete _syncTimers[netId];
+                // Re-read the very latest value at fire time (not the stale closure value)
+                const latest = await chrome.storage.local.get(key).catch(() => ({}));
+                const latestData = latest[key];
+                if (latestData?.profileData) {
+                    await syncUserData(netId, latestData);
+                }
+            }, 5000); // 5-second debounce window
         }
     }
-});
+});
