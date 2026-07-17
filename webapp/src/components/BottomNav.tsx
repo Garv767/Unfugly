@@ -123,7 +123,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                </div>
                 <div className="flex justify-center gap-7 mb-3">
                   <a 
-                     href="https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce" 
+                     href="https://extension.unfugly.app" 
                      target="_blank" 
                      rel="noopener noreferrer"
                      title="Chrome Extension"

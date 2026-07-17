@@ -411,7 +411,7 @@ export default function Dashboard() {
                         
                         <div className="flex justify-center gap-7 px-4 py-1.5 mt-0.5">
                             <a 
-                               href="https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce" 
+                               href="https://extension.unfugly.app" 
                                target="_blank" 
                                rel="noopener noreferrer"
                                title="Chrome Extension"
