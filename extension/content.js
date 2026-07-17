@@ -1629,6 +1629,25 @@ async function handleFeedbackPage() {
 
                 if (!unfuglyFill.stopped) {
                     setUIState('finished');
+                    const successCount = allSubs.length;
+                    if (successCount > 0) {
+                        const BACKEND = 'https://unfugly-backend.onrender.com';
+                        backgroundFetch(`${BACKEND}/api/v1/feedback/increment`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ count: successCount })
+                        }).then(res => {
+                            if (res.ok) {
+                                console.log(`[Unfugly] Successfully counted ${successCount} feedback submissions on backend.`);
+                            } else {
+                                console.warn(`[Unfugly] Failed to increment feedback count: ${res.status}`);
+                            }
+                        }).catch(err => {
+                            console.error(`[Unfugly] Failed to request feedback increment:`, err);
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Autofill Error:', err);
