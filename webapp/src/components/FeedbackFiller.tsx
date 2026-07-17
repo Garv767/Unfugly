@@ -21,10 +21,10 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
   const [submissionStatus, setSubmissionStatus] = useState<any>({});
   
   const [sameCommentForAll, setSameCommentForAll] = useState(true);
-  const [globalComment, setGlobalComment] = useState('Excellent course and teaching.');
+  const [globalComment, setGlobalComment] = useState('The course delivery, teaching methodology, and interaction were extremely poor.');
 
   const [sameRatingForAll, setSameRatingForAll] = useState(true);
-  const [globalRating, setGlobalRating] = useState('Excellent');
+  const [globalRating, setGlobalRating] = useState('Poor');
 
   const [totalFeedbackCount, setTotalFeedbackCount] = useState(0);
   const [summary, setSummary] = useState<any>(null);
@@ -60,12 +60,12 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
 
       setPendingCourses(data.courses || []);
       
-      // Initialize preferences (default to Excellent)
+      // Initialize preferences (default to Poor)
       const initialPrefs: any = {};
       (data.courses || []).forEach((c: any) => {
         initialPrefs[c.rowIndex] = {
-          rating: 'Excellent', 
-          comment: 'Excellent course and teaching.'
+          rating: 'Poor', 
+          comment: 'The course delivery, teaching methodology, and interaction were extremely poor.'
         };
       });
       setFeedbackPreferences(initialPrefs);
@@ -308,7 +308,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
                         <option value="Very Good">Very Good</option>
                         <option value="Good">Good</option>
                         <option value="Average">Average</option>
-                        <option value="Poor">Poor</option>
+                        <option value="Poor">Poor (Yes, the default is poor)</option>
                      </select>
                   </div>
                 )}
@@ -329,7 +329,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
               <div className="space-y-4">
                 {pendingCourses.map(course => {
                   const status = submissionStatus[course.rowIndex];
-                  const prefs = feedbackPreferences[course.rowIndex] || { rating: 'Excellent', comment: '' };
+                  const prefs = feedbackPreferences[course.rowIndex] || { rating: 'Poor', comment: '' };
                   
                   return (
                     <div key={course.rowIndex} className={`p-4 rounded-xl border ${status?.status === 'success' ? 'border-green-300 bg-green-50 dark:bg-green-900/10' : status?.status === 'error' ? 'border-red-300 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 bg-white dark:bg-gray-800'}`}>
@@ -370,7 +370,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
                                <option value="Very Good">Very Good</option>
                                <option value="Good">Good</option>
                                <option value="Average">Average</option>
-                               <option value="Poor">Poor</option>
+                               <option value="Poor">Poor (Yes, the default is poor)</option>
                             </select>
                           </div>
                       </div>

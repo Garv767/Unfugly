@@ -145,8 +145,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-border text-center text-xs text-muted">
-          <p>Your password is sent securely and is <strong>never stored</strong> in plaintext.</p>
-          <p>It is hashed and used to authenticate you with Academia.</p>
+          <p>Your password is sent securely and is <strong>never stored</strong>.</p>
         </div>
       </div>
     </div>

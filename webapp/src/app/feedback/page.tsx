@@ -20,8 +20,8 @@ export default function FeedbackPage() {
   const [submissionStatus, setSubmissionStatus] = useState<any>({});
   const [sameRatingForAll, setSameRatingForAll] = useState(true);
   const [sameCommentForAll, setSameCommentForAll] = useState(true);
-  const [globalRating, setGlobalRating] = useState('Excellent');
-  const [globalComment, setGlobalComment] = useState('Excellent course and teaching.');
+  const [globalRating, setGlobalRating] = useState('Poor');
+  const [globalComment, setGlobalComment] = useState('The course delivery, teaching methodology, and interaction were extremely poor.');
   const [totalCount, setTotalCount] = useState(0);
   const [summary, setSummary] = useState<any>(null);
 
@@ -39,7 +39,7 @@ export default function FeedbackPage() {
       setPendingCourses(data.courses || []);
       const prefs: any = {};
       (data.courses || []).forEach((c: any) => {
-        prefs[c.rowIndex] = { rating: 'Excellent', comment: 'Excellent course and teaching.' };
+        prefs[c.rowIndex] = { rating: 'Poor', comment: 'The course delivery, teaching methodology, and interaction were extremely poor.' };
       });
       setFeedbackPrefs(prefs);
       setFormsLoaded(true);
@@ -85,7 +85,7 @@ export default function FeedbackPage() {
               ? 'bg-[#1E88E5] border-[#1E88E5] text-white shadow-[0_2px_10px_rgba(30,136,229,0.35)]'
               : 'bg-transparent border-[#333] text-gray-400 hover:border-[#555]'
           }`}>
-          {r}
+          {r === 'Poor' ? 'Poor (Yes, the default is poor)' : r}
         </button>
       ))}
     </div>
@@ -122,7 +122,7 @@ export default function FeedbackPage() {
 
   const CourseCard = ({ course }: { course: any }) => {
     const status = submissionStatus[course.rowIndex];
-    const prefs = feedbackPrefs[course.rowIndex] || { rating: 'Excellent', comment: '' };
+    const prefs = feedbackPrefs[course.rowIndex] || { rating: 'Poor', comment: '' };
     const isSuccess = status?.status === 'success';
     const isError = status?.status === 'error';
     const isSubmitting = status?.status === 'submitting';
