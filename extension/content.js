@@ -2147,7 +2147,7 @@ function renderProfilePanel(profileData, container, dayOrder) {
                 </svg>
                 Calendar
             </button>
-            <div style="display: flex; justify-content: center; gap: 16px; padding: 10px 16px; border-top: 1px solid #333; margin-top: 4px;">
+            <div style="display: flex; justify-content: center; gap: 28px; padding: 10px 16px; border-top: 1px solid #333; margin-top: 4px;">
                 <a href="https://chat.whatsapp.com/GlmnZ3g0Zb8IXFTa3tOImT" target="_blank" title="WhatsApp Community" style="
                     display: flex;
                     align-items: center;
