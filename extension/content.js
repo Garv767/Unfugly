@@ -3133,6 +3133,20 @@ async function backgroundFetchAllData(currentNetId, titleElement, previousAttend
         }
     }
 
+    // Ensure profileData has a name so the backend /save endpoint doesn't reject it (fixes new user 404s when Course Reg is down)
+    if (!fetchedData.profileData || !fetchedData.profileData.name) {
+        window.UnfuglyLog.warn('SCRP_01', "backgroundFetchAllData: Synthesizing fallback profileData to ensure sync triggers.");
+        fetchedData.profileData = {
+            ...fetchedData.profileData,
+            name: currentNetId.toUpperCase(),
+            registrationNo: fetchedData.profileData?.registrationNo || currentNetId.toUpperCase(),
+            programmeBranch: fetchedData.profileData?.programmeBranch || "Unknown",
+            schoolDepartment: fetchedData.profileData?.schoolDepartment || "Unknown",
+            section: fetchedData.profileData?.section || "Unknown",
+            semester: fetchedData.profileData?.semester || "4"
+        };
+    }
+
     // Step 2: Unified Timetable (independent)
     try {
         if (batch && (batch === '1' || batch === '2')) {
