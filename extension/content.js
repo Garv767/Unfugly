@@ -2147,19 +2147,19 @@ function renderProfilePanel(profileData, container, dayOrder) {
                 </svg>
                 Calendar
             </button>
-            <div style="display: flex; gap: 8px; padding: 8px 16px 4px 16px; border-top: 1px solid #333; margin-top: 4px;">
+            <div style="display: flex; gap: 6px; padding: 6px 16px 2px 16px; border-top: 1px solid #333; margin-top: 4px;">
                 <a href="https://chat.whatsapp.com/GlmnZ3g0Zb8IXFTa3tOImT" target="_blank" title="WhatsApp Community" style="
                     flex: 1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 8px 0;
-                    background: rgba(37, 211, 102, 0.15);
-                    border-radius: 8px;
+                    padding: 5px 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 6px;
                     transition: background 0.2s;
                     text-decoration: none;
-                " onmouseover="this.style.background='rgba(37, 211, 102, 0.25)'" onmouseout="this.style.background='rgba(37, 211, 102, 0.15)'">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
+                " onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366">
                         <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.019 14.12 1.01 11.52 1.01c-5.448 0-9.873 4.37-9.878 9.802-.002 1.743.46 3.447 1.34 4.954l-.99 3.614 3.655-.958zm12.335-5.464c-.302-.15-1.786-.882-2.07-.987-.282-.104-.489-.156-.694.15-.205.307-.795.987-.975 1.191-.18.205-.359.23-.66.08-1.597-.799-2.617-1.436-3.666-3.235-.278-.475.278-.44.795-1.474.086-.174.043-.326-.021-.475-.065-.15-.544-1.309-.745-1.792-.195-.47-.393-.406-.54-.413-.14-.007-.301-.008-.461-.008-.161 0-.422.06-.643.302-.221.241-.844.824-.844 2.01 0 1.185.864 2.33 1.025 2.502.161.171 1.7 2.593 4.12 3.633.576.248 1.025.395 1.376.507.579.183 1.106.157 1.522.095.464-.069 1.487-.607 1.695-1.191.208-.585.208-1.087.146-1.191-.063-.105-.23-.156-.53-.307z"/>
                     </svg>
                 </a>
@@ -2168,13 +2168,13 @@ function renderProfilePanel(profileData, container, dayOrder) {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 8px 0;
-                    background: rgba(30, 136, 229, 0.15);
-                    border-radius: 8px;
+                    padding: 5px 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 6px;
                     transition: background 0.2s;
                     text-decoration: none;
-                " onmouseover="this.style.background='rgba(30, 136, 229, 0.25)'" onmouseout="this.style.background='rgba(30, 136, 229, 0.15)'">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E88E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                " onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E88E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="2" y1="12" x2="22" y2="12"></line>
                         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
