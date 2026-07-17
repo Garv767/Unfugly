@@ -129,8 +129,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                      title="Chrome Extension"
                      className="text-gray-500 hover:text-[#1E88E5] transition-colors"
                   >
-                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 22v-3a3 3 0 0 0-3-3H6a2 2 0 0 1-2-2v-3a3 3 0 0 1 3-3h3a3 3 0 0 0 3-3V3a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a3 3 0 0 0 3 3h3a2 2 0 0 1 2 2v3a3 3 0 0 1-3 3h-3a3 3 0 0 0-3 3v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2z"/>
+                     <svg className="w-3.5 h-3.5" viewBox="0 0 512 512" fill="currentColor">
+                        <path d="M464 128h-80V80c0-44.18-35.82-80-80-80s-80 35.82-80 80v48h-80c-26.51 0-48 21.49-48 48v80H48c-26.51 0-48 21.49-48 48s21.49 48 48 48h48v80c0 26.51 21.49 48 48 48h80v48c0 44.18 35.82 80 80 80s80-35.82 80-80v-48h80c26.51 0 48-21.49 48-48v-80h48c26.51 0 48-21.49 48-48s-21.49-48-48-48h-48v-80c0-26.51-21.49-48-48-48z"/>
                      </svg>
                   </a>
                   <a 
