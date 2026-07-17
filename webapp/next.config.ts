@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       {
         source: '/',
         has: [{ type: 'host', value: 'extension.unfugly.app' }],
-        destination: 'https://google.com',
+        destination: 'https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce',
         permanent: true,
       },
     ];
