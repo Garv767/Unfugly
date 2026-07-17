@@ -409,6 +409,34 @@ export default function Dashboard() {
                            <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
                         </button>
                         
+                        <div className="flex gap-2 px-4 py-1.5 mt-1">
+                           <a 
+                              href="https://chromewebstore.google.com/detail/lfjlfkbcnoioefacgcjanjdiodphnoce" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              title="Chrome Extension"
+                              className="flex-1 flex items-center justify-center py-2 bg-[#1E88E5]/10 hover:bg-[#1E88E5]/20 text-[#1E88E5] rounded-lg transition-colors border border-[#1E88E5]/20"
+                           >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                 <circle cx="12" cy="12" r="10"></circle>
+                                 <circle cx="12" cy="12" r="4"></circle>
+                                 <line x1="12" y1="2" x2="12" y2="8"></line>
+                                 <line x1="12" y1="16" x2="12" y2="22"></line>
+                              </svg>
+                           </a>
+                           <a 
+                              href="https://chat.whatsapp.com/GlmnZ3g0Zb8IXFTa3tOImT" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              title="WhatsApp Community"
+                              className="flex-1 flex items-center justify-center py-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] rounded-lg transition-colors border border-[#25D366]/20"
+                           >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.019 14.12 1.01 11.52 1.01c-5.448 0-9.873 4.37-9.878 9.802-.002 1.743.46 3.447 1.34 4.954l-.99 3.614 3.655-.958zm12.335-5.464c-.302-.15-1.786-.882-2.07-.987-.282-.104-.489-.156-.694.15-.205.307-.795.987-.975 1.191-.18.205-.359.23-.66.08-1.597-.799-2.617-1.436-3.666-3.235-.278-.475.278-.44.795-1.474.086-.174.043-.326-.021-.475-.065-.15-.544-1.309-.745-1.792-.195-.47-.393-.406-.54-.413-.14-.007-.301-.008-.461-.008-.161 0-.422.06-.643.302-.221.241-.844.824-.844 2.01 0 1.185.864 2.33 1.025 2.502.161.171 1.7 2.593 4.12 3.633.576.248 1.025.395 1.376.507.579.183 1.106.157 1.522.095.464-.069 1.487-.607 1.695-1.191.208-.585.208-1.087.146-1.191-.063-.105-.23-.156-.53-.307z"/>
+                              </svg>
+                           </a>
+                        </div>
+                        
                         <div className="px-4 py-2 mt-1 border-t border-[#333] text-sm text-gray-300 font-bold truncate">
                            {uiData.profileData?.name || 'Profile Unavailable'}
                         </div>
