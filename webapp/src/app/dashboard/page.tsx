@@ -97,13 +97,20 @@ export default function Dashboard() {
     // Fetch calendar data — must include the current semester param
     // Semester is derived from the cached profile data or defaults to the current academic year.
     const currentSemester = (() => {
-      try {
-        const netIdKey = Object.keys(localStorage).find(k => k.startsWith('unfuglyData_') && k !== 'unfuglyData_calendar');
-        const cached = netIdKey ? JSON.parse(localStorage.getItem(netIdKey) || '{}') : {};
-        return cached?.profileData?.semester || null;
-      } catch { return null; }
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-11
+      
+      if (currentYear === 2025) {
+          if (currentMonth >= 6) return '2025_26_ODD';
+          return '2024_25_EVEN';
+      } else if (currentYear === 2026) {
+          if (currentMonth < 6) return '2025_26_EVEN';
+          return '2026_27_ODD';
+      }
+      return '2026_27_ODD'; // default fallback
     })();
-    const calendarParams = currentSemester ? `?semester=${encodeURIComponent(currentSemester)}` : '';
+    const calendarParams = `?semester=${encodeURIComponent(currentSemester)}`;
     fetch(`${API_URL}/api/v1/calendar${calendarParams}`, {
       credentials: 'include',
       headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
