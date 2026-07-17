@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            width: 320px;
+            margin: 0;
+            padding: 20px;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #1E88E5, #1565C0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+        }
+        .description {
+            font-size: 12px;
+            color: #aaaaaa;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+        .button-row {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 0;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+            color: #ffffff;
+            outline: none;
+        }
+        .btn-academia {
+            background: rgba(30, 136, 229, 0.1);
+            border-color: rgba(30, 136, 229, 0.3);
+            color: #1E88E5;
+        }
+        .btn-academia:hover {
+            background: rgba(30, 136, 229, 0.2);
+            border-color: #1E88E5;
+            box-shadow: 0 0 12px rgba(30, 136, 229, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-webapp {
+            background: rgba(168, 85, 247, 0.1);
+            border-color: rgba(168, 85, 247, 0.3);
+            color: #a855f7;
+        }
+        .btn-webapp:hover {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: #a855f7;
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img class="logo" src="images/icon48.png" alt="Logo" onerror="this.style.display='none'">
+        <h1 class="title">Unfugly</h1>
+    </div>
+    <p class="description">Revamp your SRM Academia portal with a premium dashboard, fast feedback, and downloadable timetable.</p>
+    <div class="button-row">
+        <a id="open-academia" class="btn btn-academia" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"></path>
+            </svg>
+            Academia
+        </a>
+        <a id="open-webapp" class="btn btn-webapp" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            Web App
+        </a>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
