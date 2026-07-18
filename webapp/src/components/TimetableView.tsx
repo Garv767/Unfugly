@@ -242,60 +242,41 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     const tableEl = containerRef.current.querySelector('table');
     if (!tableEl) return;
 
-    try {
-      const isMobileHidden = window.getComputedStyle(containerRef.current).display === 'none';
-      const originalWidth = containerRef.current.style.width;
-      const originalMinWidth = tableEl.style.minWidth;
-      const originalPadding = containerRef.current.style.padding;
-      const originalBgColor = containerRef.current.style.backgroundColor;
+    // Create a clone of the container to render off-screen, preventing layout flashing/disappearance
+    const clone = containerRef.current.cloneNode(true) as HTMLDivElement;
+    clone.style.position = 'absolute';
+    clone.style.top = '-9999px';
+    clone.style.left = '-9999px';
+    clone.style.width = '1200px'; 
+    clone.style.padding = '20px';
+    clone.style.backgroundColor = '#121212';
+    clone.style.display = 'block';
 
-      if (isMobileHidden) {
-          containerRef.current.classList.remove('hidden', 'lg:block');
-          containerRef.current.style.display = 'block';
-      }
-      containerRef.current.style.position = 'absolute';
-      containerRef.current.style.top = '-9999px';
-      containerRef.current.style.width = '1200px'; 
-      tableEl.style.minWidth = '1200px';
-      containerRef.current.style.padding = '20px';
-      containerRef.current.style.backgroundColor = '#121212';
-
-      const originalFilters: string[] = [];
-      const originalOpacities: string[] = [];
-      const rows = Array.from(tableEl.querySelectorAll('tbody tr'));
+    const cloneTable = clone.querySelector('table');
+    if (cloneTable) {
+      cloneTable.style.minWidth = '1200px';
+      
+      // Clear filters/opacities for printing on the clone
+      const rows = Array.from(cloneTable.querySelectorAll('tbody tr'));
       rows.forEach(row => {
         const el = row as HTMLElement;
-        originalFilters.push(el.style.filter);
-        originalOpacities.push(el.style.opacity);
         el.style.filter = 'none';
         el.style.opacity = '1';
       });
+    }
 
+    try {
+      document.body.appendChild(clone);
+      
+      // Give a tiny tick for DOM insertion
       await new Promise(res => setTimeout(res, 50));
 
-      const canvas = await html2canvas(tableEl, {
+      const canvas = await html2canvas(cloneTable || clone, {
         backgroundColor: '#000000',
         scale: 2,
         useCORS: true,
         windowWidth: 1200
       });
-
-      rows.forEach((row, i) => {
-        const el = row as HTMLElement;
-        el.style.filter = originalFilters[i];
-        el.style.opacity = originalOpacities[i];
-      });
-
-      if (isMobileHidden) {
-          containerRef.current.classList.add('hidden', 'lg:block');
-          containerRef.current.style.display = '';
-      }
-      containerRef.current.style.position = '';
-      containerRef.current.style.top = '';
-      containerRef.current.style.width = originalWidth;
-      tableEl.style.minWidth = originalMinWidth;
-      containerRef.current.style.padding = originalPadding;
-      containerRef.current.style.backgroundColor = originalBgColor;
 
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
@@ -307,6 +288,10 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       document.body.removeChild(link);
     } catch (err: any) {
       UnfuglyLog.error('SYS_01', `Error generating timetable image: ${err.message}`);
+    } finally {
+      if (clone.parentNode) {
+        document.body.removeChild(clone);
+      }
     }
   };
 
