@@ -115,6 +115,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
   const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+
+  let hasExtraSlots = false;
+  if (parsedData?.extraSlotFlag && parsedData?.days) {
+      hasExtraSlots = parsedData.days.some((day: any) => 
+          day.slots?.slice(-2).some((slot: any) => slot.title && slot.title.trim() !== '')
+      ) || false;
+  }
   
   const [editedSlots, setEditedSlots] = useState<Record<string, { editedTitle: string; editedClassroom: string }>>(() => {
     let initialEdits: Record<string, { editedTitle: string; editedClassroom: string }> = {};
@@ -245,13 +252,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       if (isMobileHidden) {
           containerRef.current.classList.remove('hidden', 'lg:block');
           containerRef.current.style.display = 'block';
-          containerRef.current.style.position = 'absolute';
-          containerRef.current.style.top = '-9999px';
-          containerRef.current.style.width = '1200px'; 
-          tableEl.style.minWidth = '1200px';
-          containerRef.current.style.padding = '20px';
-          containerRef.current.style.backgroundColor = '#121212';
       }
+      containerRef.current.style.position = 'absolute';
+      containerRef.current.style.top = '-9999px';
+      containerRef.current.style.width = '1200px'; 
+      tableEl.style.minWidth = '1200px';
+      containerRef.current.style.padding = '20px';
+      containerRef.current.style.backgroundColor = '#121212';
 
       const originalFilters: string[] = [];
       const originalOpacities: string[] = [];
@@ -264,9 +271,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
         el.style.opacity = '1';
       });
 
-      if (isMobileHidden) {
-          await new Promise(res => setTimeout(res, 50));
-      }
+      await new Promise(res => setTimeout(res, 50));
 
       const canvas = await html2canvas(tableEl, {
         backgroundColor: '#000000',
@@ -284,13 +289,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       if (isMobileHidden) {
           containerRef.current.classList.add('hidden', 'lg:block');
           containerRef.current.style.display = '';
-          containerRef.current.style.position = '';
-          containerRef.current.style.top = '';
-          containerRef.current.style.width = originalWidth;
-          tableEl.style.minWidth = originalMinWidth;
-          containerRef.current.style.padding = originalPadding;
-          containerRef.current.style.backgroundColor = originalBgColor;
       }
+      containerRef.current.style.position = '';
+      containerRef.current.style.top = '';
+      containerRef.current.style.width = originalWidth;
+      tableEl.style.minWidth = originalMinWidth;
+      containerRef.current.style.padding = originalPadding;
+      containerRef.current.style.backgroundColor = originalBgColor;
 
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
@@ -373,13 +378,6 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
   const renderDesktopTable = () => {
     if (!parsedData || !parsedData.headers || !parsedData.days) return null;
-    
-    let hasExtraSlots = parsedData.extraSlotFlag;
-    if (!hasExtraSlots && parsedData.days) {
-        hasExtraSlots = parsedData.days.some((day: any) => 
-            day.slots?.slice(-2).some((slot: any) => slot.title && slot.title.trim() !== '')
-        ) || false;
-    }
 
     const today = new Date();
     const currentDayOrderObj = getDayOrderForDate(today, calendarData);
@@ -574,6 +572,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
               <div className={`bg-[#121212] border border-t-0 border-[#333] rounded-b-xl p-4 space-y-3 shadow-lg transition-opacity duration-300 ${!isActiveDay ? 'opacity-50 grayscale-[0.3]' : 'opacity-100'}`}>
                   {parsedData.days[mobileDayIndex]?.slots?.map((slot: any, idx: number) => {
+                      if (!hasExtraSlots && idx >= parsedData.days[mobileDayIndex].slots.length - 2) return null;
                       const timeHeader = parsedData.headers[idx + 1] || ''; 
                       
                       const totalSlotsBefore = parsedData.days.slice(0, mobileDayIndex).reduce((acc: number, d: any) => acc + d.slots.length, 0);

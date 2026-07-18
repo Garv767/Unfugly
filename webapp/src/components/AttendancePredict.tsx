@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -55,10 +56,10 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
         onClick={() => setIsOpen(true)}
         className="flex items-center text-sm font-semibold bg-[#333] hover:bg-[#444] text-white px-4 py-1.5 rounded-full transition-all ml-4"
       >
-        <span className="mr-1.5 text-lg leading-none">+</span> Predict
+        <span className="mr-1.5 text-lg leading-none"></span> ✦ Predict
       </button>
 
-      {isOpen && (
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]" onClick={() => setIsOpen(false)}>
           <div className="bg-[#1a1a1a]/95 border border-[#333] shadow-2xl rounded-2xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-5 border-b border-[#333] bg-[#222]">
@@ -124,7 +125,8 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
                 )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
@@ -149,7 +151,8 @@ function predictAttendance(attendanceData: any[], courseData: any, calendarData:
         const gapClasses = 0; // Days before startDate
         const classesSkipped = Math.floor(skipDays * 0.4); // rough approximation
         
-        const finalConducted = course.hoursConducted + gapClasses + classesSkipped;
+        const baseConducted = course.hoursConducted !== undefined ? course.hoursConducted : course.totalClasses;
+        const finalConducted = baseConducted + gapClasses + classesSkipped;
         const finalAttended = course.attendedClasses + gapClasses;
         
         const predictedPct = finalConducted > 0 ? (finalAttended / finalConducted) * 100 : 0;
