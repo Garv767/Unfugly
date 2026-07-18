@@ -145,7 +145,10 @@ function predictAttendance(attendanceData: any[], courseData: any, calendarData:
     const endDate = new Date(end);
     const skipDays = Math.max(0, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1);
 
-    return attendanceData.filter(c => c.totalClasses !== 'N/A').map(course => {
+    return attendanceData.filter(c => {
+        const base = c.hoursConducted !== undefined ? c.hoursConducted : c.totalClasses;
+        return base !== undefined && base !== 'N/A';
+    }).map(course => {
         // As a simplified mock predictor until day-order-slot parsing is fully aligned with React:
         // We assume 1 class missed per day-skipped in the range for demo purposes.
         const gapClasses = 0; // Days before startDate

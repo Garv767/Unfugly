@@ -92,7 +92,7 @@ export default function AttendanceView({ data, isBgScraping }: { data: any, isBg
                     </div>
                  </div>
                  
-                 {item.totalClasses !== 'N/A' && (
+                 {(hoursConducted !== undefined && hoursConducted !== 'N/A') && (
                      <div className="flex flex-col gap-2">
                         <div className="flex justify-between text-[12px] text-gray-300">
                            <span>Hours Conducted: <b className="text-white">{hoursConducted}</b></span>
