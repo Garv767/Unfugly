@@ -45,6 +45,8 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
     const results = predictAttendance(attendanceData, courseData, calendarData, startDate, endDate);
     if (!results) {
       setError('Prediction calculation failed (check data map formatting).');
+    } else if (results.length === 0) {
+      setError('Your attendance is currently locked by the university — detailed stats are not available yet this semester.');
     } else {
       setPredictions(results);
     }
@@ -146,6 +148,7 @@ function predictAttendance(attendanceData: any[], courseData: any, calendarData:
     const skipDays = Math.max(0, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1);
 
     return attendanceData.filter(c => {
+        if (c.isLocked) return false;
         const base = c.hoursConducted !== undefined ? c.hoursConducted : c.totalClasses;
         return base !== undefined && base !== 'N/A';
     }).map(course => {
@@ -154,9 +157,10 @@ function predictAttendance(attendanceData: any[], courseData: any, calendarData:
         const gapClasses = 0; // Days before startDate
         const classesSkipped = Math.floor(skipDays * 0.4); // rough approximation
         
-        const baseConducted = course.hoursConducted !== undefined ? course.hoursConducted : course.totalClasses;
+        const baseConducted = parseInt(course.hoursConducted !== undefined ? course.hoursConducted : course.totalClasses);
+        const baseAttended  = parseInt(course.attendedClasses);
         const finalConducted = baseConducted + gapClasses + classesSkipped;
-        const finalAttended = course.attendedClasses + gapClasses;
+        const finalAttended  = baseAttended + gapClasses;
         
         const predictedPct = finalConducted > 0 ? (finalAttended / finalConducted) * 100 : 0;
         
