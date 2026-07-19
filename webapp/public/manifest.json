@@ -1,0 +1,21 @@
+{
+  "short_name": "Unfugly",
+  "name": "Unfugly Academia Assistant",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#1e1e1e",
+  "theme_color": "#1E88E5",
+  "display": "standalone",
+  "orientation": "portrait"
+}
