@@ -25,3 +25,24 @@ This log tracks step-by-step changes during the debugging session.
 
 ## Session Complete ✅
 All planned fixes applied and verified.
+
+# Unfugly Session Changes Log (2026-07-19)
+
+## Edits Applied
+### 1. Auth Refactor with tough-cookie (routes/v1/auth.js)
+- Rewrote the nativeAcademiaLogin function.
+- Implemented tough-cookie to handle all session cookies natively across the got 302 redirects.
+- Removed all manual string concatenation for cookies and header overrides, resolving the WAF challenge drops (HIP required errors).
+
+### 2. Feedback Count Fix (routes/v1/feedback.js)
+- Enforced a hardcoded const count = 1; to ensure the DB accurately reflects exactly +1 per form completion.
+
+### 3. editedSlots Sync Resolution (extension/analytics.js & routes/v1/user.js)
+- Removed the delete editedSlots.last_edited; line in extension/analytics.js so the timestamp correctly reaches the backend.
+- Modified POST /api/v1/user/save in routes/v1/user.js to compare last_edited timestamps before merging data into Supabase edited_slots.
+
+### 4. Documentation
+- Updated flow.md to reflect that tough-cookie is now officially utilized for session management.
+
+## Session Complete ✅
+All planned fixes applied and verified.

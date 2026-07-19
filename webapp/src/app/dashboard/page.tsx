@@ -367,12 +367,12 @@ export default function Dashboard() {
                  {uiData.profileData ? (
                    <>
                      <div><span className="font-bold text-white">Name:</span> {uiData.profileData.name}</div>
-                     <div><span className="font-bold text-white">Reg No:</span> {uiData.profileData.registrationNo}</div>
-                     <div><span className="font-bold text-white">Program:</span> {uiData.profileData.programmeBranch}</div>
+                     <div><span className="font-bold text-white">Reg No:</span> {uiData.profileData.registration_no || uiData.profileData.registrationNo}</div>
+                     <div><span className="font-bold text-white">Program:</span> {uiData.profileData.programme_branch || uiData.profileData.programmeBranch}</div>
                      <div><span className="font-bold text-white">Section:</span> {uiData.profileData.section}</div>
                      <div><span className="font-bold text-white">Semester:</span> {uiData.profileData.semester || '4'}</div>
                      <div><span className="font-bold text-white">Day Order:</span> {uiData.profileData.dayOrder || 'No Day Order'}</div>
-                     <div><span className="font-bold text-white mt-2 block">Department:</span> {uiData.profileData.schoolDepartment}</div>
+                     <div><span className="font-bold text-white mt-2 block">Department:</span> {uiData.profileData.school_department || uiData.profileData.schoolDepartment}</div>
                    </>
                  ) : (
                    <div className="text-red-400 font-medium">

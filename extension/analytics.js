@@ -52,9 +52,8 @@ const _syncTimers = {};
 // Syncs ALL user data (profile + attendance + marks + timetable)
 // ─────────────────────────────────────────────────────────────
 async function syncUserData(netId, data) {
-    // Strip last_edited meta-key from editedSlots before sending to backend
+    // Pass through last_edited meta-key from editedSlots to backend
     const editedSlots = data.editedSlots ? { ...data.editedSlots } : null;
-    if (editedSlots) delete editedSlots.last_edited;
 
     const payload = {
         netId:          netId,

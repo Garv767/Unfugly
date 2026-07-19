@@ -114,12 +114,12 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                <h3 className="text-white text-lg font-bold mb-3 border-b border-[#555] pb-2">Profile</h3>
                <div className="space-y-2 text-[12px] text-gray-300 mb-4">
                  <div><span className="font-bold text-white">Name:</span> {profileData?.name}</div>
-                 <div><span className="font-bold text-white">Reg No:</span> {profileData?.registrationNo}</div>
-                 <div><span className="font-bold text-white">Program:</span> {profileData?.programmeBranch}</div>
+                 <div><span className="font-bold text-white">Reg No:</span> {profileData?.registration_no || profileData?.registrationNo}</div>
+                 <div><span className="font-bold text-white">Program:</span> {profileData?.programme_branch || profileData?.programmeBranch}</div>
                  <div><span className="font-bold text-white">Section:</span> {profileData?.section}</div>
                  <div><span className="font-bold text-white">Semester:</span> {profileData?.semester || 'N/A'}</div>
                  <div><span className="font-bold text-white">Day Order:</span> {profileData?.dayOrder || 'N/A'}</div>
-                 <div><span className="font-bold text-white mt-2 block">Department:</span> {profileData?.schoolDepartment}</div>
+                 <div><span className="font-bold text-white mt-2 block">Department:</span> {profileData?.school_department || profileData?.schoolDepartment}</div>
                </div>
                 <div className="flex justify-center gap-7 mb-3">
                   <a 
