@@ -8,3 +8,6 @@ This workspace contains code rules and guidelines to follow during development:
 - Ensure API data payloads remain uniform between backend and webapp.
 - Keep component code modularized, reusable, and free of placeholder images.
 - Enforce the single feedback increment logic: only increment by exactly `+1` per form submission.
+
+## Git Commit Guidelines
+- Always commit with a conventional commit message (e.g., `feat: ...`, `fix: ...`, `refactor: ...`, `seo: ...`) and a detailed, descriptive body outlining the core changes.
