@@ -63,7 +63,11 @@ export default function Dashboard() {
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
     fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
     .then(res => {
-      if (res.status === 401) { router.push('/login'); return null; }
+      if (res.status === 401) { 
+        if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
+        router.push('/login'); 
+        return null; 
+      }
       return res.json();
     })
     .then(cachedData => {

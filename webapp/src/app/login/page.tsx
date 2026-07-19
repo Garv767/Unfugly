@@ -18,7 +18,13 @@ export default function LoginPage() {
     // Check if already authenticated by hitting the /user/data endpoint.
     // The HttpOnly cookie will be sent automatically by the browser.
     fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
-      .then(res => { if (res.ok) router.push('/dashboard'); })
+      .then(res => { 
+        if (res.ok) {
+          router.push('/dashboard'); 
+        } else if (res.status === 401) {
+          if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
+        }
+      })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

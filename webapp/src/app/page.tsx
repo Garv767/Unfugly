@@ -21,18 +21,42 @@ export default function Home() {
         </h1>
         
         <p className="text-xl md:text-2xl text-gray-400 font-medium max-w-2xl mx-auto leading-relaxed mb-10">
-          Fast, smart, and beautiful. Stop fighting with a clunky interface and start enjoying a seamless student experience.
+          Unf*cked and Un-uglied. Stop fighting with a clunky interface and start enjoying a seamless student experience.
         </p>
         
-        {/* CTA Button */}
-        <div className="pt-6 pb-16">
-          <Link href="/login" className="group relative inline-flex items-center justify-center px-10 py-4 font-bold text-white transition-all duration-300 ease-in-out bg-[#1E88E5] rounded-full hover:bg-[#1565C0] hover:scale-105 hover:shadow-[0_0_40px_rgba(30,136,229,0.4)]">
+        {/* CTA Buttons */}
+        <div className="pt-6 pb-16 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl mx-auto">
+          <Link href="/login" className="group relative inline-flex items-center justify-center px-10 py-4 font-bold text-white transition-all duration-300 ease-in-out bg-[#1E88E5] rounded-full hover:bg-[#1565C0] hover:scale-105 hover:shadow-[0_0_40px_rgba(30,136,229,0.4)] w-full sm:w-auto">
             <span className="absolute inset-0 rounded-full border border-white/20"></span>
             <span className="text-lg tracking-wide">Enter Dashboard</span>
             <svg className="w-5 h-5 ml-3 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
             </svg>
           </Link>
+
+          <a 
+            href="https://extension.unfugly.app" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-gray-300 transition-all duration-300 ease-in-out bg-[#1a1a1a]/60 backdrop-blur-xl border border-white/10 rounded-full hover:bg-[#252525] hover:text-white hover:scale-105 hover:border-[#1E88E5]/30 w-full sm:w-auto gap-2"
+          >
+            <svg className="w-5 h-5 text-[#1E88E5] group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+            </svg>
+            <span className="text-base tracking-wide">Get Extension</span>
+          </a>
+
+          <a 
+            href="https://chat.whatsapp.com/GlmnZ3g0Zb8IXFTa3tOImT" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-gray-300 transition-all duration-300 ease-in-out bg-[#1a1a1a]/60 backdrop-blur-xl border border-white/10 rounded-full hover:bg-[#252525] hover:text-white hover:scale-105 hover:border-[#25D366]/30 w-full sm:w-auto gap-2"
+          >
+            <svg className="w-5 h-5 text-[#25D366] group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.019 14.12 1.01 11.52 1.01c-5.448 0-9.873 4.37-9.878 9.802-.002 1.743.46 3.447 1.34 4.954l-.99 3.614 3.655-.958zm12.335-5.464c-.302-.15-1.786-.882-2.07-.987-.282-.104-.489-.156-.694.15-.205.307-.795.987-.975 1.191-.18.205-.359.23-.66.08-1.597-.799-2.617-1.436-3.666-3.235-.278-.475.278-.44.795-1.474.086-.174.043-.326-.021-.475-.065-.15-.544-1.309-.745-1.792-.195-.47-.393-.406-.54-.413-.14-.007-.301-.008-.461-.008-.161 0-.422.06-.643.302-.221.241-.844.824-.844 2.01 0 1.185.864 2.33 1.025 2.502.161.171 1.7 2.593 4.12 3.633.576.248 1.025.395 1.376.507.579.183 1.106.157 1.522.095.464-.069 1.487-.607 1.695-1.191.208-.585.208-1.087.146-1.191-.063-.105-.23-.156-.53-.307z"/>
+            </svg>
+            <span className="text-base tracking-wide">WA Community</span>
+          </a>
         </div>
 
         {/* Feature Cards Grid */}
