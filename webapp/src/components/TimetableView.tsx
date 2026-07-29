@@ -112,9 +112,19 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   }, []); // mount-only
 
   const [parsedData, setParsedData] = useState<any>(null);
-  const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
+  const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
+     if (typeof window !== 'undefined') {
+        const cachedDayIndex = localStorage.getItem('unfugly_cached_day_index');
+        const cachedDate = localStorage.getItem('unfugly_cached_date');
+        const todayStr = new Date().toDateString();
+        if (cachedDate === todayStr && cachedDayIndex) {
+            return parseInt(cachedDayIndex);
+        }
+     }
+     return 0;
+  });
   const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchStartXY, setTouchStartXY] = useState<{x: number, y: number} | null>(null);
 
   let hasExtraSlots = false;
   if (parsedData?.extraSlotFlag && parsedData?.days) {
@@ -185,7 +195,10 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       const currentDayOrderObj = getDayOrderForDate(today, calendarData);
       const activeDayOrder = currentDayOrderObj ? currentDayOrderObj : null; 
       if (activeDayOrder && !isNaN(parseInt(activeDayOrder))) {
-          setMobileDayIndex(Math.max(0, parseInt(activeDayOrder) - 1));
+          const index = Math.max(0, parseInt(activeDayOrder) - 1);
+          setMobileDayIndex(index);
+          localStorage.setItem('unfugly_cached_day_index', index.toString());
+          localStorage.setItem('unfugly_cached_date', today.toDateString());
       }
   }, [calendarData]);
 
@@ -512,14 +525,19 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
      const isActiveDay = String(mobileDayIndex + 1) === currentDayOrderObj;
 
-     const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+     const handleTouchStart = (e: React.TouchEvent) => setTouchStartXY({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
      const handleTouchEnd = (e: React.TouchEvent) => {
-       if (!touchStart) return;
-       const touchEnd = e.changedTouches[0].clientX;
-       const dist = touchStart - touchEnd;
-       if (dist > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
-       if (dist < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
-       setTouchStart(null);
+       if (!touchStartXY) return;
+       const touchEndX = e.changedTouches[0].clientX;
+       const touchEndY = e.changedTouches[0].clientY;
+       const distX = touchStartXY.x - touchEndX;
+       const distY = touchStartXY.y - touchEndY;
+       
+       if (Math.abs(distX) > Math.abs(distY) && Math.abs(distX) > 50) {
+           if (distX > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
+           if (distX < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
+       }
+       setTouchStartXY(null);
      };
 
      return (

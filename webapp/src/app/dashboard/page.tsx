@@ -375,7 +375,23 @@ export default function Dashboard() {
                      <div><span className="font-bold text-white">Program:</span> {uiData.profileData.programme_branch || uiData.profileData.programmeBranch}</div>
                      <div><span className="font-bold text-white">Section:</span> {uiData.profileData.section}</div>
                      <div><span className="font-bold text-white">Semester:</span> {uiData.profileData.semester || '4'}</div>
-                     <div><span className="font-bold text-white">Day Order:</span> {uiData.profileData.dayOrder || 'No Day Order'}</div>
+                     <div>
+                       <span className="font-bold text-white">Day Order:</span>{' '}
+                       {(() => {
+                         let activeDayOrder = uiData.profileData.dayOrder;
+                         if (calendarData) {
+                           const today = new Date();
+                           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                           const monthKey = `${months[today.getMonth()]} '${String(today.getFullYear()).slice(2)}`;
+                           const dayKey = String(today.getDate());
+                           const dayData = calendarData[monthKey]?.[dayKey];
+                           if (dayData && dayData.dayOrder !== '-') {
+                             activeDayOrder = dayData.dayOrder;
+                           }
+                         }
+                         return (activeDayOrder && activeDayOrder !== 'NA') ? activeDayOrder : 'No Day Order';
+                       })()}
+                     </div>
                      <div><span className="font-bold text-white mt-2 block">Department:</span> {uiData.profileData.school_department || uiData.profileData.schoolDepartment}</div>
                    </>
                  ) : (
