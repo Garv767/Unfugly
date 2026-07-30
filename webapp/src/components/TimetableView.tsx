@@ -111,13 +111,13 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     }
   }, []); // mount-only
 
-  const [parsedData, setParsedData] = useState<any>(null);
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
      if (typeof window !== 'undefined') {
         const cachedDayIndex = localStorage.getItem('unfugly_cached_day_index');
         const cachedDate = localStorage.getItem('unfugly_cached_date');
         const todayStr = new Date().toDateString();
-        if (cachedDate === todayStr && cachedDayIndex) {
+        // Return cached day index only if it was cached today
+        if (cachedDate === todayStr && cachedDayIndex !== null) {
             return parseInt(cachedDayIndex);
         }
      }
@@ -191,16 +191,34 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   }, [htmlContent, timetableJSON]);
 
   useEffect(() => {
-      const today = new Date();
-      const currentDayOrderObj = getDayOrderForDate(today, calendarData);
+      if (typeof window === 'undefined') return;
+      
+      const todayStr = new Date().toDateString();
+      const cachedDate = localStorage.getItem('unfugly_cached_date');
+      const cachedIndex = localStorage.getItem('unfugly_cached_day_index');
+      
+      // If we already have a manual cached selection for today, do NOT overwrite it
+      if (cachedDate === todayStr && cachedIndex !== null) {
+          return;
+      }
+      
+      const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
       const activeDayOrder = currentDayOrderObj ? currentDayOrderObj : null; 
       if (activeDayOrder && !isNaN(parseInt(activeDayOrder))) {
           const index = Math.max(0, parseInt(activeDayOrder) - 1);
           setMobileDayIndex(index);
           localStorage.setItem('unfugly_cached_day_index', index.toString());
-          localStorage.setItem('unfugly_cached_date', today.toDateString());
+          localStorage.setItem('unfugly_cached_date', todayStr);
       }
   }, [calendarData]);
+
+  const handleDayIndexChange = (newIndex: number) => {
+      setMobileDayIndex(newIndex);
+      if (typeof window !== 'undefined') {
+          localStorage.setItem('unfugly_cached_day_index', newIndex.toString());
+          localStorage.setItem('unfugly_cached_date', new Date().toDateString());
+      }
+  };
 
   const updateCache = (newEdits: any) => {
     const netIdKey = Object.keys(localStorage).find(key => key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar');
@@ -534,8 +552,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
        const distY = touchStartXY.y - touchEndY;
        
        if (Math.abs(distX) > Math.abs(distY) && Math.abs(distX) > 50) {
-           if (distX > 50) setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1);
-           if (distX < -50) setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1);
+           if (distX > 50) handleDayIndexChange(mobileDayIndex === parsedData.days.length - 1 ? 0 : mobileDayIndex + 1);
+           if (distX < -50) handleDayIndexChange(mobileDayIndex === 0 ? parsedData.days.length - 1 : mobileDayIndex - 1);
        }
        setTouchStartXY(null);
      };
@@ -543,8 +561,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
      return (
           <div className="lg:hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
               <div className="flex items-center justify-between bg-[#1e1e1e] border border-[#333] rounded-t-xl p-3 shadow-lg">
-                  <button 
-                     onClick={() => setMobileDayIndex(prev => prev === 0 ? parsedData.days.length - 1 : prev - 1)}
+                   <button 
+                     onClick={() => handleDayIndexChange(mobileDayIndex === 0 ? parsedData.days.length - 1 : mobileDayIndex - 1)}
                      className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
                   >
                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -566,7 +584,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                      </button>
                   </div>
                   <button 
-                     onClick={() => setMobileDayIndex(prev => prev === parsedData.days.length - 1 ? 0 : prev + 1)}
+                     onClick={() => handleDayIndexChange(mobileDayIndex === parsedData.days.length - 1 ? 0 : mobileDayIndex + 1)}
                      className="p-2 rounded-full bg-[#333] text-white transition-opacity hover:bg-[#444]"
                   >
                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
