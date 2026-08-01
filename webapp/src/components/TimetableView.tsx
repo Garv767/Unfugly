@@ -111,6 +111,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     }
   }, []); // mount-only
 
+  const [parsedData, setParsedData] = useState<any>(null);
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
      if (typeof window !== 'undefined') {
         const cachedDayIndex = localStorage.getItem('unfugly_cached_day_index');

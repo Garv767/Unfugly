@@ -63,7 +63,7 @@ export default function Dashboard() {
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
     fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
     .then(res => {
-      if (res.status === 401) { 
+      if (res.status === 401 || res.status === 403) { 
         if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
         router.push('/login'); 
         return null; 
@@ -171,8 +171,16 @@ export default function Dashboard() {
       credentials: 'include',
       headers:     { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
     })
-    .then(res => res.json())
+    .then(res => {
+        if (res.status === 401 || res.status === 403) {
+            if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
+            router.push('/login');
+            return null;
+        }
+        return res.json();
+    })
     .then(scrapedData => {
+      if (!scrapedData) return;
       if (scrapedData.error) {
         // Reset guard so user can retry without a full reload
         scrapingStarted.current = false;

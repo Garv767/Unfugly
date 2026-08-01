@@ -937,10 +937,39 @@ async function handleWelcomePage() {
         const dayOrderSpan = document.querySelectorAll('span.highlight strong font[color="yellow"]')[1];
         if (dayOrderSpan) {
             dayOrderInfo = dayOrderSpan.textContent.trim();
-            dayOrderInfo = dayOrderInfo.replace(/Day Order:/, '');
+            dayOrderInfo = dayOrderInfo.replace(/Day Order:/, '').trim();
             // console.log("handleWelcomePage: Extracted Day Order:", dayOrderInfo);
         } else {
             // console.warn("handleWelcomePage: Day Order element not found.");
+        }
+
+        // Fallback: Fetch from calendar cache
+        if (!dayOrderInfo || dayOrderInfo.toUpperCase() === 'N/A' || dayOrderInfo.toUpperCase() === 'NA') {
+            try {
+                const calResult = await chrome.storage.local.get('unfuglyData_calendar');
+                const calendarRoot = calResult.unfuglyData_calendar || {};
+                const currentSem = typeof getCurrentSemesterKey === 'function' ? getCurrentSemesterKey() : '';
+                const calendarData = calendarRoot[currentSem]?.data;
+                
+                if (calendarData) {
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const date = new Date();
+                    const year = String(date.getFullYear()).slice(2);
+                    const monthKey = `${months[date.getMonth()]} '${year}`;
+                    const dayKey = String(date.getDate());
+                    const dayData = calendarData[monthKey]?.[dayKey];
+                    if (dayData && dayData.dayOrder !== '-') {
+                        dayOrderInfo = dayData.dayOrder;
+                    } else {
+                        dayOrderInfo = 'N/A';
+                    }
+                } else {
+                    dayOrderInfo = 'N/A';
+                }
+            } catch (e) {
+                console.error("Failed to fetch day order from calendar cache:", e);
+                dayOrderInfo = 'N/A';
+            }
         }
 
         const titleElement = welcomeContainer.querySelector('span');
