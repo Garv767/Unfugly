@@ -3389,12 +3389,17 @@ function highlightCurrentDayOrder(container) {
     let currentDayOrder = -1;
 
     // Fetch the Day Order from the profile panel element
-    const dayOrderElement = document.querySelector('#unfuglyAppWrapper > div.profile-panel > p:nth-child(7)');
-    if (dayOrderElement) {
-        const textContent = dayOrderElement.textContent.trim();
-        const match = textContent.match(/Day Order:\s*(\d+)/);
-        if (match && match[1]) {
-            currentDayOrder = parseInt(match[1], 10);
+    const profilePanel = document.querySelector('#unfuglyAppWrapper .profile-panel');
+    if (profilePanel) {
+        const pTags = profilePanel.querySelectorAll('p');
+        for (const p of pTags) {
+            if (p.textContent.includes('Day Order:')) {
+                const match = p.textContent.match(/Day Order:\s*(\d+)/);
+                if (match && match[1]) {
+                    currentDayOrder = parseInt(match[1], 10);
+                }
+                break;
+            }
         }
     }
 

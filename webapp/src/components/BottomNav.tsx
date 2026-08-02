@@ -23,6 +23,7 @@ const tabs = [
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
+  const [calendarData, setCalendarData] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -36,7 +37,27 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         } catch(e) {}
       }
     }
+    
+    const calendarStr = localStorage.getItem('unfuglyData_calendar');
+    if (calendarStr) {
+      try {
+        const parsedCal = JSON.parse(calendarStr);
+        const currentSem = Object.keys(parsedCal)[0];
+        if (currentSem) setCalendarData(parsedCal[currentSem]?.data || null);
+      } catch(e) {}
+    }
   }, []);
+
+  const getDayOrderForDate = (date: Date, calData: any) => {
+      if (!calData) return null;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const year = String(date.getFullYear()).slice(2);
+      const monthKey = `${months[date.getMonth()]} '${year}`;
+      const dayKey = String(date.getDate());
+      const dayData = calData[monthKey]?.[dayKey];
+      if (!dayData || dayData.dayOrder === '-') return null;
+      return dayData.dayOrder;
+  };
 
   const handleLogout = async () => {
     try {
@@ -118,7 +139,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                  <div><span className="font-bold text-white">Program:</span> {profileData?.programme_branch || profileData?.programmeBranch}</div>
                  <div><span className="font-bold text-white">Section:</span> {profileData?.section}</div>
                  <div><span className="font-bold text-white">Semester:</span> {profileData?.semester || 'N/A'}</div>
-                 <div><span className="font-bold text-white">Day Order:</span> {profileData?.dayOrder || 'N/A'}</div>
+                 <div><span className="font-bold text-white">Day Order:</span> {getDayOrderForDate(new Date(), calendarData) || 'N/A'}</div>
                  <div><span className="font-bold text-white mt-2 block">Department:</span> {profileData?.school_department || profileData?.schoolDepartment}</div>
                </div>
                 <div className="flex justify-center gap-7 mb-3">
