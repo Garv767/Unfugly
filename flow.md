@@ -26,7 +26,7 @@ This document outlines the detailed step-by-step operations, endpoints, data sch
 If scraping is triggered, the extension sends requests directly to the Academia subpages using the user's active browser cookies:
 1. **Profile & Course Registry Info**:
    - URL: `https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_2023_24`
-   - Scrapes student name, registration number, branch, section, semester, and maps registered course codes to their respective slots (`courseSlotMap`).
+   - Scrapes student name, registration number, branch, section, semester, and maps registered course codes to their respective slots (`courseData`).
    - *Example parsed courseData structure*:
      ```json
      {

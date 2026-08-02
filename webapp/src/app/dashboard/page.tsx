@@ -210,7 +210,7 @@ export default function Dashboard() {
               return newVal || cachedVal;
           };
 
-          const newCourseMap = scrapedData.courseSlotMap;
+          const newCourseMap = scrapedData.courseData;
           const cachedCourse = prev?.courseData;
           const mergedCourse = newCourseMap && Object.keys(newCourseMap).length > 0
               ? { ...(cachedCourse || {}), ...newCourseMap }
@@ -369,7 +369,7 @@ export default function Dashboard() {
          </div>
       </header>
 
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} calendarData={calendarData} />
 
       {/* Main Layout Area */}
             {/* Desktop Sidebar */}

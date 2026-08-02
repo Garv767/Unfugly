@@ -142,24 +142,41 @@ function extractCourseDataFromDocument(doc_context) {
 
     const tableElement = doc_context.querySelector('table.course_tbl');
     if (tableElement) {
-        const tableRows = tableElement.querySelectorAll('tbody tr');
-        const startIndex = 1; // Skip header row
-        //console.log(`[Unfugly API] Parsing course table (.course_tbl). Total rows including header: ${tableRows.length}`);
+        const tableRows = tableElement.querySelectorAll('tbody tr, thead tr, tr');
+        let courseCodeIdx = 1, titleIdx = 2, facultyIdx = 5, creditIdx = 7, slotIdx = 8, roomIdx = 9;
+        let startIndex = 1;
+
+        if (tableRows.length > 0) {
+            const headerRow = tableRows[0];
+            const headers = Array.from(headerRow.querySelectorAll('th, td')).map(th => th.textContent.trim().toLowerCase());
+            const findIdx = (keywords) => headers.findIndex(h => keywords.some(kw => h.includes(kw)));
+            
+            const cIdx = findIdx(['code', 'course code']);
+            if (cIdx !== -1) courseCodeIdx = cIdx;
+            const tIdx = findIdx(['title']);
+            if (tIdx !== -1) titleIdx = tIdx;
+            const fIdx = findIdx(['faculty', 'teacher']);
+            if (fIdx !== -1) facultyIdx = fIdx;
+            const crIdx = findIdx(['credit']);
+            if (crIdx !== -1) creditIdx = crIdx;
+            const sIdx = findIdx(['slot']);
+            if (sIdx !== -1) slotIdx = sIdx;
+            const rIdx = findIdx(['room']);
+            if (rIdx !== -1) roomIdx = rIdx;
+        }
+
         for (let i = startIndex; i < tableRows.length; i++) {
             const row = tableRows[i];
-            if (!row) continue;
+            if (!row || row.querySelectorAll('th').length > 0) continue;
             const cells = row.querySelectorAll('td');
-            if (cells.length === 0) {
-                console.log(`[Unfugly API] Row ${i} has 0 td cells, skipping.`);
-                continue;
-            }
 
-            //console.log(`[Unfugly API] Row ${i}: cells count = ${cells.length}, Code: ${cells[1] ? cells[1].textContent.trim() : 'N/A'}, Title: ${cells[2] ? cells[2].textContent.trim() : 'N/A'}, Slot Cell Index 8: ${cells[8] ? cells[8].textContent.trim() : 'N/A'}`);
-
-            if (cells.length > 8) {
-                const slotCell = cells[8];
-                const courseTitleCell = cells[2];
-                const clsRoomCell = cells.length > 9 ? cells[9] : null;
+            if (cells.length > Math.max(courseCodeIdx, titleIdx, slotIdx, roomIdx)) {
+                const slotCell = cells[slotIdx];
+                const courseTitleCell = cells[titleIdx];
+                const clsRoomCell = cells[roomIdx];
+                const courseCodeCell = cells[courseCodeIdx];
+                const creditCell = cells[creditIdx];
+                const facultyCell = cells[facultyIdx];
 
                 if (!slotCell || !courseTitleCell) {
                     console.warn(`[Unfugly API] Row ${i} skipped: slotCell or courseTitleCell is missing.`);
@@ -168,27 +185,23 @@ function extractCourseDataFromDocument(doc_context) {
 
                 const slot = slotCell.textContent.trim();
                 if (slot.includes('L')) {
-                    //console.log(`[Unfugly API] Row ${i} is a lab/practical slot: "${slot}"`);
                     if (typeof window !== 'undefined') {
                         window.extraSlotFlag = true;
                     }
                 }
                 const rawTitle = courseTitleCell.textContent.trim();
                 let truncatedTitle = rawTitle.length > 38 ? rawTitle.slice(0, 38) + '...' : rawTitle;
-                const courseTitle = truncatedTitle;
+                const courseTitle = truncatedTitle; 
                 const clsRoom = clsRoomCell ? clsRoomCell.textContent.trim() : '';
-
-                const courseCode = cells[1] ? cells[1].textContent.trim() : '';
-                const courseCredit = cells[3] ? cells[3].textContent.trim() : '';
-                const courseFaculty = cells[7] ? cells[7].textContent.trim() : '';
+                const courseCode = courseCodeCell ? courseCodeCell.textContent.trim() : 'N/A';
+                const courseCredit = creditCell ? creditCell.textContent.trim() : 'N/A';
+                const courseFaculty = facultyCell ? facultyCell.textContent.trim() : 'N/A';
 
                 if (slot && courseTitle) {
                     const slots = slot.split(/[-+,/]/).map(s => s.trim()).filter(s => s !== '');
-                    //console.log(`[Unfugly API] Row ${i} - Splitting slot "${slot}" into:`, slots);
                     slots.forEach(s => {
                         const trimmedSlot = s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
                         if (trimmedSlot) {
-                            //console.log(`[Unfugly API] Row ${i} - Mapping Slot key "${trimmedSlot}" -> "${courseTitle}"`);
                             courseData[trimmedSlot] = {
                                 "Course Code": courseCode,
                                 "Course Title": courseTitle,
@@ -198,11 +211,7 @@ function extractCourseDataFromDocument(doc_context) {
                             };
                         }
                     });
-                } else {
-                    console.warn(`[Unfugly API] Row ${i} - Skipped mapping: slot="${slot}", courseTitle="${courseTitle}"`);
                 }
-            } else {
-                console.warn(`[Unfugly API] Row ${i} skipped: cells.length (${cells.length}) is <= 8`);
             }
         }
     } else {

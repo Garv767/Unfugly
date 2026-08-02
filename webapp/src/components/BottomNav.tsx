@@ -10,6 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 interface BottomNavProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+  calendarData?: any;
 }
 
 const tabs = [
@@ -20,10 +21,9 @@ const tabs = [
   { id: 'Feedback',   icon: Rocket,        route: '/feedback' },
 ];
 
-export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+export default function BottomNav({ activeTab, onTabChange, calendarData }: BottomNavProps) {
   const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
-  const [calendarData, setCalendarData] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -36,15 +36,6 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           setProfileData(parsed?.profileData || null);
         } catch(e) {}
       }
-    }
-    
-    const calendarStr = localStorage.getItem('unfuglyData_calendar');
-    if (calendarStr) {
-      try {
-        const parsedCal = JSON.parse(calendarStr);
-        const currentSem = Object.keys(parsedCal)[0];
-        if (currentSem) setCalendarData(parsedCal[currentSem]?.data || null);
-      } catch(e) {}
     }
   }, []);
 
@@ -139,7 +130,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                  <div><span className="font-bold text-white">Program:</span> {profileData?.programme_branch || profileData?.programmeBranch}</div>
                  <div><span className="font-bold text-white">Section:</span> {profileData?.section}</div>
                  <div><span className="font-bold text-white">Semester:</span> {profileData?.semester || 'N/A'}</div>
-                 <div><span className="font-bold text-white">Day Order:</span> {getDayOrderForDate(new Date(), calendarData) || 'N/A'}</div>
+                 <div><span className="font-bold text-white">Day Order:</span> {getDayOrderForDate(new Date(), calendarData) || profileData?.dayOrder || 'N/A'}</div>
                  <div><span className="font-bold text-white mt-2 block">Department:</span> {profileData?.school_department || profileData?.schoolDepartment}</div>
                </div>
                 <div className="flex justify-center gap-7 mb-3">
