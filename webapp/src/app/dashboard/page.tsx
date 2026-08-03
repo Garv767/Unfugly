@@ -211,9 +211,14 @@ export default function Dashboard() {
           };
 
           const newCourseMap = scrapedData.courseData;
-          const cachedCourse = prev?.courseData;
+          let cachedCourse = prev?.courseData || {};
+          // Flatten legacy slotToCourse structure if it exists
+          if (cachedCourse.slotToCourse) {
+              cachedCourse = { ...cachedCourse.slotToCourse, ...cachedCourse };
+              delete cachedCourse.slotToCourse;
+          }
           const mergedCourse = newCourseMap && Object.keys(newCourseMap).length > 0
-              ? { ...(cachedCourse || {}), ...newCourseMap }
+              ? { ...cachedCourse, ...newCourseMap }
               : cachedCourse;
 
           const mergedData = {

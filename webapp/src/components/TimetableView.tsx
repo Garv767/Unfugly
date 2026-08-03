@@ -449,8 +449,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                     const rawSlotText: string = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
                     const cleanSlotText: string = rawSlotText.split('/')[0].trim().toUpperCase();
 
-                    const actualCourseData: Record<string, any> = courseData?.slotToCourse || courseData;
-                    const mappedCourse = actualCourseData && (actualCourseData[cleanSlotText] || actualCourseData[rawSlotText]);
+                    const actualCourseData: Record<string, any> = courseData || {};
+                    const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[rawSlotText];
 
                     let displayBg = slot.bgColor;
                     let displayTitle = slot.title;
@@ -603,8 +603,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       const rawSlotText = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
                       const cleanSlotText = rawSlotText.split('/')[0].trim().toUpperCase();
 
-                      const actualCourseData: Record<string, any> = courseData?.slotToCourse || courseData;
-                      const mappedCourse = actualCourseData && (actualCourseData[cleanSlotText] || actualCourseData[rawSlotText]);
+                      const actualCourseData: Record<string, any> = courseData || {};
+                      const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[rawSlotText];
 
                       let displayTitle = slot.title;
                       let displayRoom = slot.classroom;
