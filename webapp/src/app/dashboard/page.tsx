@@ -218,7 +218,7 @@ export default function Dashboard() {
               delete cachedCourse.slotToCourse;
           }
           const mergedCourse = newCourseMap && Object.keys(newCourseMap).length > 0
-              ? { ...cachedCourse, ...newCourseMap }
+              ? newCourseMap
               : cachedCourse;
 
           const mergedData = {
