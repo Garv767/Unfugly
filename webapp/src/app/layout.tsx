@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Unfugly",
   description: "Your SRM Academia experience, radically simplified.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
