@@ -112,20 +112,10 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   }, []); // mount-only
 
   const [parsedData, setParsedData] = useState<any>(null);
-  const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
-     if (typeof window !== 'undefined') {
-        const cachedDayIndex = localStorage.getItem('unfugly_cached_day_index');
-        const cachedDate = localStorage.getItem('unfugly_cached_date');
-        const todayStr = new Date().toDateString();
-        // Return cached day index only if it was cached today
-        if (cachedDate === todayStr && cachedDayIndex !== null) {
-            return parseInt(cachedDayIndex);
-        }
-     }
-     return 0;
-  });
+  const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
   const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
   const [touchStartXY, setTouchStartXY] = useState<{x: number, y: number} | null>(null);
+  const hasAutoFocusedRef = useRef(false);
 
   let hasExtraSlots = false;
   if (parsedData?.extraSlotFlag && parsedData?.days) {
@@ -191,34 +181,21 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     }
   }, [htmlContent, timetableJSON]);
 
+  // Effect to automatically focus the current day order
   useEffect(() => {
-      if (typeof window === 'undefined') return;
-      
-      const todayStr = new Date().toDateString();
-      const cachedDate = localStorage.getItem('unfugly_cached_date');
-      const cachedIndex = localStorage.getItem('unfugly_cached_day_index');
-      
-      // If we already have a manual cached selection for today, do NOT overwrite it
-      if (cachedDate === todayStr && cachedIndex !== null) {
-          return;
-      }
+      if (typeof window === 'undefined' || hasAutoFocusedRef.current || !calendarData) return;
       
       const currentDayOrderObj = getDayOrderForDate(new Date(), calendarData);
       const activeDayOrder = currentDayOrderObj ? currentDayOrderObj : null; 
       if (activeDayOrder && !isNaN(parseInt(activeDayOrder))) {
           const index = Math.max(0, parseInt(activeDayOrder) - 1);
           setMobileDayIndex(index);
-          localStorage.setItem('unfugly_cached_day_index', index.toString());
-          localStorage.setItem('unfugly_cached_date', todayStr);
+          hasAutoFocusedRef.current = true; // Only auto-focus once per mount
       }
   }, [calendarData]);
 
   const handleDayIndexChange = (newIndex: number) => {
       setMobileDayIndex(newIndex);
-      if (typeof window !== 'undefined') {
-          localStorage.setItem('unfugly_cached_day_index', newIndex.toString());
-          localStorage.setItem('unfugly_cached_date', new Date().toDateString());
-      }
   };
 
   const updateCache = (newEdits: any) => {
