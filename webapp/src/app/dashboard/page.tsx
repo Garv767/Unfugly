@@ -12,6 +12,19 @@ import { CalendarRange, LogOut, Rocket } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+function getISTString() {
+    const now = new Date();
+    const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const day   = ist.getDate();
+    const month = ist.toLocaleString('en-US', { month: 'short' });
+    const year  = ist.getFullYear();
+    let   hours = ist.getHours();
+    const mins  = String(ist.getMinutes()).padStart(2, '0');
+    const ampm  = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12 || 12;
+    return `${day} ${month} ${year}, ${hours}:${mins} ${ampm}`;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Timetable');
@@ -256,7 +269,7 @@ export default function Dashboard() {
                 courseData:     mergedData.courseData,
                 editedSlots:    mergedData.editedSlots,
                 source:         'webapp',
-                lastUpdated:    new Date().toISOString()
+                lastUpdated:    getISTString()
               })
             }).catch(() => {});
           }
