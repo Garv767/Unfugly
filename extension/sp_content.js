@@ -2,16 +2,15 @@
 // Content script for Student Portal (sp.srmist.edu.in) to add inline attendance margin
 
 function injectAttendanceMargin() {
-    // Find the COURSE WISE ATTENDANCE table
-    const tables = document.querySelectorAll('table');
+    // Find the COURSE WISE ATTENDANCE table more strictly
+    const cardHeaders = document.querySelectorAll('.card-header');
     let targetTable = null;
     
-    for (const table of tables) {
-        const thead = table.querySelector('thead tr');
-        if (thead) {
-            const firstHeader = thead.querySelector('th');
-            if (firstHeader && firstHeader.textContent.trim().toLowerCase() === 'code') {
-                targetTable = table;
+    for (const header of cardHeaders) {
+        if (header.textContent.includes('COURSE WISE ATTENDANCE')) {
+            const card = header.closest('.card');
+            if (card) {
+                targetTable = card.querySelector('table');
                 break;
             }
         }
