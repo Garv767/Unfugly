@@ -10,13 +10,18 @@
   "host_permissions": [
     "https://academia.srmist.edu.in/*",
     "https://creatorapp.zoho.com/srm_university/*",
-    "https://unfugly-backend.onrender.com/*"
+    "https://unfugly-backend.onrender.com/*",
+    "https://sp.srmist.edu.in/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://academia.srmist.edu.in/*", "https://creatorapp.zoho.com/srm_university/*"],
       "js": ["lib/html2canvas.min.js", "content.js", "editTimetable.js", "analytics.js", "predict.js"],
       "css": ["styles.css"]
+    },
+    {
+      "matches": ["https://sp.srmist.edu.in/*"],
+      "js": ["sp_content.js"]
     }
   ],
   "background": [
