@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-text: var(--text);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-red: var(--red);
+  --color-muted: var(--muted);
+  --color-tag-bg: var(--tag-bg);
+}
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242736;
+  --border: #2e3347;
+  --accent: #6c8ef7;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --yellow: #facc15;
+  --red: #f87171;
+  --text: #e2e8f0;
+  --muted: #8892a4;
+  --tag-bg: #1e2540;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+/* Base custom utilities */
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-xl p-6 shadow-sm;
+  }
+  .input-field {
+    @apply bg-surface2 border border-border text-text rounded-md px-4 py-2 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors;
+  }
+  .btn-primary {
+    @apply bg-accent hover:bg-accent2 text-white font-medium py-2 px-4 rounded-md transition-colors shadow-sm;
+  }
+}

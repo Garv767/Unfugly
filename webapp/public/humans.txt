@@ -1,0 +1,9 @@
+/* TEAM */
+Chef / Lead Developer: Garv (Garv767)
+Dev ID: DELL
+
+/* SITE */
+Last update: 2026-07-20
+Standards: HTML5, CSS3, TypeScript
+Components: Next.js, React, Supabase, TailwindCSS
+Software: VS Code

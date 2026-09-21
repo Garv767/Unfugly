@@ -1,0 +1,779 @@
+{
+  "profileData": {
+    "name": "GARV RAHUT",
+    "registrationNo": "RA2411003010718",
+    "programmeBranch": "B.Tech",
+    "schoolDepartment": "Computer Science and Engineering(CS)",
+    "section": "L1",
+    "semester": "4",
+    "profilePhotoUrl": "http://localhost:3000/api/v1/user/photo"
+  },
+  "attendanceData": [
+    {
+      "courseCode": "21MAB204T",
+      "courseType": "Theory",
+      "percentage": 83,
+      "courseTitle": "Probability and Queueing Theory",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21CSC204J",
+      "courseType": "Theory",
+      "percentage": 92,
+      "courseTitle": "Design and Analysis of Algorithms",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21CSE251T",
+      "courseType": "Theory",
+      "percentage": 94,
+      "courseTitle": "Digital Image Processing",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21CSC205P",
+      "courseType": "Theory",
+      "percentage": 95,
+      "courseTitle": "Database Management Systems",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21PDH209T",
+      "courseType": "Theory",
+      "percentage": 90,
+      "courseTitle": "Social Engineering",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21CSC206T",
+      "courseType": "Theory",
+      "percentage": 95,
+      "courseTitle": "Artificial Intelligence",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21DCS201P",
+      "courseType": "Theory",
+      "percentage": 95,
+      "courseTitle": "Design Thinking and Methodology",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21CSC204J",
+      "courseType": "Practical",
+      "percentage": 92,
+      "courseTitle": "Design and Analysis of Algorithms",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    },
+    {
+      "courseCode": "21PDM301L",
+      "courseType": "Practical",
+      "percentage": 100,
+      "courseTitle": "Analytical and Logical Thinking Skills",
+      "totalClasses": "N/A",
+      "classesToSkip": 0,
+      "attendedClasses": "N/A",
+      "classesToAttend": 0
+    }
+  ],
+  "marksData": [
+    {
+      "Components": [
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-III",
+          "ObtainedMarks": 10.5
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-IV",
+          "ObtainedMarks": 13.2
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "LLT-I",
+          "ObtainedMarks": 9.5
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-II",
+          "ObtainedMarks": 10.8
+        },
+        {
+          "MaxMarks": 5,
+          "ComponentName": "FT-I",
+          "ObtainedMarks": 5
+        }
+      ],
+      "CourseCode": "21CSE251T",
+      "CourseType": "Theory",
+      "CourseTitle": "Digital Image Processing",
+      "TotalMaxMarks": 60,
+      "TotalObtainedMarks": 49
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-III",
+          "ObtainedMarks": 9.3
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-IV",
+          "ObtainedMarks": 15
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "LLT-I",
+          "ObtainedMarks": 10
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-II",
+          "ObtainedMarks": 11.4
+        },
+        {
+          "MaxMarks": 5,
+          "ComponentName": "FT-I",
+          "ObtainedMarks": 5
+        }
+      ],
+      "CourseCode": "21MAB204T",
+      "CourseType": "Theory",
+      "CourseTitle": "Probability and Queueing Theory",
+      "TotalMaxMarks": 60,
+      "TotalObtainedMarks": 50.7
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FJ-I",
+          "ObtainedMarks": 12.1
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FJ-II",
+          "ObtainedMarks": 13.1
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FJ-III",
+          "ObtainedMarks": 15
+        },
+        {
+          "MaxMarks": 7,
+          "ComponentName": "LLJ-I",
+          "ObtainedMarks": 7
+        },
+        {
+          "MaxMarks": 8,
+          "ComponentName": "LLJ-II",
+          "ObtainedMarks": 8
+        }
+      ],
+      "CourseCode": "21CSC204J",
+      "CourseType": "Theory",
+      "CourseTitle": "Design and Analysis of Algorithms",
+      "TotalMaxMarks": 60,
+      "TotalObtainedMarks": 55.2
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 10,
+          "ComponentName": "FP-I",
+          "ObtainedMarks": 9.04
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "FP-II",
+          "ObtainedMarks": 8.98
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-I",
+          "ObtainedMarks": 19
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-II",
+          "ObtainedMarks": 15
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-III",
+          "ObtainedMarks": 18.75
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "R21 Report and Viva - Theory",
+          "ObtainedMarks": 19.5
+        }
+      ],
+      "CourseCode": "21CSC205P",
+      "CourseType": "Theory",
+      "CourseTitle": "Database Management Systems",
+      "TotalMaxMarks": 100,
+      "TotalObtainedMarks": 90.27
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-III",
+          "ObtainedMarks": 13
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-IV",
+          "ObtainedMarks": 12.3
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "LLT-I",
+          "ObtainedMarks": 9.5
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-II",
+          "ObtainedMarks": 11.1
+        },
+        {
+          "MaxMarks": 5,
+          "ComponentName": "FT-I",
+          "ObtainedMarks": 3.5
+        }
+      ],
+      "CourseCode": "21CSC206T",
+      "CourseType": "Theory",
+      "CourseTitle": "Artificial Intelligence",
+      "TotalMaxMarks": 60,
+      "TotalObtainedMarks": 49.4
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 40,
+          "ComponentName": "PDInt",
+          "ObtainedMarks": 38
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-III",
+          "ObtainedMarks": 14
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-IV",
+          "ObtainedMarks": 15
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "LLT-I",
+          "ObtainedMarks": 10
+        },
+        {
+          "MaxMarks": 15,
+          "ComponentName": "FT-II",
+          "ObtainedMarks": 14
+        },
+        {
+          "MaxMarks": 5,
+          "ComponentName": "FT-I",
+          "ObtainedMarks": 5
+        }
+      ],
+      "CourseCode": "21PDH209T",
+      "CourseType": "Theory",
+      "CourseTitle": "Social Engineering",
+      "TotalMaxMarks": 100,
+      "TotalObtainedMarks": 96
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 10,
+          "ComponentName": "FP-I",
+          "ObtainedMarks": 9
+        },
+        {
+          "MaxMarks": 10,
+          "ComponentName": "FP-II",
+          "ObtainedMarks": 9
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-I",
+          "ObtainedMarks": 19
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-II",
+          "ObtainedMarks": 18
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "PBL-III",
+          "ObtainedMarks": 17
+        },
+        {
+          "MaxMarks": 20,
+          "ComponentName": "R21 Report and Viva - Theory",
+          "ObtainedMarks": 20
+        }
+      ],
+      "CourseCode": "21DCS201P",
+      "CourseType": "Theory",
+      "CourseTitle": "Design Thinking and Methodology",
+      "TotalMaxMarks": 100,
+      "TotalObtainedMarks": 92
+    },
+    {
+      "Components": [],
+      "CourseCode": "21CSC204J",
+      "CourseType": "Practical",
+      "CourseTitle": "Design and Analysis of Algorithms",
+      "TotalMaxMarks": 0,
+      "TotalObtainedMarks": 0
+    },
+    {
+      "Components": [
+        {
+          "MaxMarks": 30,
+          "ComponentName": "FML-I",
+          "ObtainedMarks": 30
+        },
+        {
+          "MaxMarks": 30,
+          "ComponentName": "FML-II",
+          "ObtainedMarks": 30
+        },
+        {
+          "MaxMarks": 40,
+          "ComponentName": "FML-III",
+          "ObtainedMarks": 40
+        }
+      ],
+      "CourseCode": "21PDM301L",
+      "CourseType": "Practical",
+      "CourseTitle": "Analytical and Logical Thinking Skills",
+      "TotalMaxMarks": 100,
+      "TotalObtainedMarks": 100
+    }
+  ],
+  "editedSlots": {
+    "B": {
+      "editedTitle": "DAA",
+      "originalTitle": null,
+      "editedClassroom": "",
+      "originalClassroom": null
+    },
+    "C": {
+      "editedTitle": "DIP",
+      "originalTitle": null,
+      "editedClassroom": "",
+      "originalClassroom": null
+    },
+    "D": {
+      "editedTitle": "DBMS",
+      "originalTitle": null,
+      "editedClassroom": "",
+      "originalClassroom": null
+    },
+    "E": {
+      "editedTitle": "SE",
+      "originalTitle": null,
+      "editedClassroom": "",
+      "originalClassroom": null
+    },
+    "P31": {
+      "editedTitle": "DBMS Lab",
+      "originalTitle": null,
+      "editedClassroom": "TP 710",
+      "originalClassroom": null
+    },
+    "P32/X": {
+      "editedTitle": "DBMS Lab",
+      "originalTitle": null,
+      "editedClassroom": "TP 710",
+      "originalClassroom": null
+    }
+  },
+  "timetableHTML": "<table align=\"\" border=\"5px\" cellpadding=\"10\" cellspacing=\"2\" width=\"400\" style=\"border: 10px; max-width: 100%; background-color: rgb(0, 0, 0);\">\n <caption class=\"t1\" style=\"display: table-caption; margin-top: 5px;\">Your Personalized Timetable by Unfugly</caption>\n <tbody><tr>\n <td style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\" rowspan=\"1\">Time</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">08:00 \t- 08:50</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">08:50 \t- 09:40</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">09:45 \t- 10:35</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">10:40 \t- 11:30</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">11:35 \t- 12:25</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">12:30 \t- 01:20</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">01:25 \t- 02:15</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">02:20 \t- 03:10</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">03:10 \t- 04:00</td>\n <td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">04:00 \t- 04:50</td>\n\t\t<td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">04:50 \t- 05:30</td>\n\t\t<td rowspan=\"1\" style=\"width: 120px; height: 8px; background-color: rgb(241, 148, 138); font-size: 10px; max-height: 40px;\">05:30 \t- 06:10</td>\n </tr>\n \n \n <tr>\n \n \t<td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 1</td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-13\" class=\"replaced-slot\" title=\"Slot: A\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Probability and Queueing Theory</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-14\" class=\"replaced-slot\" title=\"Slot: A / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Probability and Queueing Theory</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-15\" class=\"replaced-slot\" title=\"Slot: F / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Artificial Intelligence</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-16\" class=\"replaced-slot\" title=\"Slot: F\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Artificial Intelligence</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-17\" class=\"replaced-slot\" title=\"Slot: G\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design Thinking and Methodology</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-18\" title=\"Slot: P6\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P6</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-19\" title=\"Slot: P7\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P7</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-20\" title=\"Slot: P8\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P8</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-21\" title=\"Slot: P9\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P9</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-22\" title=\"Slot: P10\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P10</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-23\" title=\"Slot: L11\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L11</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-24\" title=\"Slot: L12\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L12</span></td>\n </tr>\n <tr>\n <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 2</td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-25\" title=\"Slot: P11\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P11</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-26\" title=\"Slot: P12/X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P12/X</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-27\" title=\"Slot: P13/X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P13/X</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-28\" title=\"Slot: P14\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P14</span></td>\n \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-29\" title=\"Slot: P15\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P15</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-30\" class=\"replaced-slot\" title=\"Slot: B\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-31\" class=\"replaced-slot\" title=\"Slot: B\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-32\" class=\"replaced-slot\" title=\"Slot: G\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design Thinking and Methodology</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-33\" class=\"replaced-slot\" title=\"Slot: G\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design Thinking and Methodology</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-34\" class=\"replaced-slot\" title=\"Slot: A\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Probability and Queueing Theory</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-35\" title=\"Slot: L21\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L21</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-36\" title=\"Slot: L22\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L22</span></td>\n </tr>\n <tr>\n <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 3</td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-37\" class=\"replaced-slot\" title=\"Slot: C\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Digital Image Processing</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 602</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-38\" class=\"replaced-slot\" title=\"Slot: C / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Digital Image Processing</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 602</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-39\" class=\"replaced-slot\" title=\"Slot: A / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Probability and Queueing Theory</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-40\" class=\"replaced-slot\" title=\"Slot: D\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Database Management Systems</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-41\" class=\"replaced-slot\" title=\"Slot: B\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-42\" title=\"Slot: P26\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P26</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-43\" title=\"Slot: P27\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P27</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-44\" title=\"Slot: P28\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P28</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-45\" title=\"Slot: P29\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P29</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-46\" title=\"Slot: P30\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P30</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-47\" title=\"Slot: L31\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L31</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-48\" title=\"Slot: L32\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L32</span></td>\n </tr>\n <tr>\n <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 4</td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-49\" title=\"Slot: P31\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P31</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-50\" title=\"Slot: P32/X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P32/X</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-51\" title=\"Slot: P33/X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P33/X</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-52\" title=\"Slot: P34\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P34</span></td>\n \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-53\" title=\"Slot: P35\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P35</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-54\" class=\"replaced-slot\" title=\"Slot: D\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Database Management Systems</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-55\" class=\"replaced-slot\" title=\"Slot: D\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Database Management Systems</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-56\" class=\"replaced-slot\" title=\"Slot: B\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-57\" class=\"replaced-slot\" title=\"Slot: E\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Social Engineering</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-58\" class=\"replaced-slot\" title=\"Slot: C\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Digital Image Processing</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 602</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-59\" title=\"Slot: L41\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L41</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-60\" title=\"Slot: L42\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">L42</span></td>\n </tr>\n <tr>\n <td style=\"width: 120px; height: 8px; background-color: rgb(248, 196, 113); font-size: 10px;\">Day 5</td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-61\" class=\"replaced-slot\" title=\"Slot: E\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Social Engineering</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-62\" class=\"replaced-slot\" title=\"Slot: E / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Social Engineering</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-63\" class=\"replaced-slot\" title=\"Slot: C / X\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Digital Image Processing</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 602</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-64\" class=\"replaced-slot\" title=\"Slot: F\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Artificial Intelligence</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n \t\t<td style=\"width: 120px; height: 8px; background-color: rgb(249, 231, 159); min-width: 90px;\" id=\"slot-65\" class=\"replaced-slot\" title=\"Slot: D\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Database Management Systems</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP 303</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-66\" title=\"Slot: P46\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P46</span></td>\n <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" id=\"slot-67\" class=\"replaced-slot\" title=\"Slot: P47\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP013</span></td>\n <td style=\"width: 120px; height: 8px; background-color: lightgreen; min-width: 90px;\" id=\"slot-68\" class=\"replaced-slot\" title=\"Slot: P48\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Design and Analysis of Algorithms</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: TP013</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-69\" title=\"Slot: P49\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P49</span></td>\n <td style=\"width: 120px; height: 8px; background-color: rgb(88, 91, 91); min-width: 90px; color: rgb(170, 170, 170); font-size: 11px;\" id=\"slot-70\" title=\"Slot: P50\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 400; color: rgb(170, 170, 170); display: block;\">P50</span></td>\n \t\t<td style=\"width: 120px; height: 8px; background-color: dodgerblue; min-width: 90px;\" id=\"slot-71\" class=\"replaced-slot\" title=\"Slot: L51\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Analytical and Logical Thinking Skills</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: NA</span></td>\n\t\t <td style=\"width: 120px; height: 8px; background-color: dodgerblue; min-width: 90px;\" id=\"slot-72\" class=\"replaced-slot\" title=\"Slot: L52\"><span class=\"editedSlot-originalTitle\" style=\"font-weight: 600; color: rgb(51, 51, 68); display: block; font-size: 11px;\">Analytical and Logical Thinking Skills</span><span class=\"editedSlot-originalClassroom\" style=\"color: rgb(85, 85, 85); font-size: 9px; display: block;\">Room: NA</span></td>\n </tr>\n</tbody></table>",
+  "timetableJSON": {
+    "days": [
+      {
+        "slots": [
+          {
+            "title": "Probability and Queueing Theory",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Probability and Queueing Theory",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Artificial Intelligence",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Artificial Intelligence",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design Thinking and Methodology",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "P6",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P7",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P8",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P9",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P10",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L11",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L12",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          }
+        ],
+        "dayName": "Day 1"
+      },
+      {
+        "slots": [
+          {
+            "title": "P11",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P12/X",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P13/X",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P14",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P15",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design Thinking and Methodology",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design Thinking and Methodology",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Probability and Queueing Theory",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "L21",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L22",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          }
+        ],
+        "dayName": "Day 2"
+      },
+      {
+        "slots": [
+          {
+            "title": "Digital Image Processing",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 602"
+          },
+          {
+            "title": "Digital Image Processing",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 602"
+          },
+          {
+            "title": "Probability and Queueing Theory",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Database Management Systems",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "P26",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P27",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P28",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P29",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P30",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L31",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L32",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          }
+        ],
+        "dayName": "Day 3"
+      },
+      {
+        "slots": [
+          {
+            "title": "P31",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P32/X",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P33/X",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P34",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P35",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "Database Management Systems",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Database Management Systems",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Social Engineering",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Digital Image Processing",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 602"
+          },
+          {
+            "title": "L41",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "L42",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          }
+        ],
+        "dayName": "Day 4"
+      },
+      {
+        "slots": [
+          {
+            "title": "Social Engineering",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Social Engineering",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Digital Image Processing",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 602"
+          },
+          {
+            "title": "Artificial Intelligence",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "Database Management Systems",
+            "bgColor": "rgb(249, 231, 159)",
+            "classroom": "Room: TP 303"
+          },
+          {
+            "title": "P46",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "lightgreen",
+            "classroom": "Room: TP013"
+          },
+          {
+            "title": "Design and Analysis of Algorithms",
+            "bgColor": "lightgreen",
+            "classroom": "Room: TP013"
+          },
+          {
+            "title": "P49",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "P50",
+            "bgColor": "rgb(88, 91, 91)",
+            "classroom": ""
+          },
+          {
+            "title": "Analytical and Logical Thinking Skills",
+            "bgColor": "dodgerblue",
+            "classroom": "Room: NA"
+          },
+          {
+            "title": "Analytical and Logical Thinking Skills",
+            "bgColor": "dodgerblue",
+            "classroom": "Room: NA"
+          }
+        ],
+        "dayName": "Day 5"
+      }
+    ],
+    "headers": [
+      "Time",
+      "08:00 \t- 08:50",
+      "08:50 \t- 09:40",
+      "09:45 \t- 10:35",
+      "10:40 \t- 11:30",
+      "11:35 \t- 12:25",
+      "12:30 \t- 01:20",
+      "01:25 \t- 02:15",
+      "02:20 \t- 03:10",
+      "03:10 \t- 04:00",
+      "04:00 \t- 04:50",
+      "04:50 \t- 05:30",
+      "05:30 \t- 06:10"
+    ],
+    "extraSlotFlag": false
+  },
+  "courseSlotMap": {
+    "dayOrder": {},
+    "slotToCourse": {}
+  },
+  "lastSynced": "5 Jun 2026, 3:04 pm"
+}
