@@ -428,3 +428,24 @@ All incoming requests pass through a non-blocking telemetry middleware:
   - `Average`: `2727643000027208373`
   - `Poor`: `2727643000027208369`
 - By submitting direct HTTP POST requests with the student's session cookies, the backend executes feedback completion in under 300ms using less than 2MB of memory, allowing Render's free tier to handle hundreds of concurrent submissions safely.
+
+---
+
+## 10. Modular Academic Sync Engine & Transactional Communications
+
+### 10.1 Modular Sync Engine Architecture (`Promise.allSettled`)
+The sync architecture is designed for total component isolation:
+- **Resilient Parallelism**: The 5 academic data streams run via `Promise.allSettled`:
+  1. `scrapeSpAttendance`: Extracts course hours, attendance percentage, classes-to-skip / classes-to-attend calculations, and monthly distribution.
+  2. `scrapeSpInternalMarks`: Retrieves aggregate marks and recursively extracts component evaluations (FP-I, PBL-I, CLA, assignments) via inner JSP.
+  3. `scrapeSpExamTimetable`: Extracts official end-sem dates, sessions (FN/AN), and seat numbers.
+  4. `scrapeSpAcademicCalendar`: Dynamically queries active template and extracts 140 semester dates (working days, day orders, holidays), persisting directly to `academic_calendar`.
+  5. `scrapeAcademiaTimetable`: Extracts enrolled courses, student batch (`1` vs `2`), and maps against the 12-hour unified slot matrix into `user_timetables` and `user_course_registrations`.
+- **Fault-Tolerant Persistence**: A failure or delay in one portal (e.g. Academia SSO rate limit or exam timetable unreleased) never blocks or cancels the successful extraction and storage of the remaining data streams.
+- **Session Cache Optimization**: Academia session cookies are cached in memory/Redis with a 10-hour TTL, preserving the strict 10–15 daily login quota on Zoho SSO.
+
+### 10.2 Multi-Service Transactional Email Architecture
+To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy Carpooling, Campus Marketplace):
+- All auth requests (`/api/v2/auth/register`, `/api/v2/auth/login`) accept a `service` parameter (`'webapp'`, `'convoy'`, `'marketplace'`).
+- Metadata is passed to Supabase Auth (`options.data: { service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
+
