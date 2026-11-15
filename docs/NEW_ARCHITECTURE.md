@@ -312,9 +312,9 @@ sequenceDiagram
 - **Global University Calendar**: SRM's day-order shifts are stored once in `academic_calendar` (e.g. `{ "2026-11-20": "DO4", "2026-11-21": "HOLIDAY", "2026-11-24": "DO5" }`).
 - When a holiday shifts the schedule, the backend updates `academic_calendar` once ($O(1)$) and issues a Redis command `DEL calendar:ics:*`.
 - No massive background jobs; as client devices ping the feed over the next 12 hours, the schedule recalculates automatically on cache miss.
-- **Zombie Ping Defenses**:
+- **Zombie Ping Defenses & Permanent Event Retention**:
   - `ETag` + `304 Not Modified` header check (sends 0 KB body for unchanged feeds).
-  - `410 Gone` returned immediately if the semester end date has passed.
+  - **Permanent Semester Retention (No Calendar Wipes)**: Returning `410 Gone` causes Google and Apple Calendar to delete the entire calendar feed, erasing students' past class and attendance history. Instead, when a semester concludes, the server serves the final frozen schedule with `Cache-Control: public, max-age=31536000, immutable` and a terminal `ETag`. Any future check by the client immediately hits `304 Not Modified` (0 bytes body), keeping historical dates permanently on the user's phone with zero server computation.
   - Dormant account cutoff: Accounts inactive for >30 days receive an empty calendar with a reminder event.
 
 ### 5.2 Exam Timetable & Hall Ticket
@@ -336,6 +336,7 @@ sequenceDiagram
   $$\text{Safe Bunks} = \left\lfloor \frac{\text{Attended Hours} + \text{OD Hours} - (0.75 \times (\text{Total Hours} + \text{Planned Hours}))}{0.75} \right\rfloor$$
 
 ### 5.5 Dynamic PYQ Analysis & Question Extraction — *Paid Tab*
+- **Current-Semester Scoped Filtering**: The webapp automatically joins the user's current enrolled course codes from `user_course_registrations` with `pyq_questions`. Students are presented **only** with the PYQs matching their active semester courses, avoiding syllabus clutter.
 - **Extraction Pipeline**: Instead of displaying static PDFs, questions are extracted and structured:
   ```json
   {
@@ -378,11 +379,12 @@ For college students in India, **Razorpay Standard Checkout & UPI Payment Links*
 
 ---
 
-## 8. API Versioning Strategy
+## 8. API Versioning & Route Monitoring Strategy
 
+### 8.1 Route Versioning Guarantees
 To ensure zero downtime and prevent breaking existing extension versions:
-- **`/api/v1/...`**: Legacy routes preserved for existing extension builds (`/api/v1/user/save`, `/api/v1/auth/login`, etc.).
-- **`/api/v2/...`**: Modern routes implementing the V3 architecture:
+- **`/api/v1/...` (Strictly Frozen)**: Preserved exactly as-is for active extension builds (`/api/v1/user/save`, `/api/v1/auth/login`, `/api/v1/feedback`, etc.). No breaking changes or route renames may touch `/api/v1`.
+- **`/api/v2/...` (Modern Architecture)**: Independent namespace for all V3 capabilities:
   - `POST /api/v2/auth/sync-session`
   - `POST /api/v2/user/vault-credentials`
   - `GET  /api/v2/calendar/feed/:token.ics`
@@ -392,3 +394,22 @@ To ensure zero downtime and prevent breaking existing extension versions:
   - `GET  /api/v2/pyq/:subject_code`
   - `POST /api/v2/subscriptions/create-order`
   - `POST /api/v2/subscriptions/webhook`
+
+### 8.2 Route Usage Monitoring
+All incoming requests pass through a non-blocking telemetry middleware:
+- **Structured Metrics**: Logs HTTP method, sanitized path (stripped of user tokens), status code, response time in ms, and caller `user_net_id`.
+- **Redis Operational Counters**: Daily hit counters maintained via `HINCRBY api:metrics:<YYYY-MM-DD> "<METHOD> <ROUTE>" 1`. Provides instant traffic visibility without database writes or third-party overhead.
+
+---
+
+## 9. Portal Session Concurrency & Anti-Bot Behavior
+
+### 9.1 SRM Academia Concurrency Rules
+- **Concurrent Session Limits**: Academia allows a maximum of 2 active sessions.
+  - **Second Session**: Triggers a preloader warning modal: *"Max session reached. Terminate other or skip."*
+  - **Third Session**: Enforces a blocking gate requiring the user to terminate all other active sessions before proceeding.
+- **Scraper Handshake**: When scraping Academia, the background worker detects the session warning DOM and automatically opts to terminate or reuse existing sessions.
+- **CAPTCHA Trigger Condition**: Academia only presents a CAPTCHA if 5 consecutive failed logins occur from the same IP/client. A single valid authentication resets the counter. The extension can assist by autofilling the field on login.
+
+### 9.2 SRM Student Portal Concurrency
+- Student Portal (`sp.srmist.edu.in`) is decoupled from Zoho single-sign-on and does not enforce the 2-session termination gate, permitting reliable parallel background fetching once authenticated.
