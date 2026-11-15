@@ -408,9 +408,12 @@ All incoming requests pass through a non-blocking telemetry middleware:
 
 ### 9.1 SRM Academia Concurrency Rules & Handshake
 - **Concurrent Session Limits**: Academia allows a maximum of 2 active sessions.
-  - **Second Session**: Triggers a preloader warning modal: *"Max session reached. Terminate other or skip."* (`GET /accounts/p/40-10002227248/announcement/sessions-reminder?serviceurl=...`).
-  - **Automated Handshake Clearance**: Inspection of `academia.srmist.edu.in.har` reveals that sending `GET /accounts/p/40-10002227248/announcement/sessions-reminder/next?status=1&serviceurl=...` immediately clears the reminder and redirects cleanly to `redirectFromLogin`.
-  - **Third Session**: Enforces a blocking gate requiring the user to terminate other sessions before proceeding.
+  - **Second Session Warning**: Triggers a preloader warning modal: *"Max session reached. Terminate other or skip."* (`code: POST_ANNOUCEMENT_REDIRECTION`).
+    - **Handshake Clearance**: Sending `GET /accounts/p/40-10002227248/announcement/sessions-reminder/next?status=1&serviceurl=...` immediately skips/clears the warning and redirects cleanly to `redirectFromLogin`.
+  - **Third Session Hard Blocker**: Enforces a mandatory blocking gate (`code: SI303`, redirecting to `/preannouncement/block-sessions`).
+    - **Automated Handshake Clearance**: Reverse-engineering of `block-sessions.html` reveals the exact termination API:
+      1. Issue `DELETE /accounts/p/40-10002227248/webclient/v1/announcement/pre/blocksessions` with header `X-ZCSRF-TOKEN: iamcsrcoo=<iamcsr>`. Server returns `HTTP 200 {"status_code":204, "code":"SES200", "message":"Session closed success"}`.
+      2. Issue `GET /accounts/p/40-10002227248/preannouncement/block-sessions/next`. Server returns `HTTP 302 Found`, redirecting immediately to `redirectFromLogin` and granting full dashboard access.
 - **CAPTCHA Trigger Condition**: Academia only presents a CAPTCHA if 5 consecutive failed logins occur from the same IP/client. A single valid authentication resets the counter. The extension can assist by autofilling the field on login.
 
 ### 9.2 SRM Student Portal Concurrency
