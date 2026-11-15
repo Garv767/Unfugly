@@ -464,7 +464,7 @@ export default function LoginPage() {
                     <input
                       type="text"
                       className="input-field w-full pl-9 text-sm"
-                      placeholder="e.g. gr2383 or gr2383@srmist.edu.in"
+                      placeholder="e.g. ab1234 or ab1234@srmist.edu.in"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
@@ -537,7 +537,7 @@ export default function LoginPage() {
                         <input
                           type="text"
                           className="input-field w-full pl-9 text-sm"
-                          placeholder="e.g. gr2383 or gr2383@srmist.edu.in"
+                          placeholder="e.g. ab1234 or ab1234@srmist.edu.in"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           required
@@ -641,7 +641,7 @@ export default function LoginPage() {
                     <input
                       type="text"
                       className="input-field w-full pl-9 text-sm"
-                      placeholder="e.g. gr2383 or gr2383@srmist.edu.in"
+                      placeholder="e.g. ab1234 or ab1234@srmist.edu.in"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
