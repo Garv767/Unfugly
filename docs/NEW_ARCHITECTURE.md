@@ -12,22 +12,22 @@ Unfugly is transitioning from a Chrome-extension-first utility into an integrate
 
 ```mermaid
 graph TD
-    subgraph Identity & Data Layer
-        SupabaseAuth[Supabase Native Auth (auth.users)]
-        ProfilesTable[(profiles Table: Verified NetID, Gender, Batch, Vault)]
-        RedisCache[(Redis: Hot Sessions, Calendar ICS Cache)]
+    subgraph Identity_Data_Layer["Identity and Data Layer"]
+        SupabaseAuth["Supabase Native Auth (auth.users)"]
+        ProfilesTable[("profiles Table: Verified NetID, Gender, Batch, Vault")]
+        RedisCache[("Redis: Hot Sessions, Calendar ICS Cache")]
     end
 
-    subgraph Client Applications
-        Webapp[Unfugly Webapp (Next.js - Primary Dashboard)]
-        Extension[Chrome Extension (Companion Sync & Content Script)]
-        Convoy[Convoy App (Campus Carpooling & Ride Sharing)]
-        Marketplace[Campus Marketplace (Verified Student Commerce)]
+    subgraph Client_Applications["Client Applications"]
+        Webapp["Unfugly Webapp (Next.js - Primary Dashboard)"]
+        Extension["Chrome Extension (Companion Sync and Content Script)"]
+        Convoy["Convoy App (Campus Carpooling and Ride Sharing)"]
+        Marketplace["Campus Marketplace (Verified Student Commerce)"]
     end
 
-    subgraph External Portals
-        SP[SRM Student Portal (sp.srmist.edu.in)]
-        Academia[Legacy Academia (academia.srmist.edu.in)]
+    subgraph External_Portals["External Portals"]
+        SP["SRM Student Portal (sp.srmist.edu.in)"]
+        Academia["Legacy Academia (academia.srmist.edu.in)"]
     end
 
     SupabaseAuth --> ProfilesTable
@@ -37,7 +37,7 @@ graph TD
     Extension --> ProfilesTable
 
     Webapp -->|Decrypts In-Memory| SP
-    Webapp -->|Batch < 2030 Only| Academia
+    Webapp -->|Batch pre-2030 Only| Academia
     RedisCache -.-> Webapp
 ```
 
@@ -336,7 +336,7 @@ sequenceDiagram
   $$\text{Safe Bunks} = \left\lfloor \frac{\text{Attended Hours} + \text{OD Hours} - (0.75 \times (\text{Total Hours} + \text{Planned Hours}))}{0.75} \right\rfloor$$
 
 ### 5.5 Dynamic PYQ Analysis & Question Extraction — *Paid Tab*
-- **Current-Semester Scoped Filtering**: The webapp automatically joins the user's current enrolled course codes from `user_course_registrations` with `pyq_questions`. Students are presented **only** with the PYQs matching their active semester courses, avoiding syllabus clutter.
+- **Current-Semester Scoped Filtering**: The webapp automatically joins the user's current enrolled course codes from `user_course_registrations` with `pyq_questions`. Students are presented **only** with the PYQs matching their active semester courses, organized under separate subject accordion sections inside the PYQs tab.
 - **Extraction Pipeline**: Instead of displaying static PDFs, questions are extracted and structured:
   ```json
   {
@@ -404,12 +404,22 @@ All incoming requests pass through a non-blocking telemetry middleware:
 
 ## 9. Portal Session Concurrency & Anti-Bot Behavior
 
-### 9.1 SRM Academia Concurrency Rules
+### 9.1 SRM Academia Concurrency Rules & Handshake
 - **Concurrent Session Limits**: Academia allows a maximum of 2 active sessions.
-  - **Second Session**: Triggers a preloader warning modal: *"Max session reached. Terminate other or skip."*
-  - **Third Session**: Enforces a blocking gate requiring the user to terminate all other active sessions before proceeding.
-- **Scraper Handshake**: When scraping Academia, the background worker detects the session warning DOM and automatically opts to terminate or reuse existing sessions.
+  - **Second Session**: Triggers a preloader warning modal: *"Max session reached. Terminate other or skip."* (`GET /accounts/p/40-10002227248/announcement/sessions-reminder?serviceurl=...`).
+  - **Automated Handshake Clearance**: Inspection of `academia.srmist.edu.in.har` reveals that sending `GET /accounts/p/40-10002227248/announcement/sessions-reminder/next?status=1&serviceurl=...` immediately clears the reminder and redirects cleanly to `redirectFromLogin`.
+  - **Third Session**: Enforces a blocking gate requiring the user to terminate other sessions before proceeding.
 - **CAPTCHA Trigger Condition**: Academia only presents a CAPTCHA if 5 consecutive failed logins occur from the same IP/client. A single valid authentication resets the counter. The extension can assist by autofilling the field on login.
 
 ### 9.2 SRM Student Portal Concurrency
 - Student Portal (`sp.srmist.edu.in`) is decoupled from Zoho single-sign-on and does not enforce the 2-session termination gate, permitting reliable parallel background fetching once authenticated.
+
+### 9.3 Headless-Free Feedback Submission (Pure HTTP POST)
+- **Eliminating Puppeteer / Chromium**: Running headless Chromium on Render consumes 300MB–400MB RAM, easily causing Out-Of-Memory (OOM) crashes on free/basic server tiers.
+- **Reverse-Engineered Payload**: Network logs in `academia.srmist.edu.in.har` reveal that feedback submissions are standard `x-www-form-urlencoded` POST requests to `/srm_university/academia-academic-services/form/Student_Feedback_Form` with predefined option IDs:
+  - `Excellent`: `2727643000027208389`
+  - `Very Good`: `2727643000027208385`
+  - `Good`: `2727643000027208377`
+  - `Average`: `2727643000027208373`
+  - `Poor`: `2727643000027208369`
+- By submitting direct HTTP POST requests with the student's session cookies, the backend executes feedback completion in under 300ms using less than 2MB of memory, allowing Render's free tier to handle hundreds of concurrent submissions safely.

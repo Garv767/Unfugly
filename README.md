@@ -39,22 +39,22 @@ Unfugly has evolved from an extension-based scraper into a **Webapp-First Ecosys
 
 ```mermaid
 graph TD
-    subgraph Identity & Data Layer
-        SupabaseAuth[Supabase Auth (auth.users)]
-        ProfilesTable[(profiles: NetID, Gender, Batch, Vault)]
-        Redis[(Redis: Session Cache & ICS Strings)]
+    subgraph Identity_Data_Layer["Identity and Data Layer"]
+        SupabaseAuth["Supabase Auth (auth.users)"]
+        ProfilesTable[("profiles: NetID, Gender, Batch, Vault")]
+        Redis[("Redis: Session Cache and ICS Strings")]
     end
 
-    subgraph Client Apps
-        Webapp[Next.js Webapp (Primary)]
-        Convoy[Convoy Carpooling App]
-        Marketplace[Campus Marketplace]
-        Extension[Chrome Extension (Companion)]
+    subgraph Client_Apps["Client Apps"]
+        Webapp["Next.js Webapp (Primary)"]
+        Convoy["Convoy Carpooling App"]
+        Marketplace["Campus Marketplace"]
+        Extension["Chrome Extension (Companion)"]
     end
 
-    subgraph University Portals
-        SP[SRM Student Portal (All Students)]
-        Academia[Academia (Batch < 2030 Only)]
+    subgraph University_Portals["University Portals"]
+        SP["SRM Student Portal (All Students)"]
+        Academia["Academia (Batch pre-2030 Only)"]
     end
 
     SupabaseAuth --> ProfilesTable
@@ -64,7 +64,7 @@ graph TD
     Extension --> ProfilesTable
 
     Webapp -->|In-Memory AES Decrypt| SP
-    Webapp -->|Batch < 2030| Academia
+    Webapp -->|Batch pre-2030| Academia
     Redis -.-> Webapp
 ```
 
