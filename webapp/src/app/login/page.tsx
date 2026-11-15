@@ -54,8 +54,74 @@ export default function LoginPage() {
   const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
   const [currentSessionToken, setCurrentSessionToken] = useState<string>('');
 
+  // Resend OTP Countdown State
+  const [resendTimer, setResendTimer] = useState(0);
+
+  // Reset Password Modal State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetStep, setResetStep] = useState<'request' | 'verify'>('request');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [newResetPassword, setNewResetPassword] = useState('');
+  const [confirmResetPassword, setConfirmResetPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
   useEffect(() => {
-    // Check if already authenticated by testing /api/v2/auth/me
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  useEffect(() => {
+    // 1. Direct URL Magic Link / OTP Token Check from Search Params
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token') || params.get('access_token');
+      const code = params.get('code');
+      const type = params.get('type');
+
+      if (token) {
+        localStorage.setItem('unfugly_token', token);
+        setCurrentSessionToken(token);
+        fetch(`${API_URL}/api/v2/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.user) {
+              handlePostLoginCheck(data.profile, token);
+            }
+          })
+          .catch(() => {});
+        return;
+      }
+
+      if (code) {
+        setLoading(true);
+        fetch(`${API_URL}/api/v2/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanNetIdOrEmail(username || ''), otp: code, type: type || 'magiclink' }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            const tok = data.session?.access_token || data.token;
+            if (tok) {
+              localStorage.setItem('unfugly_token', tok);
+              setCurrentSessionToken(tok);
+              handlePostLoginCheck(data.profile, tok);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false));
+        return;
+      }
+    }
+
+    // 2. Check if already authenticated by testing /api/v2/auth/me
     const token = typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null;
     if (token) {
       fetch(`${API_URL}/api/v2/auth/me`, {
@@ -241,6 +307,113 @@ export default function LoginPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendRegisterOtp = async () => {
+    if (resendTimer > 0) return;
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+    try {
+      const email = registerEmail || cleanNetIdOrEmail(username);
+      const res = await fetch(`${API_URL}/api/v2/auth/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, type: 'signup' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend confirmation code');
+      setResendTimer(60);
+      setSuccessMsg(data.message || `Fresh confirmation code sent to ${email}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendLoginOtp = async () => {
+    if (resendTimer > 0) return;
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+    try {
+      const email = cleanNetIdOrEmail(username);
+      const res = await fetch(`${API_URL}/api/v2/auth/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, type: 'login' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend login code');
+      setResendTimer(60);
+      setSuccessMsg(data.message || `Fresh login code sent to ${email}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
+    try {
+      const email = cleanNetIdOrEmail(resetEmail || username);
+      const res = await fetch(`${API_URL}/api/v2/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset code');
+      setResetEmail(email);
+      setResetStep('verify');
+    } catch (err: any) {
+      setResetError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleConfirmPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    if (newResetPassword !== confirmResetPassword) {
+      setResetError('Passwords do not match');
+      return;
+    }
+    if (newResetPassword.length < 6) {
+      setResetError('Password must be at least 6 characters long');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v2/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: resetEmail,
+          otp: resetOtp,
+          new_password: newResetPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+      setShowResetModal(false);
+      setSuccessMsg('Master password reset successfully! Please sign in with your new password.');
+      setActiveTab('login');
+      setLoginMethod('password');
+      setPassword('');
+      setResetOtp('');
+      setNewResetPassword('');
+      setConfirmResetPassword('');
+    } catch (err: any) {
+      setResetError(err.message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -480,6 +653,18 @@ export default function LoginPage() {
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
                       Unfugly Password
                     </label>
+                    <button
+                      type="button"
+                      className="text-xs text-accent hover:underline"
+                      onClick={() => {
+                        setShowResetModal(true);
+                        setResetEmail(cleanNetIdOrEmail(username || ''));
+                        setResetStep('request');
+                        setResetError('');
+                      }}
+                    >
+                      Forgot Password?
+                    </button>
                   </div>
                   <div className="relative">
                     <input
@@ -584,10 +769,17 @@ export default function LoginPage() {
                         <KeyRound className="w-4 h-4 text-muted absolute left-3 top-3.5" />
                       </div>
                       <div className="flex items-center justify-between text-xs mt-2 text-muted">
-                        <span>Check inbox/spam folder</span>
                         <button
                           type="button"
-                          className="text-accent hover:underline"
+                          className="text-accent hover:underline disabled:text-muted/50 disabled:no-underline font-medium"
+                          onClick={handleResendLoginOtp}
+                          disabled={resendTimer > 0 || loading}
+                        >
+                          {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted hover:underline"
                           onClick={() => {
                             setOtpSent(false);
                             setOtpCode('');
@@ -741,10 +933,17 @@ export default function LoginPage() {
                     <KeyRound className="w-4 h-4 text-muted absolute left-3 top-3.5" />
                   </div>
                   <div className="flex items-center justify-between text-xs mt-2 text-muted">
-                    <span>Check inbox/spam folder</span>
                     <button
                       type="button"
-                      className="text-accent hover:underline"
+                      className="text-accent hover:underline disabled:text-muted/50 disabled:no-underline font-medium"
+                      onClick={handleResendRegisterOtp}
+                      disabled={resendTimer > 0 || loading}
+                    >
+                      {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-muted hover:underline"
                       onClick={() => {
                         setRegisterStep('form');
                         setRegisterOtp('');
@@ -915,6 +1114,156 @@ export default function LoginPage() {
                   Pulling attendance, marks, personal timetable grid, and calendar. Redirecting to dashboard...
                 </p>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 6. RESET MASTER PASSWORD MODAL */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="card w-full max-w-md bg-surface border-border/80 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/60">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-accent/10 text-accent">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-text">Reset Master Password</h3>
+                  <p className="text-muted text-xs">
+                    {resetStep === 'request' ? 'Step 1: Get verification code' : 'Step 2: Enter code & new password'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="text-muted hover:text-text p-1 text-sm font-bold"
+                onClick={() => setShowResetModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {resetError && (
+              <div className="mb-4 p-3 rounded-lg bg-red/10 border border-red/30 text-red text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{resetError}</span>
+              </div>
+            )}
+
+            {resetStep === 'request' ? (
+              <form onSubmit={handleRequestPasswordReset} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    SRM NetID or Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="input-field w-full pl-9 text-sm"
+                      placeholder="e.g. ab1234 or ab1234@srmist.edu.in"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      disabled={resetLoading}
+                    />
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
+                  </div>
+                  <p className="text-[11px] text-muted/80 mt-1.5">
+                    We will send a password reset code directly to your SRM inbox.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary w-1/3 text-xs"
+                    onClick={() => setShowResetModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary w-2/3 flex justify-center items-center h-10 text-sm font-semibold"
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : 'Send Reset Code'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleConfirmPasswordReset} className="space-y-4">
+                <div className="p-3 rounded-lg bg-surface2/60 border border-border/50 text-[11px] text-muted space-y-1">
+                  <span>Enter the 6-digit code sent to <strong className="text-text">{resetEmail}</strong> and your new password.</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    6-Digit Code
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field w-full pl-3 text-sm tracking-widest font-mono text-center text-lg"
+                    placeholder="••••••"
+                    maxLength={6}
+                    value={resetOtp}
+                    onChange={(e) => setResetOtp(e.target.value)}
+                    required
+                    disabled={resetLoading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    New Master Password
+                  </label>
+                  <input
+                    type="password"
+                    className="input-field w-full pl-3 text-sm"
+                    placeholder="At least 6 characters"
+                    value={newResetPassword}
+                    onChange={(e) => setNewResetPassword(e.target.value)}
+                    required
+                    disabled={resetLoading}
+                    minLength={6}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    className="input-field w-full pl-3 text-sm"
+                    placeholder="Re-enter password"
+                    value={confirmResetPassword}
+                    onChange={(e) => setConfirmResetPassword(e.target.value)}
+                    required
+                    disabled={resetLoading}
+                    minLength={6}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary w-1/3 text-xs"
+                    onClick={() => setResetStep('request')}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary w-2/3 flex justify-center items-center h-10 text-sm font-semibold"
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : 'Set New Password'}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>
