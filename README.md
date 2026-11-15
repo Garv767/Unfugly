@@ -1,46 +1,94 @@
-# Unfugly Ecosystem
+# Unfugly Ecosystem V3
 
-**Radically simplifying the SRM Academia portal experience with a beautiful, fast, and feature-rich unified platform.**
-
-The Unfugly ecosystem is split into three primary components that work in tandem to capture, process, and display academic information for SRM students:
-
-1.  **[Chrome Extension](file:///c:/Users/DELL/Cooking/Unfugly/extension)**: Injects directly into the SRM Academia page to redesign the interface, capture data, fast-track faculty feedback, and sync details to the cloud.
-2.  **[Next.js Webapp](file:///c:/Users/DELL/Cooking/Unfugly/webapp)**: A premium, dark-mode dashboard providing cross-device access to timetables, attendance analytics, internal marks, and calendars.
-3.  **[Express Backend (unfugly-backend)](file:///c:/Users/DELL/Cooking/Unfugly/unfugly-backend)**: A secure Node.js/Express API that manages cookie state propagation, captcha solving, background scraping, and Supabase database interactions.
+**A modern, unified digital platform for SRMIST students — delivering intuitive academic tooling, intelligent calendar sync, predictive analytics, campus carpooling, and verified student commerce.**
 
 ---
 
-## 🛠️ Architecture Overview
+## 🌟 The Unfugly Ecosystem
+
+Unfugly has evolved from an extension-based scraper into a **Webapp-First Ecosystem** powered by a single Supabase backend and verified student identity layer:
+
+1. **[Next.js Webapp (Primary Application)](file:///webapp)**:
+   - High-fidelity dark mode dashboard with Inter typography and smooth transitions.
+   - Interactive weekly timetable grid (Day Orders 1–5, Hours 1–12) with custom slot editing.
+   - SGPA & CGPA "what-if" predictive modeling based on enrolled credits and expected marks.
+   - Manual and automated OD/ML simulation with safe-bunk buffer calculations.
+   - Dedicated Exam Timetable card with seating and hall ticket integration.
+   - Extracted Previous Year Questions (PYQ) intelligence tab.
+
+2. **[Express Backend API (unfugly-backend)](file:///unfugly-backend)**:
+   - Node.js & Express API serving `/api/v1` (legacy support) and `/api/v2` (V3 architecture).
+   - In-memory AES-256-GCM credential vault for Student Portal (`sp.srmist.edu.in`) and legacy Academia (`academia.srmist.edu.in`).
+   - Automated, zero-latency Student Portal login handshake with client-side SVG CAPTCHA parsing.
+   - Redis-cached RFC 5545 iCalendar (`webcal://` / `.ics`) subscription feed with $O(1)$ day-order shift invalidation.
+   - Razorpay subscription integration for semester-pass access.
+
+3. **[Convoy App (Campus Carpooling)](file:///docs/NEW_ARCHITECTURE.md#7-multi-app-expansion-convoy--marketplace)**:
+   - Safe, peer-to-peer campus ride sharing sharing the same database.
+   - Verified passenger and driver gender checks directly from Student Portal profile records (`female_only`, `male_only`, `any`).
+
+4. **[Campus Marketplace](file:///docs/NEW_ARCHITECTURE.md#7-multi-app-expansion-convoy--marketplace)**:
+   - Verified student marketplace for textbooks, lab coats, and electronics with zero anonymous accounts.
+
+5. **[Chrome Extension (Companion)](file:///extension)**:
+   - Optional companion script for inline attendance margin calculations and session synchronization.
+
+---
+
+## 🏛️ V3 Architecture Overview
 
 ```mermaid
 graph TD
-    A[SRM Academia Portal] -->|Scrapes / Syncs Cookie| B(Unfugly Extension)
-    B -->|POST /api/v1/user/save| C(Express Backend)
-    C -->|Reads / Writes| D[(Supabase Database)]
-    E[Next.js Webapp] -->|GET /api/v1/user/data| C
-    E -->|PUT /api/v1/user/slots| C
+    subgraph Identity & Data Layer
+        SupabaseAuth[Supabase Auth (auth.users)]
+        ProfilesTable[(profiles: NetID, Gender, Batch, Vault)]
+        Redis[(Redis: Session Cache & ICS Strings)]
+    end
+
+    subgraph Client Apps
+        Webapp[Next.js Webapp (Primary)]
+        Convoy[Convoy Carpooling App]
+        Marketplace[Campus Marketplace]
+        Extension[Chrome Extension (Companion)]
+    end
+
+    subgraph University Portals
+        SP[SRM Student Portal (All Students)]
+        Academia[Academia (Batch < 2030 Only)]
+    end
+
+    SupabaseAuth --> ProfilesTable
+    Webapp --> ProfilesTable
+    Convoy --> ProfilesTable
+    Marketplace --> ProfilesTable
+    Extension --> ProfilesTable
+
+    Webapp -->|In-Memory AES Decrypt| SP
+    Webapp -->|Batch < 2030| Academia
+    Redis -.-> Webapp
 ```
+
+---
 
 ## 📂 Project Structure
 
 ```
 Unfugly/
-├── extension/          # Chrome extension source files (JS, CSS, assets)
-├── webapp/             # Next.js webapp frontend
-├── unfugly-backend/    # Express API backend & Puppeteer scraper
-├── flow.md             # Detailed data sync guidelines
-└── README.md           # This file
+├── webapp/                 # Next.js web application (Primary UI)
+├── unfugly-backend/        # Express API v1/v2, scrapers, and Redis workers
+│   ├── migrations/         # Supabase SQL schema migrations
+│   ├── routes/v1/          # Legacy extension and user routes
+│   └── routes/v2/          # V3 architecture routes
+├── extension/              # Chrome extension companion source
+├── docs/                   # Architectural blueprints & specifications
+│   └── NEW_ARCHITECTURE.md # Full V3 technical specification
+└── README.md               # This documentation
 ```
 
 ---
 
-## 🚀 Setup & Development
+## 📖 Key Documentation
 
-Refer to the service-specific documentation to get started with individual components:
-
-*   📖 **[Extension Setup](file:///c:/Users/DELL/Cooking/Unfugly/extension/README.md)**
-*   📖 **[Webapp Setup](file:///c:/Users/DELL/Cooking/Unfugly/webapp/README.md)**
-*   📖 **[Backend Setup](file:///c:/Users/DELL/Cooking/Unfugly/unfugly-backend/README.md)**
-
-## 🛡️ Workspace Rules
-AI agents working in this repository must follow the instructions configured in **[.agents/AGENTS.md](file:///c:/Users/DELL/Cooking/Unfugly/.agents/AGENTS.md)**.
+- 📘 **[V3 Technical Architecture Blueprint](file:///docs/NEW_ARCHITECTURE.md)**: Deep dive into schema, encryption vaults, CAPTCHA bypass mechanics, calendar engine, and predictive math.
+- 🗄️ **[Database Migration Script](file:///unfugly-backend/migrations/20261115_v3_schema.sql)**: Non-destructive Supabase SQL migration for `profiles`, overrides, timetables, and convoy tables.
+- 🛡️ **[Workspace Rules](file:///.agents/AGENTS.md)**: Development guidelines, commit conventions, and security constraints.

@@ -79,3 +79,53 @@ const observer = new MutationObserver((mutations) => {
 // Run once and also observe
 injectAttendanceMargin();
 observer.observe(document.body, { childList: true, subtree: true });
+
+// =====================================================================
+// Sidebar Scroll Preservation
+// Fixes portal bug where clicking any navigation link reloads HRDSystem.jsp
+// and resets .sidenav-menu scrollTop to 0.
+// =====================================================================
+function setupSidebarScrollPreservation() {
+    const SIDEBAR_SELECTOR = '.sidenav-menu';
+
+    function restoreScroll() {
+        const menu = document.querySelector(SIDEBAR_SELECTOR);
+        const savedScroll = sessionStorage.getItem('unfugly_sp_sidebar_scroll');
+        if (menu && savedScroll !== null) {
+            menu.scrollTop = parseInt(savedScroll, 10);
+        }
+    }
+
+    function saveScroll() {
+        const menu = document.querySelector(SIDEBAR_SELECTOR);
+        if (menu) {
+            sessionStorage.setItem('unfugly_sp_sidebar_scroll', menu.scrollTop.toString());
+        }
+    }
+
+    // Save scroll before page reload or navigation clicks
+    window.addEventListener('beforeunload', saveScroll);
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.navmenu') || e.target.closest('#accordionSidenav a')) {
+            saveScroll();
+        }
+    }, true);
+
+    // Save on scroll
+    let scrollTimeout;
+    document.addEventListener('scroll', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('sidenav-menu')) {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(saveScroll, 100);
+        }
+    }, true);
+
+    // Restore immediately and after layout paint
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+    setTimeout(restoreScroll, 100);
+    setTimeout(restoreScroll, 300);
+}
+
+setupSidebarScrollPreservation();
+
