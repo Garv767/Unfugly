@@ -435,16 +435,32 @@ All incoming requests pass through a non-blocking telemetry middleware:
 
 ### 10.1 Modular Sync Engine Architecture (`Promise.allSettled`)
 The sync architecture is designed for total component isolation:
-- **Resilient Parallelism**: The 5 academic data streams run via `Promise.allSettled`:
-  1. `scrapeSpAttendance`: Extracts course hours, attendance percentage, classes-to-skip / classes-to-attend calculations, and monthly distribution.
+- **Resilient Parallelism**: Academic data streams run via `Promise.allSettled`:
+  1. `scrapeSpAttendance`: Extracts course hours, attendance percentage, and target classes-to-skip / classes-to-attend margins.
   2. `scrapeSpInternalMarks`: Retrieves aggregate marks and recursively extracts component evaluations (FP-I, PBL-I, CLA, assignments) via inner JSP.
   3. `scrapeSpExamTimetable`: Extracts official end-sem dates, sessions (FN/AN), and seat numbers.
-  4. `scrapeSpAcademicCalendar`: Dynamically queries active template and extracts 140 semester dates (working days, day orders, holidays), persisting directly to `academic_calendar`.
+  4. `getOrRefreshAcademicCalendar`: Dual-source academic calendar ingestion (Academia primary, Student Portal fallback) with a global 24-hour database cache.
   5. `scrapeAcademiaTimetable`: Extracts enrolled courses, student batch (`1` vs `2`), and maps against the 12-hour unified slot matrix into `user_timetables` and `user_course_registrations`.
 - **Fault-Tolerant Persistence**: A failure or delay in one portal (e.g. Academia SSO rate limit or exam timetable unreleased) never blocks or cancels the successful extraction and storage of the remaining data streams.
 - **Session Cache Optimization**: Academia session cookies are cached in memory/Redis with a 10-hour TTL, preserving the strict 10–15 daily login quota on Zoho SSO.
+- **SP Profile Photo Auto-Ingestion**: Ingests public CDN profile photo from `studentProfile.jsp` (`iden=1`) directly into `profiles.profile_image_url`.
 
-### 10.2 Multi-Service Transactional Email Architecture
+### 10.2 Unified Academic Calendar Architecture & 24-Hour Cache
+- **Dual-Source Redundancy**:
+  - **Primary (Academia)**: Scrapes `Academic_Planner_YYYY_YY_ODD` / `EVEN`. ZoHo live dynamic Deluge HTML snippets (`zmlvalue`) are decoded and parsed into working days, holidays, and Day Orders (DO1–DO5).
+  - **Secondary Fallback (Student Portal)**: Scrapes `AcademicCalenderDetailsInner.jsp` for students without active Academia accounts (e.g. Batch 2030+).
+- **24-Hour Static Refresh**: Students fetch from a single static table in Supabase (`academic_calendar`). When any sync occurs, if the calendar was updated within the last 24 hours, the backend serves the stored JSON without making network calls to SRM ($O(1)$). Only when stale (>24h) does the backend refresh from portals.
+- **Dynamic Day Order Lookup**: The client or `GET /api/v2/sync/calendar` matches `new Date()` against `calendar_json` (e.g., `calendar_json["Nov '26"]["15"]`) to obtain today's Day Order and holiday status. When SRM reschedules holidays, the calendar updates automatically upon the next 24-hour refresh.
+
+### 10.3 CORS Security Boundaries
+- Backend CORS policies in `server.js` strictly permit:
+  - Production domains: `https://unfugly.app`, `https://www.unfugly.app`, `https://unfugly.vercel.app`, `https://api.unfugly.app`
+  - Chrome Extension origins: `chrome-extension://lfjlfkbcnoioefacgcjanjdiodphnoce`
+  - Localhost development environments
+  - User-specific Vercel preview deployments matching regex: `/^https:\/\/[a-zA-Z0-9_-]+-garv767s-projects\.vercel\.app$/i`
+- Generic wildcard `*.vercel.app` access is explicitly rejected.
+
+### 10.4 Multi-Service Transactional Email Architecture
 To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy Carpooling, Campus Marketplace):
 - All auth requests (`/api/v2/auth/register`, `/api/v2/auth/login`) accept a `service` parameter (`'webapp'`, `'convoy'`, `'marketplace'`).
 - Metadata is passed to Supabase Auth (`options.data: { service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
