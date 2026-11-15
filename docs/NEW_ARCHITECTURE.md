@@ -264,7 +264,7 @@ Analysis of live Student Portal (`sp.srmist.edu.in`) traffic and client-side sec
 The backend executes a seamless, zero-cloud-cost automated handshake:
 1. **GET `youLogin.jsp`**: Extracts `nonce`, `domainFieldName`, `captchaFieldName`, `randomDelimiter`, `honeypotName`, and `captchaUrl`.
 2. **GET `SCaptchaServlet`**: Requests the binary PNG using the computed `X-Domain-Proof` header.
-3. **Instant Local Solving (<50ms)**: Solves the 6-character captcha using the local embedded ONNX/DDDDOCR model (`utils/solveCaptcha.py`), achieving 100% recognition without external third-party solver latency or subscription fees.
+3. **Instant Local Solving (<50ms)**: Solves the 6-character captcha using in-process WebAssembly Tesseract.js (`utils/captchaSolver.js`) with offline `eng.traineddata`, achieving sub-second recognition with zero Python processes, zero subshell overhead, and zero third-party solver fees.
 4. **POST `LoginServlet`**: Submits credentials, empty honeypot, solved captcha, telemetry payload, and dynamic tokens.
 5. **Session Verification & Extraction**:
    - Confirms entry into `students/template/HRDSystem.jsp`.
