@@ -26,6 +26,11 @@ export default function LoginPage() {
   // Login Method: 'password' | 'otp'
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
 
+  // Registration Step: 'form' | 'verify'
+  const [registerStep, setRegisterStep] = useState<'form' | 'verify'>('form');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerOtp, setRegisterOtp] = useState('');
+
   // Form Fields
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -197,9 +202,41 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-      setSuccessMsg(data.message || 'Account registered! Please check your SRM email for confirmation.');
-      setActiveTab('login');
-      setLoginMethod('password');
+      setRegisterEmail(email);
+      setRegisterStep('verify');
+      setSuccessMsg(data.message || `Verification code sent to ${email}. Check your inbox or spam folder.`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyRegisterOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+
+    try {
+      const email = registerEmail || cleanNetIdOrEmail(username);
+      const res = await fetch(`${API_URL}/api/v2/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: registerOtp, type: 'signup' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Invalid OTP code');
+
+      const token = data.session?.access_token || data.token;
+      if (token) {
+        localStorage.setItem('unfugly_token', token);
+        setCurrentSessionToken(token);
+      }
+
+      setSuccessMsg('Email verified successfully! Connecting portals...');
+      handlePostLoginCheck(data.profile, token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -583,94 +620,157 @@ export default function LoginPage() {
         {/* TAB 2: REGISTER */}
         {/* ───────────────────────────────────────────────────────────── */}
         {activeTab === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="p-3 rounded-lg bg-surface2/60 border border-border/50 text-[11px] text-muted space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-text text-xs">
-                <ShieldCheck className="w-4 h-4 text-accent" />
-                <span>One Master Account for Unfugly Ecosystem</span>
-              </div>
-              <p>
-                This password secures your access to <strong>Unfugly Webapp</strong>, <strong>Convoy Carpooling</strong>, and <strong>Campus Marketplace</strong>. It can be completely separate from your SRM passwords.
-              </p>
-            </div>
+          <div>
+            {registerStep === 'form' ? (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="p-3 rounded-lg bg-surface2/60 border border-border/50 text-[11px] text-muted space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-text text-xs">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <span>One Master Account for Unfugly Ecosystem</span>
+                  </div>
+                  <p>
+                    This password secures your access to <strong>Unfugly Webapp</strong>, <strong>Convoy Carpooling</strong>, and <strong>Campus Marketplace</strong>. It can be completely separate from your SRM passwords.
+                  </p>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
-                SRMIST NetID or Email
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  className="input-field w-full pl-9 text-sm"
-                  placeholder="e.g. gr2383 or gr2383@srmist.edu.in"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  disabled={loading}
-                  autoComplete="username"
-                />
-                <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
-              </div>
-            </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    SRMIST NetID or Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="input-field w-full pl-9 text-sm"
+                      placeholder="e.g. gr2383 or gr2383@srmist.edu.in"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      disabled={loading}
+                      autoComplete="username"
+                    />
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-3" />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
-                Create Master Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className="input-field w-full pl-9 pr-10 text-sm"
-                  placeholder="At least 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  minLength={6}
-                />
-                <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    Create Master Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="input-field w-full pl-9 pr-10 text-sm"
+                      placeholder="At least 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      minLength={6}
+                    />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={loading}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="input-field w-full pl-9 text-sm"
+                      placeholder="Re-enter master password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      minLength={6}
+                    />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                  </div>
+                </div>
+
                 <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
-                  onClick={() => setShowPassword(!showPassword)}
+                  type="submit"
+                  className="btn-primary w-full flex justify-center items-center h-10 text-sm font-semibold mt-4"
                   disabled={loading}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    'Create Account & Send Verification Code'
+                  )}
                 </button>
-              </div>
-            </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
+                <div className="p-3 rounded-lg bg-surface2/60 border border-border/50 text-[11px] text-muted space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-text text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-green" />
+                    <span>Verify Your SRMIST Email</span>
+                  </div>
+                  <p>
+                    We sent a 6-digit confirmation code to <strong className="text-text">{registerEmail}</strong>. Enter it below to activate your account.
+                  </p>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className="input-field w-full pl-9 text-sm"
-                  placeholder="Re-enter master password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    Enter 6-Digit Code
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="input-field w-full pl-9 text-sm tracking-widest font-mono text-center text-lg"
+                      placeholder="••••••"
+                      maxLength={6}
+                      value={registerOtp}
+                      onChange={(e) => setRegisterOtp(e.target.value)}
+                      required
+                      disabled={loading}
+                      autoFocus
+                    />
+                    <KeyRound className="w-4 h-4 text-muted absolute left-3 top-3.5" />
+                  </div>
+                  <div className="flex items-center justify-between text-xs mt-2 text-muted">
+                    <span>Check inbox/spam folder</span>
+                    <button
+                      type="button"
+                      className="text-accent hover:underline"
+                      onClick={() => {
+                        setRegisterStep('form');
+                        setRegisterOtp('');
+                        setError('');
+                        setSuccessMsg('');
+                      }}
+                    >
+                      Change Details / Re-enter
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary w-full flex justify-center items-center h-10 text-sm font-semibold mt-4"
                   disabled={loading}
-                  minLength={6}
-                />
-                <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn-primary w-full flex justify-center items-center h-10 text-sm font-semibold mt-4"
-              disabled={loading}
-            >
-              {loading ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                'Create Unfugly Account'
-              )}
-            </button>
-          </form>
+                >
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    'Verify Email & Connect Portals'
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
 
