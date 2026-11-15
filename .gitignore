@@ -6,3 +6,9 @@ Untitled-1.html
 variantOfFormatAttendanceTable.js
 variantOfFormatMarksTable.js
 plans.txt
+
+# HAR captures and network logs
+*.har
+*.jsonl
+.env*
+scratch/
