@@ -446,11 +446,18 @@ The sync architecture is designed for total component isolation:
 - **SP Profile Photo Auto-Ingestion**: Ingests public CDN profile photo from `studentProfile.jsp` (`iden=1`) directly into `profiles.profile_image_url`.
 
 ### 10.2 Unified Academic Calendar Architecture & 24-Hour Cache
-- **Dual-Source Redundancy**:
-  - **Primary (Academia)**: Scrapes `Academic_Planner_YYYY_YY_ODD` / `EVEN`. ZoHo live dynamic Deluge HTML snippets (`zmlvalue`) are decoded and parsed into working days, holidays, and Day Orders (DO1–DO5).
-  - **Secondary Fallback (Student Portal)**: Scrapes `AcademicCalenderDetailsInner.jsp` for students without active Academia accounts (e.g. Batch 2030+).
-- **24-Hour Static Refresh**: Students fetch from a single static table in Supabase (`academic_calendar`). When any sync occurs, if the calendar was updated within the last 24 hours, the backend serves the stored JSON without making network calls to SRM ($O(1)$). Only when stale (>24h) does the backend refresh from portals.
-- **Dynamic Day Order Lookup**: The client or `GET /api/v2/sync/calendar` matches `new Date()` against `calendar_json` (e.g., `calendar_json["Nov '26"]["15"]`) to obtain today's Day Order and holiday status. When SRM reschedules holidays, the calendar updates automatically upon the next 24-hour refresh.
+- **Single Canonical Day Order Format**:
+  - To maintain absolute backward compatibility with the production webapp components (`CalendarView.tsx`, `TimetableView.tsx`, `BottomNav.tsx`, `dashboard/page.tsx`), every day object in `calendar_json` uses exactly one variable for day order: **`dayOrder`** (`'1'`–`'5'` for instructional days, or `'-'` for holidays/weekends):
+    ```json
+    { "day": "Mon", "dayOrder": "5", "event": "Commencement of Classes for Minor Degree" }
+    ```
+- **Dual-Source 24-Hour Refresh & Intelligent Merging**:
+  - All students fetch from the static Supabase table `academic_calendar` in <2ms with zero SRM network calls when `< 24h` old.
+  - When the 24-hour cache window elapses:
+    - If the user requesting the sync is **SP-only** (e.g. batch $\ge$ 2030, or lacks Academia access), the backend fetches from Student Portal (`AcademicCalenderDetailsInner.jsp`) and merges it into the existing calendar.
+    - **Non-destructive Event Merging**: During SP merging, if `date + dayOrder` match, the backend **does not override** event descriptions that are absent or generic in SP, preserving rich university announcements previously extracted from Academia while applying any newly scheduled holiday shifts.
+    - Otherwise (students with Academia access), the backend scrapes Academia (`Academic_Planner_YYYY_YY_ODD/EVEN`) with SP fallback.
+- **Dynamic Day Order Lookup**: Client and backend match `new Date()` against `calendar_json` (e.g., `calendar_json["Nov '26"]["15"]`) to obtain today's Day Order and holiday status.
 
 ### 10.3 CORS Security Boundaries
 - Backend CORS policies in `server.js` strictly permit:
