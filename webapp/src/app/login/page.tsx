@@ -76,12 +76,15 @@ export default function LoginPage() {
   }, [resendTimer]);
 
   useEffect(() => {
-    // 1. Direct URL Magic Link / OTP Token Check from Search Params
+    // 1. Direct URL Magic Link / OTP Token Check from Search Params or Hash Fragment
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token') || params.get('access_token');
-      const code = params.get('code');
-      const type = params.get('type');
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashStr = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hashStr);
+
+      const token = searchParams.get('token') || searchParams.get('access_token') || hashParams.get('access_token') || hashParams.get('token');
+      const code = searchParams.get('code') || hashParams.get('code');
+      const type = searchParams.get('type') || hashParams.get('type');
 
       if (token) {
         localStorage.setItem('unfugly_token', token);
@@ -191,7 +194,12 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/api/v2/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, method: 'otp', service: 'webapp' }),
+        body: JSON.stringify({
+          email,
+          method: 'otp',
+          service: 'webapp',
+          redirect_to: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
+        }),
       });
 
       const data = await res.json();
@@ -262,7 +270,12 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/api/v2/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, service: 'webapp' }),
+        body: JSON.stringify({
+          email,
+          password,
+          service: 'webapp',
+          redirect_to: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
+        }),
       });
 
       const data = await res.json();
@@ -320,7 +333,12 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/api/v2/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, type: 'signup' }),
+        body: JSON.stringify({
+          email,
+          type: 'signup',
+          service: 'webapp',
+          redirect_to: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to resend confirmation code');
@@ -343,7 +361,12 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/api/v2/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, type: 'login' }),
+        body: JSON.stringify({
+          email,
+          type: 'login',
+          service: 'webapp',
+          redirect_to: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to resend login code');
@@ -365,7 +388,11 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/api/v2/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          service: 'webapp',
+          redirect_to: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send reset code');

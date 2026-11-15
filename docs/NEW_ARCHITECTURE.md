@@ -467,8 +467,16 @@ The sync architecture is designed for total component isolation:
   - User-specific Vercel preview deployments matching regex: `/^https:\/\/[a-zA-Z0-9_-]+-garv767s-projects\.vercel\.app$/i`
 - Generic wildcard `*.vercel.app` access is explicitly rejected.
 
-### 10.4 Multi-Service Transactional Email Architecture
+### 10.4 Multi-Service Transactional Email & Magic Link Architecture
 To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy Carpooling, Campus Marketplace):
-- All auth requests (`/api/v2/auth/register`, `/api/v2/auth/login`) accept a `service` parameter (`'webapp'`, `'convoy'`, `'marketplace'`).
-- Metadata is passed to Supabase Auth (`options.data: { service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
+- All auth requests (`/api/v2/auth/register`, `/api/v2/auth/login`, `/api/v2/auth/resend-otp`, `/api/v2/auth/forgot-password`) accept a `service` parameter (`'webapp'`, `'convoy'`, `'marketplace'`) and optional client `redirect_to` override.
+- **Dynamic Email Redirect URL Resolution (`resolveRedirectUrl`)**:
+  - Direct client override: If `req.body.redirect_to` or `req.body.redirect_url` is passed, that exact target URL is preserved.
+  - **Convoy**: Resolves to `process.env.CONVOY_URL || 'https://convoy.unfugly.app/login'`. When launched from native app wrappers, deep links (`convoy://auth/callback` or `convoy://login`) are fully supported.
+  - **Campus Marketplace**: Resolves to `process.env.MARKETPLACE_URL || 'https://marketplace.unfugly.app/login'`.
+  - **Unfugly Webapp (Default)**: Dynamically resolves from `req.headers.origin` (preserving active localhost or Vercel preview environments, e.g. `https://*-garv767s-projects.vercel.app/login`), falling back to `process.env.FRONTEND_URL` and `https://unfugly.app/login`.
+- **Client Magic Link & Token Detection**:
+  - The login client (`login/page.tsx`) inspects both URL query parameters (`window.location.search`) and hash fragments (`window.location.hash`), extracting tokens (`token`, `access_token`, `code`, `type`).
+  - Upon token detection, the client auto-authenticates via `/api/v2/auth/me` or `/api/v2/auth/verify-otp`, persists `unfugly_token` into `localStorage`, and triggers the post-login portal connection check or routes directly to the dashboard.
+- Metadata is passed to Supabase Auth (`options.data: { user_net_id, service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
 
