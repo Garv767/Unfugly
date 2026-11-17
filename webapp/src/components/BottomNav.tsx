@@ -52,7 +52,7 @@ export default function BottomNav({ activeTab, onTabChange, calendarData }: Bott
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch(`${API_URL}/api/v2/auth/logout`, { method: 'POST', credentials: 'include' });
       localStorage.clear();
       router.push('/login');
     } catch (err: any) {
@@ -111,10 +111,10 @@ export default function BottomNav({ activeTab, onTabChange, calendarData }: Bott
             className="h-14 w-14 outline-none transition-transform duration-200 overflow-hidden flex items-center justify-center bg-[#1E88E5] rounded-full hover:scale-[0.98] active:scale-[0.95] border-2 border-[#1E88E5]"
           >
             <img 
-               src={`${API_URL}/api/v1/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
+               src={`${API_URL}/api/v2/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
                alt="Profile" 
                onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
-               className="w-full h-full object-cover" 
+               className="w-full h-full object-cover object-top" 
             />
             <span className="text-white font-bold text-[13px] tracking-wide hidden">
                {profileData?.name ? profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : '?'}

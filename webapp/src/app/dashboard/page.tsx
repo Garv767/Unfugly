@@ -74,7 +74,7 @@ export default function Dashboard() {
     }
 
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
-    fetch(`${API_URL}/api/v1/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
+    fetch(`${API_URL}/api/v2/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
     .then(res => {
       if (res.status === 401 || res.status === 403) { 
         if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
@@ -128,12 +128,12 @@ export default function Dashboard() {
       return '2026_27_ODD'; // default fallback
     })();
     const calendarParams = `?semester=${encodeURIComponent(currentSemester)}`;
-    fetch(`${API_URL}/api/v1/calendar${calendarParams}`, {
+    fetch(`${API_URL}/api/v2/calendar${calendarParams}`, {
       credentials: 'include',
       headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
     })
       .then(res => res.ok ? res.json() : null)
-      .then(calData => { if (calData && !calData.error) setCalendarData(calData.calendar_json || calData); })
+      .then(calData => { if (calData && !calData.error) setCalendarData(calData.calendarJson || calData.calendar_json || calData); })
       .catch(() => {});
 
     return () => {
@@ -166,7 +166,7 @@ export default function Dashboard() {
     }
 
     if (net_id) {
-      const eventSource = new EventSource(`${API_URL}/api/v1/scrape/progress/${net_id}`);
+      const eventSource = new EventSource(`${API_URL}/api/v2/sync/progress/${net_id}`);
       eventSourceRef.current = eventSource;
       eventSource.onmessage = (event) => {
         const parsed = JSON.parse(event.data);
@@ -179,7 +179,7 @@ export default function Dashboard() {
       };
     }
 
-    fetch(`${API_URL}/api/v1/scrape/all`, {
+    fetch(`${API_URL}/api/v2/sync/all`, {
       method:      'POST',
       credentials: 'include',
       headers:     { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
@@ -288,7 +288,7 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    await fetch(`${API_URL}/api/v2/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
     router.push('/login');
   };
 
@@ -428,10 +428,10 @@ export default function Dashboard() {
                </div>
                <div className="flex justify-center mt-10 mb-4">
                   <img 
-                     src={`${API_URL}/api/v1/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
+                     src={`${API_URL}/api/v2/user/photo?token=${typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') || '' : ''}`} 
                      alt="Profile" 
                      onError={(e) => { e.currentTarget.style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden'); }} 
-                     className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover shadow-lg" 
+                     className="w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] object-cover object-top shadow-lg" 
                   />
                   <div className="hidden w-[100px] h-[100px] rounded-full border-4 border-[#1E88E5] bg-gradient-to-br from-[#1E88E5]/30 to-[#1E88E5]/10 flex items-center justify-center text-3xl font-bold text-[#1E88E5] shadow-lg tracking-wide select-none">
                      {uiData.profileData?.name ? uiData.profileData.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}

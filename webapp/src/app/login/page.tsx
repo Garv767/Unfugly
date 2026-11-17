@@ -54,6 +54,18 @@ export default function LoginPage() {
   const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
   const [currentSessionToken, setCurrentSessionToken] = useState<string>('');
 
+  // Manual Captcha Diagnostics State
+  const [manualCaptchaMode, setManualCaptchaMode] = useState(false);
+  const [manualCaptchaImg, setManualCaptchaImg] = useState('');
+  const [manualChallengeId, setManualChallengeId] = useState('');
+  const [manualCaptchaCode, setManualCaptchaCode] = useState('');
+  const [manualCaptchaLoading, setManualCaptchaLoading] = useState(false);
+  const [diagInfo, setDiagInfo] = useState<{ egressIp?: string; statusCode?: number; error?: string; success?: boolean } | null>(null);
+  const [showStandaloneDiag, setShowStandaloneDiag] = useState(false);
+  const [diagNetId, setDiagNetId] = useState('');
+  const [diagSpPassword, setDiagSpPassword] = useState('');
+  const [diagLoading, setDiagLoading] = useState(false);
+
   // Resend OTP Countdown State
   const [resendTimer, setResendTimer] = useState(0);
 
@@ -495,6 +507,127 @@ export default function LoginPage() {
       setPortalError(err.message);
     } finally {
       setPortalLoading(false);
+    }
+  };
+
+  const fetchManualCaptcha = async () => {
+    setManualCaptchaLoading(true);
+    setPortalError('');
+    setDiagInfo(null);
+    try {
+      const res = await fetch(`${API_URL}/api/v2/auth/sp-challenge`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load captcha challenge');
+      setManualCaptchaImg(data.captchaImage);
+      setManualChallengeId(data.challengeId);
+      setManualCaptchaCode('');
+    } catch (err: any) {
+      setPortalError(err.message);
+    } finally {
+      setManualCaptchaLoading(false);
+    }
+  };
+
+  const handleManualCaptchaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualCaptchaCode || manualCaptchaCode.trim().length !== 6) {
+      setPortalError('Please enter the complete 6-character captcha');
+      return;
+    }
+    setPortalLoading(true);
+    setPortalError('');
+    setDiagInfo(null);
+    try {
+      const token = currentSessionToken || localStorage.getItem('unfugly_token');
+      const res = await fetch(`${API_URL}/api/v2/auth/sp-verify-challenge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sp_password: spPassword,
+          captcha_code: manualCaptchaCode.trim().toUpperCase(),
+          challenge_id: manualChallengeId,
+        }),
+      });
+
+      const data = await res.json();
+      setDiagInfo({
+        egressIp: data.egressIp,
+        statusCode: data.statusCode || res.status,
+        error: data.error,
+        success: data.success,
+      });
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Student Portal rejected credentials or blocked request');
+      }
+
+      if (data.requires_academia && !activeProfile?.has_academia_connected) {
+        setPortalStep('academia');
+      } else {
+        triggerMasterSyncAndRedirect(token);
+      }
+    } catch (err: any) {
+      setPortalError(err.message);
+      fetchManualCaptcha();
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const handleStandaloneDiagVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const netId = (diagNetId || username || '').trim().split('@')[0];
+    const password = diagSpPassword || spPassword;
+    if (!netId) {
+      setError('Please enter your SRM NetID or Registration Number for diagnosis');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your Student Portal password for diagnosis');
+      return;
+    }
+    if (!manualCaptchaCode || manualCaptchaCode.trim().length !== 6) {
+      setError('Please enter the 6-character captcha challenge');
+      return;
+    }
+    setDiagLoading(true);
+    setError('');
+    setDiagInfo(null);
+    try {
+      const token = currentSessionToken || (typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null);
+      const res = await fetch(`${API_URL}/api/v2/auth/sp-verify-challenge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          net_id: netId,
+          sp_password: password,
+          captcha_code: manualCaptchaCode.trim().toUpperCase(),
+          challenge_id: manualChallengeId,
+        }),
+      });
+
+      const data = await res.json();
+      setDiagInfo({
+        egressIp: data.egressIp,
+        statusCode: data.statusCode || res.status,
+        error: data.error,
+        success: data.success,
+      });
+      if (!res.ok) {
+        throw new Error(data.error || 'Student Portal rejected challenge or blocked connection');
+      }
+      setSuccessMsg('Portal login verified successfully! Server IP is not blocked.');
+    } catch (err: any) {
+      setError(err.message);
+      fetchManualCaptcha();
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -998,6 +1131,142 @@ export default function LoginPage() {
             )}
           </div>
         )}
+
+        {/* Standalone Student Portal Captcha Diagnostics */}
+        <div className="mt-6 pt-4 border-t border-border/50">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !showStandaloneDiag;
+              setShowStandaloneDiag(next);
+              if (next && !manualCaptchaImg) {
+                fetchManualCaptcha();
+              }
+            }}
+            className="w-full text-center text-xs text-muted hover:text-accent font-medium flex items-center justify-center gap-1.5 transition-colors py-1 cursor-pointer"
+          >
+            <span>🧪</span>
+            <span>{showStandaloneDiag ? 'Hide Portal Diagnostics' : 'Test Student Portal Captcha (Diagnostics Mode)'}</span>
+          </button>
+
+          {showStandaloneDiag && (
+            <div className="mt-3 p-4 rounded-xl bg-surface2/70 border border-accent/30 space-y-3 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                <span className="text-xs font-semibold text-text">SRM Student Portal Test</span>
+                <span className="text-[10px] text-muted">Direct Firewall & IP Check</span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted mb-1">
+                  SRM NetID or Register No.
+                </label>
+                <input
+                  type="text"
+                  className="input-field w-full text-xs font-mono"
+                  placeholder="e.g. gr2383 or RA2411003010718"
+                  value={diagNetId || username}
+                  onChange={(e) => setDiagNetId(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted mb-1">
+                  Student Portal Password
+                </label>
+                <input
+                  type="password"
+                  className="input-field w-full text-xs"
+                  placeholder="Portal Password"
+                  value={diagSpPassword || spPassword}
+                  onChange={(e) => setDiagSpPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface1 border border-border/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-muted">Live Captcha from SRM:</span>
+                  <button
+                    type="button"
+                    onClick={fetchManualCaptcha}
+                    disabled={manualCaptchaLoading}
+                    className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${manualCaptchaLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center p-2 rounded bg-black/40 border border-border/40 min-h-[50px]">
+                  {manualCaptchaLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-accent" />
+                      <span>Fetching captcha from SRM server...</span>
+                    </div>
+                  ) : manualCaptchaImg ? (
+                    <img
+                      src={manualCaptchaImg}
+                      alt="SRM Captcha Challenge"
+                      className="h-10 rounded border border-border/80 object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted">No challenge loaded</span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase font-semibold text-muted mb-1">
+                    Enter Captcha (6 Chars)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="e.g. 5X8YB2"
+                    value={manualCaptchaCode}
+                    onChange={(e) => setManualCaptchaCode(e.target.value.toUpperCase())}
+                    className="input-field w-full text-center text-sm tracking-[0.3em] font-mono uppercase font-bold"
+                  />
+                </div>
+              </div>
+
+              {diagInfo && (
+                <div className="p-3 rounded-lg bg-surface1 border border-border text-[11px] space-y-1.5 font-mono">
+                  <div className="flex justify-between text-muted">
+                    <span>Server Outbound IP:</span>
+                    <span className="text-text font-bold">{diagInfo.egressIp || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>SRM Portal Status:</span>
+                    <span className={diagInfo.statusCode === 200 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
+                      HTTP {diagInfo.statusCode}
+                    </span>
+                  </div>
+                  {diagInfo.success ? (
+                    <div className="text-emerald-400 font-bold text-xs pt-1">
+                      ✅ Authenticated successfully! Server IP is not blocked.
+                    </div>
+                  ) : diagInfo.error ? (
+                    <div className="text-red-400 pt-0.5 text-[10px] break-words">
+                      ❌ {diagInfo.error}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleStandaloneDiagVerify}
+                disabled={manualCaptchaLoading || diagLoading}
+                className="btn-primary w-full flex justify-center items-center h-9 text-xs font-semibold cursor-pointer"
+              >
+                {diagLoading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" />
+                ) : (
+                  'Test Login & Verify Captcha'
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
@@ -1068,13 +1337,104 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* Mode Selector Toggle */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !manualCaptchaMode;
+                      setManualCaptchaMode(next);
+                      if (next && !manualCaptchaImg) {
+                        fetchManualCaptcha();
+                      }
+                    }}
+                    className="text-primary hover:underline font-medium flex items-center gap-1"
+                  >
+                    {manualCaptchaMode ? '← Use Automatic OCR Solver' : '🧪 Solve Captcha Manually (Diagnostics Mode)'}
+                  </button>
+                </div>
+
+                {/* Manual Captcha Container */}
+                {manualCaptchaMode && (
+                  <div className="p-3.5 rounded-xl bg-surface2/60 border border-primary/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-text">Portal Captcha Challenge</span>
+                      <button
+                        type="button"
+                        onClick={fetchManualCaptcha}
+                        disabled={manualCaptchaLoading}
+                        className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${manualCaptchaLoading ? 'animate-spin' : ''}`} />
+                        <span>Refresh</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-center p-2 rounded-lg bg-surface1 border border-border/60 min-h-[50px]">
+                      {manualCaptchaLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-muted">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                          <span>Fetching challenge from SRM server...</span>
+                        </div>
+                      ) : manualCaptchaImg ? (
+                        <img
+                          src={manualCaptchaImg}
+                          alt="SRM Captcha"
+                          className="h-10 rounded border border-border/80 object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-muted">No challenge loaded</span>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted mb-1">
+                        Enter Captcha (6 alphanumeric characters)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="e.g. 5x8yb2"
+                        value={manualCaptchaCode}
+                        onChange={(e) => setManualCaptchaCode(e.target.value.toUpperCase())}
+                        required={manualCaptchaMode}
+                        className="input-field w-full text-center text-base tracking-[0.3em] font-mono uppercase font-bold"
+                        disabled={portalLoading}
+                      />
+                    </div>
+
+                    {diagInfo && (
+                      <div className="p-2.5 rounded-lg bg-surface1 border border-border text-[11px] space-y-1 font-mono">
+                        <div className="flex justify-between text-muted">
+                          <span>Server Egress IP:</span>
+                          <span className="text-text font-bold">{diagInfo.egressIp || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between text-muted">
+                          <span>Portal Response:</span>
+                          <span className={diagInfo.statusCode === 200 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
+                            HTTP {diagInfo.statusCode}
+                          </span>
+                        </div>
+                        {diagInfo.error && (
+                          <div className="text-red-400 pt-0.5 text-[10px] break-words">
+                            {diagInfo.error}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="submit"
+                  onClick={manualCaptchaMode ? handleManualCaptchaVerify : handleConnectSp}
                   className="btn-primary w-full flex justify-center items-center h-10 text-sm font-semibold"
                   disabled={portalLoading}
                 >
                   {portalLoading ? (
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                  ) : manualCaptchaMode ? (
+                    'Verify Manual Captcha & Connect'
                   ) : (
                     'Verify & Save SP Password'
                   )}

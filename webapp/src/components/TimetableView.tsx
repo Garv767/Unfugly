@@ -223,7 +223,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     setEditedSlots(newEdits);
     updateCache(newEdits);
 
-    fetch(`${API_URL}/api/v1/user/slots`, {
+    fetch(`${API_URL}/api/v2/user/slots`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
       credentials: 'include',
@@ -238,7 +238,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       setEditedSlots(newEdits);
       updateCache(newEdits);
 
-      fetch(`${API_URL}/api/v1/user/slots`, {
+      fetch(`${API_URL}/api/v2/user/slots`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
         credentials: 'include',

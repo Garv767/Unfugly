@@ -52,9 +52,12 @@ graph TD
 
 ---
 
-## 2. Database Schema (PostgreSQL / Supabase)
+## 2. Database Schema & Naming Conventions
 
-All tables use `snake_case` naming and are designed to be **strictly non-destructive**: existing `users`, `user_logs`, and `academic_calendar` tables remain intact for backward compatibility.
+All legacy and underlying PostgreSQL tables utilize `snake_case` column naming for relational integrity and are designed to be **strictly non-destructive**: existing `users`, `user_logs`, and `academic_calendar` tables remain intact for backward compatibility.
+
+**Universal Naming Standard:**
+All architecture interfaces, API endpoints, JSON payloads exchanged between backend and client applications (webapp, extension, convoy, marketplace), and TypeScript models strictly standardize on **`camelCase`** across all current and future implementations (e.g., `userNetId`, `feedbackCount`, `timetableJson`, `courseCode`, `courseTitle`, `attendanceData`, `classesToAttend`, `classesToSkip`). Backward-compatible `snake_case` aliases are retained on backend responses for smooth historical interop.
 
 ### 2.1 Entity Relationship Diagram
 
