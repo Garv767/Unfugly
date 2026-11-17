@@ -8,7 +8,7 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
-import { CalendarRange, LogOut, Rocket } from 'lucide-react';
+import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -57,6 +57,14 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [partialErrors, setPartialErrors] = useState<Record<string,string>>({});
   const [showErrorToast, setShowErrorToast] = useState(false);
+  const [showPortalCaptchaModal, setShowPortalCaptchaModal] = useState(false);
+  const [portalCaptchaImg, setPortalCaptchaImg] = useState('');
+  const [portalChallengeId, setPortalChallengeId] = useState('');
+  const [portalCaptchaCode, setPortalCaptchaCode] = useState('');
+  const [portalSpPassword, setPortalSpPassword] = useState('');
+  const [portalCaptchaLoading, setPortalCaptchaLoading] = useState(false);
+  const [portalModalError, setPortalModalError] = useState('');
+  const [portalModalSuccess, setPortalModalSuccess] = useState('');
   const scrapingStarted = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -287,6 +295,66 @@ export default function Dashboard() {
 
   };
 
+  const fetchPortalCaptcha = async () => {
+    setPortalCaptchaLoading(true);
+    setPortalModalError('');
+    try {
+      const res = await fetch(`${API_URL}/api/v2/auth/sp-challenge`);
+      const challenge = await res.json();
+      if (!res.ok) throw new Error(challenge.error || 'Failed to fetch captcha challenge');
+      setPortalChallengeId(challenge.challengeId);
+      setPortalCaptchaImg(challenge.captchaImage);
+      setPortalCaptchaCode('');
+    } catch (err: any) {
+      setPortalModalError(err.message || 'Error loading captcha challenge');
+    } finally {
+      setPortalCaptchaLoading(false);
+    }
+  };
+
+  const handleVerifyPortalCaptcha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!portalCaptchaCode || portalCaptchaCode.trim().length !== 6) {
+      setPortalModalError('Please enter the 6-character captcha');
+      return;
+    }
+    const token = typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null;
+    const netId = data?.netId || '';
+    setPortalCaptchaLoading(true);
+    setPortalModalError('');
+    try {
+      const res = await fetch(`${API_URL}/api/v2/auth/sp-verify-challenge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          net_id: netId,
+          sp_password: portalSpPassword,
+          captcha_code: portalCaptchaCode.trim().toUpperCase(),
+          challenge_id: portalChallengeId
+        })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Verification failed');
+      }
+      setPortalModalSuccess('Portal session verified! Syncing fresh academic data...');
+      setTimeout(() => {
+        setShowPortalCaptchaModal(false);
+        setPortalModalSuccess('');
+        scrapingStarted.current = false;
+        startScraping(false, netId);
+      }, 1000);
+    } catch (err: any) {
+      setPortalModalError(err.message);
+      fetchPortalCaptcha();
+    } finally {
+      setPortalCaptchaLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await fetch(`${API_URL}/api/v2/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
     router.push('/login');
@@ -454,6 +522,13 @@ export default function Dashboard() {
                         <button onClick={() => router.push('/calendar')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
                            <CalendarRange className="w-4 h-4 text-[#1E88E5]" /> Calendar
                         </button>
+
+                        <button 
+                           onClick={() => { setIsMenuOpen(false); setShowPortalCaptchaModal(true); fetchPortalCaptcha(); }} 
+                           className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3 cursor-pointer"
+                        >
+                           <ShieldCheck className="w-4 h-4 text-emerald-400" /> Verify Portal Captcha
+                        </button>
                         
                         <div className="flex justify-center gap-7 px-4 py-1.5 mt-0.5">
                             <a 
@@ -497,6 +572,29 @@ export default function Dashboard() {
                
                
                <div className="max-w-[1400px] mx-auto space-y-12 pb-4 lg:pb-0">
+                   {/* Student Portal Captcha / Verification Banner if sync encountered issues */}
+                   {Object.values(partialErrors).some(err => 
+                      typeof err === 'string' && (
+                        err.toLowerCase().includes('portal') || 
+                        err.toLowerCase().includes('captcha') || 
+                        err.toLowerCase().includes('credentials') || 
+                        err.toLowerCase().includes('session')
+                      )
+                   ) && (
+                      <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in">
+                        <div className="flex items-center gap-2 text-amber-300">
+                          <span className="text-base">⚠️</span>
+                          <span>Student Portal session needs verification to sync fresh Attendance & Marks.</span>
+                        </div>
+                        <button
+                          onClick={() => { setShowPortalCaptchaModal(true); fetchPortalCaptcha(); }}
+                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition-colors cursor-pointer"
+                        >
+                          Solve Captcha
+                        </button>
+                      </div>
+                   )}
+
                    {/* Timetable Section */}
                    <div className={`w-full overflow-x-auto lg:min-w-[700px] ${activeTab === 'Timetable' ? 'block pb-16' : 'hidden lg:block'}`}>
                        {(uiData.timetableHTML || (uiData.timetableJSON && uiData.timetableJSON.days)) ? (
@@ -531,6 +629,110 @@ export default function Dashboard() {
 
          </div>
       </main>
+
+       {/* Portal Captcha Modal for Subsequent Logins / Sync */}
+       {showPortalCaptchaModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+             <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-left">
+                <button
+                   onClick={() => setShowPortalCaptchaModal(false)}
+                   className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                   <X className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#333]">
+                   <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                      <ShieldCheck className="w-5 h-5" />
+                   </div>
+                   <div>
+                      <h3 className="text-sm font-bold text-white">Student Portal Verification</h3>
+                      <p className="text-xs text-gray-400">Solve live captcha to re-authenticate and sync data</p>
+                   </div>
+                </div>
+
+                <form onSubmit={handleVerifyPortalCaptcha} className="space-y-4">
+                   <div className="p-3 rounded-xl bg-black/40 border border-[#333] space-y-2">
+                      <div className="flex items-center justify-between">
+                         <span className="text-xs font-semibold text-gray-400">Live Captcha Challenge:</span>
+                         <button
+                            type="button"
+                            onClick={fetchPortalCaptcha}
+                            disabled={portalCaptchaLoading}
+                            className="text-xs text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                         >
+                            <RefreshCw className={`w-3 h-3 ${portalCaptchaLoading ? 'animate-spin' : ''}`} />
+                            <span>Refresh</span>
+                         </button>
+                      </div>
+                      <div className="flex items-center justify-center p-2 rounded-lg bg-[#121212] border border-[#2a2a2a] min-h-[50px]">
+                         {portalCaptchaLoading ? (
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                               <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                               <span>Fetching captcha from portal...</span>
+                            </div>
+                         ) : portalCaptchaImg ? (
+                            <img
+                               src={portalCaptchaImg}
+                               alt="Portal Captcha"
+                               className="h-10 rounded border border-[#444] object-contain"
+                            />
+                         ) : (
+                            <span className="text-xs text-gray-500">No challenge loaded</span>
+                         )}
+                      </div>
+                   </div>
+
+                   <div>
+                      <label className="block text-xs font-semibold text-gray-400 mb-1">
+                         Enter Captcha Code (6 Characters)
+                      </label>
+                      <input
+                         type="text"
+                         maxLength={6}
+                         placeholder="e.g. 5X8YB2"
+                         value={portalCaptchaCode}
+                         onChange={(e) => setPortalCaptchaCode(e.target.value.toUpperCase())}
+                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-center text-sm font-mono uppercase tracking-[0.25em] font-bold text-white focus:outline-none focus:border-emerald-500"
+                         required
+                      />
+                   </div>
+
+                   <div>
+                      <label className="block text-xs font-semibold text-gray-400 mb-1">
+                         Student Portal Password <span className="text-gray-500 font-normal">(Leave blank if already saved)</span>
+                      </label>
+                      <input
+                         type="password"
+                         placeholder="Update Portal Password (optional)"
+                         value={portalSpPassword}
+                         onChange={(e) => setPortalSpPassword(e.target.value)}
+                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
+                      />
+                   </div>
+
+                   {portalModalError && (
+                      <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                         {portalModalError}
+                      </div>
+                   )}
+
+                   {portalModalSuccess && (
+                      <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+                         {portalModalSuccess}
+                      </div>
+                   )}
+
+                   <button
+                      type="submit"
+                      disabled={portalCaptchaLoading || !portalCaptchaCode}
+                      className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                   >
+                      {portalCaptchaLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify & Sync'}
+                   </button>
+                </form>
+             </div>
+          </div>
+       )}
     </div>
   );
 }

@@ -62,6 +62,7 @@ export default function LoginPage() {
   const [manualCaptchaLoading, setManualCaptchaLoading] = useState(false);
   const [diagInfo, setDiagInfo] = useState<{ egressIp?: string; statusCode?: number; error?: string; success?: boolean } | null>(null);
   const [showStandaloneDiag, setShowStandaloneDiag] = useState(false);
+  const [showInlineFrame, setShowInlineFrame] = useState(false);
   const [diagNetId, setDiagNetId] = useState('');
   const [diagSpPassword, setDiagSpPassword] = useState('');
   const [diagLoading, setDiagLoading] = useState(false);
@@ -1264,6 +1265,38 @@ export default function LoginPage() {
                   'Test Login & Verify Captcha'
                 )}
               </button>
+
+              <div className="pt-2 border-t border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setShowInlineFrame(!showInlineFrame)}
+                  className="w-full text-center text-[11px] text-muted hover:text-accent font-medium py-1 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>🌐</span>
+                  <span>{showInlineFrame ? 'Hide Inline SP Live Frame' : 'Load SP in Inline Frame (Same Tab)'}</span>
+                </button>
+
+                {showInlineFrame && (
+                  <div className="mt-2 rounded-lg overflow-hidden border border-border/80 bg-black/50">
+                    <div className="p-2 bg-surface1 text-[10px] text-muted flex items-center justify-between border-b border-border/60">
+                      <span>Render Server View</span>
+                      <a
+                        href={`${API_URL}/api/v2/auth/sp-live-embed`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        Open Full Inspector ↗
+                      </a>
+                    </div>
+                    <iframe
+                      src={`${API_URL}/api/v2/auth/sp-proxy-view`}
+                      className="w-full h-80 border-0"
+                      title="SRM Student Portal Inline Proxy"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

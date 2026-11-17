@@ -283,6 +283,23 @@ The backend executes a seamless, zero-cloud-cost automated handshake:
    - Computes `has_academia_access = (batch_year < 2030)`.
    - Encrypts student password via AES-256-GCM (AAD bound to `user_net_id`) and upserts into Supabase `public.profiles`.
 
+### 4.3 Deployment Egress & Residential Proxy Architecture
+Cloud hosting environments (Render, AWS, GCP, Vercel) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. To ensure consistent, production-grade connectivity:
+1. **Centralized Proxy Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
+2. **Environment-Driven Routing (`SP_PROXY_URL`)**: If `SP_PROXY_URL` (or standard `HTTP_PROXY`/`PROXY_URL`) is defined in the deployment environment (e.g. Render environment variables), requests are transparently routed through a residential proxy gateway (e.g., BrightData, SmartProxy, Oxylabs) with Indian egress IPs. If undefined, requests route directly via `got-scraping`'s browser TLS emulation.
+
+### 4.4 In-Memory Session Caching & Human-in-the-Loop CAPTCHA
+1. **`spSessionStore` TTL Cache**: Successful Student Portal authentications (whether automated or manual) cache the authenticated `tough-cookie` `CookieJar` in-memory for 45 minutes. Subsequent background sync calls on the dashboard reuse this active session directly, avoiding repeated login overhead and eliminating unnecessary CAPTCHA solver cycles.
+2. **Human-in-the-Loop Fallback**:
+   - Both the webapp Login page and Dashboard provide interactive CAPTCHA verification (`/api/v2/auth/sp-challenge` and `/api/v2/auth/sp-verify-challenge`).
+   - If a student's session expires or if Cloudflare/SRM triggers an anti-bot check, the webapp presents an inline "Solve Captcha" modal.
+   - Upon successful manual verification, the backend automatically seeds `spSessionStore`, vaults the password, and instantly resumes background synchronization without requiring full app re-login.
+
+### 4.5 Inline Server-Side Reverse Proxy Diagnostics
+To debug and verify firewall connectivity directly from the deployed server's egress IP:
+- `GET /api/v2/auth/sp-proxy-view`: Proxies the Student Portal login page through the backend, injects `<base href="...">`, and strips `X-Frame-Options` and CSP headers to allow safe rendering inside an embedded iframe on the same tab.
+- `GET /api/v2/auth/sp-live-embed`: Serves an interactive standalone diagnostics console displaying the server's public IP, active proxy status, live embedded portal frame, and a direct challenge solver.
+
 ---
 
 ## 5. Software Features & Predictive Engines
