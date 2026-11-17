@@ -283,10 +283,15 @@ The backend executes a seamless, zero-cloud-cost automated handshake:
    - Computes `has_academia_access = (batch_year < 2030)`.
    - Encrypts student password via AES-256-GCM (AAD bound to `user_net_id`) and upserts into Supabase `public.profiles`.
 
-### 4.3 Deployment Egress & Residential Proxy Architecture
+### 4.3 Deployment Egress, Residential Proxy & Cloudflare Worker Edge Relay
 Cloud hosting environments (Render, AWS, GCP, Vercel) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. To ensure consistent, production-grade connectivity:
-1. **Centralized Proxy Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
-2. **Environment-Driven Routing (`SP_PROXY_URL`)**: If `SP_PROXY_URL` (or standard `HTTP_PROXY`/`PROXY_URL`) is defined in the deployment environment (e.g. Render environment variables), requests are transparently routed through a residential proxy gateway (e.g., BrightData, SmartProxy, Oxylabs) with Indian egress IPs. If undefined, requests route directly via `got-scraping`'s browser TLS emulation.
+1. **Centralized Client Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
+2. **Cloudflare Worker Edge Relay (`SP_RELAY_URL`)**:
+   - Zero-cost egress routing using a lightweight Cloudflare Worker running on Cloudflare's global edge network (`AS13335`), which is natively trusted by SRMIST's Cloudflare WAF.
+   - Forwards target URLs via `X-Target-Url` header and transparently relays request/response streams.
+   - Handles cookie synchronization: `spFetch` binds session cookies to the actual target URL path (e.g. `/srmiststudentportal/`) across both direct and relayed hops, ensuring `JSESSIONID` and `TS9dec798a027` persistence across `youLogin.jsp`, `SCaptchaServlet`, and `LoginServlet`.
+   - Supports optional pre-shared authentication header via `SP_RELAY_SECRET` (`X-Relay-Secret`).
+3. **Residential Proxy Gateway Fallback (`SP_PROXY_URL`)**: If `SP_PROXY_URL` (or standard `HTTP_PROXY`/`PROXY_URL`) is defined, requests are routed through a residential proxy gateway (e.g., BrightData, SmartProxy, Oxylabs) with Indian egress IPs. If neither is defined, requests route directly via `got-scraping`'s browser TLS emulation.
 
 ### 4.4 In-Memory Session Caching & Human-in-the-Loop CAPTCHA
 1. **`spSessionStore` TTL Cache**: Successful Student Portal authentications (whether automated or manual) cache the authenticated `tough-cookie` `CookieJar` in-memory for 45 minutes. Subsequent background sync calls on the dashboard reuse this active session directly, avoiding repeated login overhead and eliminating unnecessary CAPTCHA solver cycles.
