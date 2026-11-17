@@ -417,14 +417,21 @@ export default function Dashboard() {
       {/* Partial scrape error toast */}
       {showErrorToast && Object.keys(partialErrors).length > 0 && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-md">
-          {Object.values(partialErrors).map((msg, i) => (
-            <div key={i} className="flex items-start gap-3 bg-[#2a2a2a] border border-[#333] rounded-xl px-4 py-3 shadow-2xl animate-pulse">
-              <svg className="w-5 h-5 text-[#e57373] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <p className="text-[#e57373] text-sm">{msg}</p>
-            </div>
-          ))}
+          {Object.values(partialErrors).map((msg, i) => {
+            const text = typeof msg === 'string' 
+              ? msg 
+              : (msg && typeof msg === 'object' && ((msg as any).error || (msg as any).message))
+                ? ((msg as any).error || (msg as any).message)
+                : JSON.stringify(msg);
+            return (
+              <div key={i} className="flex items-start gap-3 bg-[#2a2a2a] border border-[#333] rounded-xl px-4 py-3 shadow-2xl animate-pulse">
+                <svg className="w-5 h-5 text-[#e57373] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-[#e57373] text-sm">{text}</p>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -573,14 +580,11 @@ export default function Dashboard() {
                
                <div className="max-w-[1400px] mx-auto space-y-12 pb-4 lg:pb-0">
                    {/* Student Portal Captcha / Verification Banner if sync encountered issues */}
-                   {Object.values(partialErrors).some(err => 
-                      typeof err === 'string' && (
-                        err.toLowerCase().includes('portal') || 
-                        err.toLowerCase().includes('captcha') || 
-                        err.toLowerCase().includes('credentials') || 
-                        err.toLowerCase().includes('session')
-                      )
-                   ) && (
+                   {partialErrors && Object.values(partialErrors).some(err => {
+                      const str = typeof err === 'string' ? err : (err && typeof err === 'object' ? JSON.stringify(err) : '');
+                      const lower = str.toLowerCase();
+                      return lower.includes('portal') || lower.includes('captcha') || lower.includes('credentials') || lower.includes('session');
+                   }) && (
                       <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in">
                         <div className="flex items-center gap-2 text-amber-300">
                           <span className="text-base">⚠️</span>
