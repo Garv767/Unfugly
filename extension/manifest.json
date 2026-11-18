@@ -10,6 +10,7 @@
   "host_permissions": [
     "https://srmist.edu.in/*",
     "https://*.srmist.edu.in/*",
+    "https://dld.srmist.edu.in/*",
     "https://creatorapp.zoho.com/srm_university/*",
     "https://unfugly-backend.onrender.com/*",
     "https://zoho.in/*",
@@ -31,6 +32,17 @@
     {
       "matches": ["https://sp.srmist.edu.in/*"],
       "js": ["sp_content.js"]
+    },
+    {
+      "matches": [
+        "https://dld.srmist.edu.in/ktretecurricula/*",
+        "https://dld.srmist.edu.in/*"
+      ],
+      "js": [
+        "lib/jsQR.js",
+        "ktretecurricula.js"
+      ],
+      "run_at": "document_end"
     }
   ],
   "background": {

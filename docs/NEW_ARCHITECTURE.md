@@ -513,3 +513,18 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Upon token detection, the client auto-authenticates via `/api/v2/auth/me` or `/api/v2/auth/verify-otp`, persists `unfugly_token` into `localStorage`, and triggers the post-login portal connection check or routes directly to the dashboard.
 - Metadata is passed to Supabase Auth (`options.data: { user_net_id, service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
 
+### 10.5 SRM KTR E-Curricula 2FA Authenticator Companion Extension Script
+- **Portal Scope**: Injected on `https://dld.srmist.edu.in/ktretecurricula/*` (and `https://dld.srmist.edu.in/*`) via `extension/ktretecurricula.js` and `extension/lib/jsQR.js`.
+- **First-Setup QR Decoding**:
+  - Accepts QR code input via drag-and-drop image upload, file browser, clipboard paste (`Ctrl+V`), automated DOM image detection (`jsQR`), or manual Base32 key input.
+  - Automatically parses standard Google Authenticator `otpauth://totp/...` URIs and raw Base32 secret keys.
+- **Local Persistence & Privacy**:
+  - Secrets and account labels persist exclusively in `chrome.storage.local` under camelCase keys (`unfuglyKtreteTotpSecret`, `unfuglyKtreteTotpAccount`, `unfuglyKtreteTotpDigits`, `unfuglyKtreteTotpPeriod`, `unfuglyKtreteTotpMinimized`).
+  - No secret or TOTP data leaves the user's local browser environment (strictly 0 backend transmissions).
+- **Live TOTP Generation & Visual Timer UI**:
+  - Computes RFC 6238 HMAC-SHA1 TOTP tokens client-side using `crypto.subtle`.
+  - Injected via an isolated Shadow DOM root (`unfugly-ktrete-authenticator-host`) to prevent CSS contamination from/to the host page.
+  - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.
+  - Provides instant one-click copy with visual toast confirmation, an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
+
+
