@@ -38,6 +38,8 @@ export default function LoginPage() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSpPassword, setShowSpPassword] = useState(false);
+  const [showDiagPassword, setShowDiagPassword] = useState(false);
 
   // Status & Error
   const [error, setError] = useState('');
@@ -539,16 +541,18 @@ export default function LoginPage() {
     setPortalError('');
     setDiagInfo(null);
     try {
-      const token = currentSessionToken || localStorage.getItem('unfugly_token');
+      const token = currentSessionToken || (typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : '');
+      const netId = (activeProfile?.user_net_id || username.split('@')[0] || '').toLowerCase().trim();
       const res = await fetch(`${API_URL}/api/v2/auth/sp-verify-challenge`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          net_id: netId,
           sp_password: spPassword,
-          captcha_code: manualCaptchaCode.trim().toUpperCase(),
+          captcha_code: manualCaptchaCode.trim(),
           challenge_id: manualChallengeId,
         }),
       });
@@ -608,7 +612,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           net_id: netId,
           sp_password: password,
-          captcha_code: manualCaptchaCode.trim().toUpperCase(),
+          captcha_code: manualCaptchaCode.trim(),
           challenge_id: manualChallengeId,
         }),
       });
@@ -1174,13 +1178,23 @@ export default function LoginPage() {
                 <label className="block text-[11px] font-semibold text-muted mb-1">
                   Student Portal Password
                 </label>
-                <input
-                  type="password"
-                  className="input-field w-full text-xs"
-                  placeholder="Portal Password"
-                  value={diagSpPassword || spPassword}
-                  onChange={(e) => setDiagSpPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    type={showDiagPassword ? 'text' : 'password'}
+                    className="input-field w-full pr-9 text-xs"
+                    placeholder="Portal Password"
+                    value={diagSpPassword || spPassword}
+                    onChange={(e) => setDiagSpPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-muted hover:text-text cursor-pointer"
+                    onClick={() => setShowDiagPassword(!showDiagPassword)}
+                    tabIndex={-1}
+                  >
+                    {showDiagPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 rounded-lg bg-surface1 border border-border/60 space-y-2">
@@ -1221,10 +1235,10 @@ export default function LoginPage() {
                   <input
                     type="text"
                     maxLength={6}
-                    placeholder="e.g. 5X8YB2"
+                    placeholder="e.g. 5x8yb2"
                     value={manualCaptchaCode}
-                    onChange={(e) => setManualCaptchaCode(e.target.value.toUpperCase())}
-                    className="input-field w-full text-center text-sm tracking-[0.3em] font-mono uppercase font-bold"
+                    onChange={(e) => setManualCaptchaCode(e.target.value.trim())}
+                    className="input-field w-full text-center text-sm tracking-[0.3em] font-mono font-bold"
                   />
                 </div>
               </div>
@@ -1358,16 +1372,27 @@ export default function LoginPage() {
                   <label className="block text-xs font-semibold text-muted mb-1">
                     Student Portal Password (sp.srmist.edu.in)
                   </label>
-                  <input
-                    type="password"
-                    className="input-field w-full text-sm"
-                    placeholder="Enter Student Portal password"
-                    value={spPassword}
-                    onChange={(e) => setSpPassword(e.target.value)}
-                    required
-                    disabled={portalLoading}
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <input
+                      type={showSpPassword ? 'text' : 'password'}
+                      className="input-field w-full pr-10 text-sm"
+                      placeholder="Enter Student Portal password"
+                      value={spPassword}
+                      onChange={(e) => setSpPassword(e.target.value)}
+                      required
+                      disabled={portalLoading}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowSpPassword(!showSpPassword)}
+                      tabIndex={-1}
+                      disabled={portalLoading}
+                    >
+                      {showSpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Mode Selector Toggle */}
@@ -1422,16 +1447,16 @@ export default function LoginPage() {
 
                     <div>
                       <label className="block text-[11px] font-semibold text-muted mb-1">
-                        Enter Captcha (6 alphanumeric characters)
+                        Enter Captcha (6 characters, case-sensitive)
                       </label>
                       <input
                         type="text"
                         maxLength={6}
                         placeholder="e.g. 5x8yb2"
                         value={manualCaptchaCode}
-                        onChange={(e) => setManualCaptchaCode(e.target.value.toUpperCase())}
+                        onChange={(e) => setManualCaptchaCode(e.target.value.trim())}
                         required={manualCaptchaMode}
-                        className="input-field w-full text-center text-base tracking-[0.3em] font-mono uppercase font-bold"
+                        className="input-field w-full text-center text-base tracking-[0.3em] font-mono font-bold"
                         disabled={portalLoading}
                       />
                     </div>
@@ -1460,7 +1485,6 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  onClick={manualCaptchaMode ? handleManualCaptchaVerify : handleConnectSp}
                   className="btn-primary w-full flex justify-center items-center h-10 text-sm font-semibold"
                   disabled={portalLoading}
                 >

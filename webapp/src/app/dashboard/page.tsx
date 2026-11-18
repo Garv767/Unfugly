@@ -8,7 +8,7 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
-import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X } from 'lucide-react';
+import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [portalChallengeId, setPortalChallengeId] = useState('');
   const [portalCaptchaCode, setPortalCaptchaCode] = useState('');
   const [portalSpPassword, setPortalSpPassword] = useState('');
+  const [showPortalSpPassword, setShowPortalSpPassword] = useState(false);
   const [portalCaptchaLoading, setPortalCaptchaLoading] = useState(false);
   const [portalModalError, setPortalModalError] = useState('');
   const [portalModalSuccess, setPortalModalSuccess] = useState('');
@@ -693,10 +694,10 @@ export default function Dashboard() {
                       <input
                          type="text"
                          maxLength={6}
-                         placeholder="e.g. 5X8YB2"
+                         placeholder="e.g. 5x8yb2"
                          value={portalCaptchaCode}
-                         onChange={(e) => setPortalCaptchaCode(e.target.value.toUpperCase())}
-                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-center text-sm font-mono uppercase tracking-[0.25em] font-bold text-white focus:outline-none focus:border-emerald-500"
+                         onChange={(e) => setPortalCaptchaCode(e.target.value.trim())}
+                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-center text-sm font-mono tracking-[0.25em] font-bold text-white focus:outline-none focus:border-emerald-500"
                          required
                       />
                    </div>
@@ -705,13 +706,23 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-400 mb-1">
                          Student Portal Password <span className="text-gray-500 font-normal">(Leave blank if already saved)</span>
                       </label>
-                      <input
-                         type="password"
-                         placeholder="Update Portal Password (optional)"
-                         value={portalSpPassword}
-                         onChange={(e) => setPortalSpPassword(e.target.value)}
-                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
-                      />
+                      <div className="relative">
+                         <input
+                            type={showPortalSpPassword ? 'text' : 'password'}
+                            placeholder="Update Portal Password (optional)"
+                            value={portalSpPassword}
+                            onChange={(e) => setPortalSpPassword(e.target.value)}
+                            className="w-full px-3 py-2 pr-10 bg-[#121212] border border-[#333] rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
+                         />
+                         <button
+                            type="button"
+                            onClick={() => setShowPortalSpPassword(!showPortalSpPassword)}
+                            tabIndex={-1}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white cursor-pointer"
+                         >
+                            {showPortalSpPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                         </button>
+                      </div>
                    </div>
 
                    {portalModalError && (
