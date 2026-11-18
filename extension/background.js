@@ -60,8 +60,64 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+let creatingOffscreenPromise = null;
+
+async function ensureOffscreenDocument() {
+  if (chrome.runtime.getContexts) {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+      documentUrls: [chrome.runtime.getURL('offscreen.html')]
+    });
+    if (contexts.length > 0) return;
+  }
+
+  if (creatingOffscreenPromise) {
+    await creatingOffscreenPromise;
+    return;
+  }
+
+  creatingOffscreenPromise = chrome.offscreen
+    .createDocument({
+      url: 'offscreen.html',
+      reasons: ['BLOBS', 'WORKERS'],
+      justification: 'Run in-extension ONNX neural network inference locally'
+    })
+    .finally(() => {
+      creatingOffscreenPromise = null;
+    });
+
+  await creatingOffscreenPromise;
+}
+
 async function handleSolveSpCaptcha(request, sendResponse) {
-  const payload = JSON.stringify({ imageBase64: request.imageBase64 });
+  // 1. Primary: 100% Client-side Offline Local ONNX Solver via Offscreen Document
+  try {
+    await ensureOffscreenDocument();
+    chrome.runtime.sendMessage(
+      {
+        target: 'offscreen',
+        action: 'solve_sp_captcha_local',
+        imageBase64: request.imageBase64
+      },
+      (res) => {
+        if (chrome.runtime.lastError || !res || !res.success) {
+          UnfuglyLog.warn('CAPTCHA', `Local offscreen ONNX issue: ${chrome.runtime.lastError?.message || res?.error}`);
+          tryBackendSolve(request.imageBase64, sendResponse);
+        } else {
+          UnfuglyLog.info('CAPTCHA', `Solved offline via local in-extension ONNX: ${res.text} (${res.duration})`);
+          sendResponse(res);
+        }
+      }
+    );
+    return;
+  } catch (err) {
+    UnfuglyLog.warn('CAPTCHA', `Failed to launch offscreen ONNX: ${err.message}`);
+    tryBackendSolve(request.imageBase64, sendResponse);
+  }
+}
+
+async function tryBackendSolve(imageBase64, sendResponse) {
+  const payload = JSON.stringify({ imageBase64 });
   const endpoints = [
     'https://unfugly-backend.onrender.com/api/v2/auth/solve-captcha',
     'http://localhost:5000/api/v2/auth/solve-captcha'
@@ -76,15 +132,15 @@ async function handleSolveSpCaptcha(request, sendResponse) {
       });
       if (res.ok) {
         const data = await res.json();
-        UnfuglyLog.info('CAPTCHA', `Solved via ${url}: ${data.text} (${data.duration || 'ok'})`);
+        UnfuglyLog.info('CAPTCHA', `Solved via backend fallback: ${data.text} (${data.duration || 'ok'})`);
         sendResponse(data);
         return;
       }
     } catch (_) {}
   }
 
-  UnfuglyLog.error('CAPTCHA', 'All captcha solving endpoints failed');
-  sendResponse({ success: false, error: 'Failed to reach captcha solver backend' });
+  UnfuglyLog.error('CAPTCHA', 'All captcha solving options failed');
+  sendResponse({ success: false, error: 'Failed to solve captcha' });
 }
 
 async function handleFetchBackend(request, sendResponse) {

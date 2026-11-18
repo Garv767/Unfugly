@@ -130,7 +130,7 @@ function setupSidebarScrollPreservation() {
 setupSidebarScrollPreservation();
 
 // =====================================================================
-// Automated ONNX Captcha Solver for Student Portal (SP)
+// Automated 100% Local ONNX Captcha Solver for Student Portal (SP)
 // Automatically solves and fills the captcha on login page load,
 // reflects the solved value on the UI for quick verification,
 // applies Unfugly signature border styling, and shows hover tooltip.
@@ -149,7 +149,8 @@ function setupSpCaptchaSolver() {
   ];
 
   let isSolving = false;
-  let lastSolvedSrc = '';
+  let solvedBlobUrl = '';
+  let retryCount = 0;
 
   function findCaptchaElements() {
     let input = null;
@@ -285,51 +286,40 @@ function setupSpCaptchaSolver() {
     if (retryBtn) {
       retryBtn.onclick = (e) => {
         e.preventDefault();
-        lastSolvedSrc = '';
+        solvedBlobUrl = '';
         triggerSolve(true);
       };
     }
   }
 
-  async function extractImageBase64(img) {
+  function extractImageBase64(img) {
     return new Promise((resolve, reject) => {
-      const runExtract = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || img.width || 200;
-          canvas.height = img.naturalHeight || img.height || 60;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const dataUrl = canvas.toDataURL('image/png');
-          if (dataUrl && dataUrl.length > 200) {
-            resolve(dataUrl);
-          } else {
-            reject(new Error('Canvas generated empty image data'));
-          }
-        } catch (err) {
-          reject(err);
+      try {
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+        if (!width || !height || width < 20 || height < 10) {
+          return reject(new Error('Image has not decoded visual dimensions yet'));
         }
-      };
 
-      if (img.complete && img.naturalWidth > 0) {
-        runExtract();
-      } else {
-        const onLoad = () => {
-          img.removeEventListener('load', onLoad);
-          runExtract();
-        };
-        img.addEventListener('load', onLoad);
-        setTimeout(() => {
-          img.removeEventListener('load', onLoad);
-          if (img.naturalWidth > 0) runExtract();
-          else reject(new Error('Captcha image load timed out'));
-        }, 3000);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        if (dataUrl && dataUrl.length > 200) {
+          resolve(dataUrl);
+        } else {
+          reject(new Error('Canvas generated empty data'));
+        }
+      } catch (err) {
+        reject(err);
       }
     });
   }
 
   function setNativeInputValue(input, val) {
-    input.focus();
     const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
     if (nativeSetter) {
       nativeSetter.call(input, val);
@@ -338,16 +328,26 @@ function setupSpCaptchaSolver() {
     }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: val.slice(-1) }));
   }
 
   async function triggerSolve(force = false) {
     if (isSolving) return;
+
     const { input, img } = findCaptchaElements();
     if (!input || !img) return;
 
-    const currentSrc = img.src || img.getAttribute('data-src') || '';
-    if (!currentSrc || (!force && currentSrc === lastSolvedSrc)) return;
+    // CRITICAL: The real captcha from SCaptchaServlet is loaded as a blob URL by guardlogin.js:
+    // img.src = "blob:https://sp.srmist.edu.in/..."
+    // If img.src is empty or not loaded yet, guardlogin.js is still fetching. DO NOT TOUCH IT YET!
+    const src = img.src || '';
+    if (!src || !src.startsWith('blob:') || !img.complete || img.naturalWidth === 0) {
+      return;
+    }
+
+    // Skip if this exact blob image has already been solved
+    if (!force && src === solvedBlobUrl) {
+      return;
+    }
 
     isSolving = true;
     injectUnfuglyStyles();
@@ -357,7 +357,7 @@ function setupSpCaptchaSolver() {
 
     try {
       const imageBase64 = await extractImageBase64(img);
-      lastSolvedSrc = img.src || currentSrc;
+      solvedBlobUrl = src;
 
       chrome.runtime.sendMessage(
         { action: 'solve_sp_captcha', imageBase64 },
@@ -375,11 +375,19 @@ function setupSpCaptchaSolver() {
             // On hover tooltip: "Solved with by Unfugly"
             input.title = 'Solved with by Unfugly';
 
-            // Reflect on UI so user can verify against image
+            // Reflect on UI for visual verification
             renderUiReflection(input, cleanText, response.duration);
+            retryCount = 0;
           } else {
             input.classList.remove('unfugly-solved-input');
             input.title = 'Captcha solver failed — please enter manually';
+            if (retryCount < 2) {
+              retryCount++;
+              setTimeout(() => {
+                solvedBlobUrl = '';
+                triggerSolve(true);
+              }, 1200);
+            }
           }
         }
       );
@@ -389,31 +397,55 @@ function setupSpCaptchaSolver() {
     }
   }
 
+  // Hook image load directly (fires when guardlogin.js sets img.src = URL.createObjectURL)
+  function attachImageListener() {
+    const { img } = findCaptchaElements();
+    if (img) {
+      img.addEventListener('load', () => {
+        // Small 80ms breathing room to ensure rendering pipeline finished
+        setTimeout(() => triggerSolve(), 80);
+      });
+
+      // If user clicks the captcha image to refresh it
+      img.addEventListener('click', () => {
+        solvedBlobUrl = '';
+      });
+    }
+
+    // Also attach to refresh button
+    const refreshBtn = document.getElementById('btnRefresh');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        solvedBlobUrl = '';
+      });
+    }
+  }
+
+  // Initial setup
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => triggerSolve());
+    document.addEventListener('DOMContentLoaded', () => {
+      attachImageListener();
+      triggerSolve();
+    });
   } else {
+    attachImageListener();
     triggerSolve();
   }
 
-  // Also listen for image load or attribute updates (e.g. guardlogin.js populating src from data-src)
-  const captchaImg = document.querySelector(CAPTCHA_IMG_SELECTORS.join(','));
-  if (captchaImg) {
-    captchaImg.addEventListener('load', () => triggerSolve());
-    const imgObserver = new MutationObserver(() => triggerSolve());
-    imgObserver.observe(captchaImg, { attributes: true, attributeFilter: ['src', 'data-src'] });
+  // MutationObserver strictly watching img src changes
+  const targetImg = document.querySelector(CAPTCHA_IMG_SELECTORS.join(','));
+  if (targetImg) {
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'src') {
+          if (targetImg.src && targetImg.src.startsWith('blob:') && targetImg.src !== solvedBlobUrl) {
+            setTimeout(() => triggerSolve(), 80);
+          }
+        }
+      }
+    });
+    observer.observe(targetImg, { attributes: true, attributeFilter: ['src'] });
   }
-
-  // Global observer for dynamic login container rendering
-  const pageObserver = new MutationObserver(() => {
-    const { input, img } = findCaptchaElements();
-    if (input && img && (!lastSolvedSrc || img.src !== lastSolvedSrc)) {
-      triggerSolve();
-    }
-  });
-  pageObserver.observe(document.body || document.documentElement, {
-    childList: true,
-    subtree: true
-  });
 }
 
 setupSpCaptchaSolver();
