@@ -33,6 +33,14 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
               </div>
           ))
       ) : data.marksData?.map((item: any, i: number) => {
+         const courseCode = String(item.courseCode || item.CourseCode || '').trim();
+         const courseTitle = item.courseTitle || item.CourseTitle || '';
+         const courseType = item.courseType || item.CourseType || '';
+         const totalMaxMarks = Number(item.totalMaxMarks ?? item.TotalMaxMarks ?? 0);
+         const totalObtainedMarks = Number(item.totalObtainedMarks ?? item.TotalObtainedMarks ?? 0);
+         const isInternal = courseCode.toUpperCase().endsWith('P') || totalMaxMarks > 60;
+         const components = Array.isArray(item.components) ? item.components : (Array.isArray(item.Components) ? item.Components : []);
+
          return (
          <div 
             key={i} 
@@ -44,16 +52,17 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
              <div className="flex justify-between items-start mb-4 relative z-20">
                <div className="max-w-[75%]">
                   <h3 className="font-bold text-[1.1em] m-0">
-                     {item.CourseCode} - {(() => {
+                     {courseCode} - {(() => {
+                         if (courseTitle) return courseTitle;
                          if (!data.courseData) return '';
                          const actualCourseData = data.courseData.slotToCourse || data.courseData;
-                         const c = (Object.values(actualCourseData) as any[]).find((c: any) => c && c['Course Code'] === item.CourseCode);
-                         return c ? c['Course Title'] : '';
+                         const c = (Object.values(actualCourseData) as any[]).find((c: any) => c && (c['Course Code'] === courseCode || c.courseCode === courseCode));
+                         return c ? (c['Course Title'] || c.courseTitle || '') : '';
                      })()}
                   </h3>
                   <p className="text-gray-400 text-[0.9em] mt-[2px] mb-0 opacity-80">
-                     {item.CourseType}
-                     {((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) && (
+                     {courseType}
+                     {isInternal && (
                          <span className="text-[0.8em] text-[#FBC02D]"> (Internal)</span>
                      )}
                   </p>
@@ -61,8 +70,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                <div className="flex flex-col items-end">
                   <div className="flex items-center gap-3">
                       <span className="font-bold text-[1em]" style={{ color: (() => {
-                         const isInternal = (item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60;
-                         const pct = item.TotalMaxMarks > 0 ? (item.TotalObtainedMarks / item.TotalMaxMarks) * 100 : 0;
+                         const pct = totalMaxMarks > 0 ? (totalObtainedMarks / totalMaxMarks) * 100 : 0;
                          if (isInternal) {
                             if (pct > 91) return '#81c784';
                             if (pct > 50) return '#fbc02d';
@@ -73,7 +81,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                             return '#e57373';
                          }
                       })() }}>
-                         {item.TotalObtainedMarks} <span className="text-gray-200">/ {item.TotalMaxMarks}</span>
+                         {totalObtainedMarks} <span className="text-gray-200">/ {totalMaxMarks}</span>
                       </span>
                       
                       <div 
@@ -98,24 +106,24 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                              <span className="text-[0.85em] text-[#eee]">Credit: <b className="text-white">{(() => {
                                 if (!data.courseData) return 'N/A';
                                 const actualCourseData = data.courseData.slotToCourse || data.courseData;
-                                const c = (Object.values(actualCourseData) as any[]).find((c: any) => c['Course Code'] === item.CourseCode);
-                                return c ? c.Credit : 'N/A';
+                                const c = (Object.values(actualCourseData) as any[]).find((c: any) => c && (c['Course Code'] === courseCode || c.courseCode === courseCode));
+                                return c ? (c.Credit ?? c.credits ?? 'N/A') : 'N/A';
                              })()}</b></span><br/>
                              <span className="text-[0.85em] text-[#eee]">Faculty: <span className="text-[#64b5f6] hover:underline cursor-pointer">{(() => {
                                 if (!data.courseData) return 'N/A';
                                 const actualCourseData = data.courseData.slotToCourse || data.courseData;
-                                const c = (Object.values(actualCourseData) as any[]).find((c: any) => c['Course Code'] === item.CourseCode);
-                                return c ? c['Faculty Name'] : 'N/A';
+                                const c = (Object.values(actualCourseData) as any[]).find((c: any) => c && (c['Course Code'] === courseCode || c.courseCode === courseCode));
+                                return c ? (c['Faculty Name'] || c.facultyName || 'N/A') : 'N/A';
                              })()}</span></span><br/>
                              <div className="mt-1 text-[#aaa] text-[0.82em] flex items-center gap-1.5">
                                 <span className="text-gray-400">Type:</span> 
-                                {((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) 
+                                {isInternal 
                                    ? <span className="flex items-center gap-1 text-gray-200"><Lock size={12} className="text-[#FBC02D]" /> Fully Internal</span> 
                                    : <span className="flex items-center gap-1 text-gray-200"><FileText size={12} className="text-[#64b5f6]" /> Theory (60+40)</span>
                                 }
                              </div>
                              
-                             {!((item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60) && (
+                             {!isInternal && (
                                 <table className="w-full mt-3 text-[0.85em] text-left border-collapse">
                                    <tbody>
                                       {[
@@ -126,8 +134,8 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                                          { grade: 'B', min: 56 },
                                          { grade: 'C', min: 50 }
                                       ].map(g => {
-                                         const internalObtained = item.Components
-                                            ? item.Components.reduce((sum: number, c: any) => sum + (parseFloat(c.ObtainedMarks) || 0), 0)
+                                         const internalObtained = components.length > 0
+                                            ? components.reduce((sum: number, c: any) => sum + (parseFloat(c.obtainedMarks || c.ObtainedMarks) || 0), 0)
                                             : 0;
                                          const extNeeded40 = Math.max(0, g.min - internalObtained);
                                          const extNeeded75 = extNeeded40 > 40 ? '—' : Math.ceil(extNeeded40 * 75 / 40);
@@ -153,15 +161,14 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                </div>
              </div>
 
-             {item.TotalMaxMarks > 0 && (
+             {totalMaxMarks > 0 && (
                 <div className="w-full bg-[#333] h-[8px] rounded-[4px] mb-[8px] relative z-0 overflow-hidden">
                    <div 
                       className="h-full transition-all duration-400 ease-in-out"
                       style={{ 
-                         width: `${Math.min(100, item.TotalMaxMarks > 0 ? (item.TotalObtainedMarks / item.TotalMaxMarks) * 100 : 0)}%`,
+                         width: `${Math.min(100, (totalObtainedMarks / totalMaxMarks) * 100)}%`,
                          backgroundColor: (() => {
-                            const isInternal = (item.CourseCode || '').trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60;
-                            const pct = item.TotalMaxMarks > 0 ? (item.TotalObtainedMarks / item.TotalMaxMarks) * 100 : 0;
+                            const pct = (totalObtainedMarks / totalMaxMarks) * 100;
                             if (isInternal) {
                                if (pct > 91) return '#81C784';
                                if (pct > 50) return '#FBC02D';
@@ -177,15 +184,17 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                 </div>
              )}
 
-             {item.Components && item.Components.length > 0 && (
+             {components.length > 0 && (
                 <div className="flex flex-wrap gap-[8px] relative z-0">
-                   {item.Components.map((comp: any, j: number) => {
-                      const isAbsent = comp.ObtainedMarks === 'Absent';
-                      const obtained = parseFloat(comp.ObtainedMarks);
-                      const max = parseFloat(comp.MaxMarks);
+                   {components.map((comp: any, j: number) => {
+                      const obtainedRaw = comp.obtainedMarks ?? comp.ObtainedMarks;
+                      const maxRaw = comp.maxMarks ?? comp.MaxMarks;
+                      const compName = comp.componentName || comp.ComponentName || `Component ${j + 1}`;
+                      const isAbsent = obtainedRaw === 'Absent';
+                      const obtained = parseFloat(obtainedRaw);
+                      const max = parseFloat(maxRaw);
                       const compPct = !isAbsent && max > 0 && !isNaN(obtained) ? (obtained / max) * 100 : 0;
                       
-                      const isInternal = item.CourseCode.trim().toUpperCase().endsWith('P') || item.TotalMaxMarks > 60;
                       const getScoreColor = (pct: number) => {
                           if (isInternal) {
                               if (pct > 91) return '#81C784';
@@ -207,7 +216,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                             className="text-[0.8em] font-[500] px-[8px] py-[3px] rounded-[12px]"
                             style={{ backgroundColor: chipBgColor, color: chipTextColor }}
                          >
-                            {comp.ComponentName}: {isAbsent ? 'Absent' : `${comp.ObtainedMarks}/${comp.MaxMarks}`}
+                            {compName}: {isAbsent ? 'Absent' : `${obtainedRaw}/${maxRaw}`}
                          </span>
                       );
                    })}

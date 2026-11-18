@@ -14,7 +14,7 @@ const DEFAULT_SEMESTERS = ['2024_25_EVEN', '2025_26_ODD', '2025_26_EVEN', '2026_
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 function parseMonthKey(str: string): number {
-  if (!str) return 0;
+  if (!str || typeof str !== 'string') return 0;
   const parts = str.trim().split(/\s+/);
   const mIdx = MONTH_NAMES.indexOf(parts[0].slice(0, 3).toLowerCase());
   const yr = parseInt(parts[1]?.replace("'", "") || '0', 10) + 2000;

@@ -120,7 +120,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
   let hasExtraSlots = false;
   if (parsedData?.extraSlotFlag && parsedData?.days) {
       hasExtraSlots = parsedData.days.some((day: any) => 
-          day.slots?.slice(-2).some((slot: any) => slot.title && slot.title.trim() !== '')
+          day.slots?.slice(-2).some((slot: any) => slot.title && String(slot.title).trim() !== '')
       ) || false;
   }
   
@@ -404,8 +404,8 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
           </tr>
         </thead>
         <tbody>
-          {parsedData.days.map((day: any, dIndex: number) => {
-             const rowDayOrderMatch = day.dayName.trim().match(/^(?:Day[\s\-]*)?(\d+)/i);
+          {(parsedData.days || []).map((day: any, dIndex: number) => {
+             const rowDayOrderMatch = (day?.dayName || '').trim().match(/^(?:Day[\s\-]*)?(\d+)/i);
              const rowDayOrder = rowDayOrderMatch ? rowDayOrderMatch[1] : null;
              const isActive = !activeDayOrder || String(rowDayOrder) === String(activeDayOrder);
              const isDull = activeDayOrder && String(rowDayOrder) !== String(activeDayOrder);
@@ -417,9 +417,9 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                  transition: 'all 0.3s ease'
                }}>
                  <td style={{ padding: '8px 5px', width: '1%', whiteSpace: 'nowrap', backgroundColor: '#F8C471', color: '#000', fontSize: '10px', borderRadius: '3px' }}>
-                   {day.dayName}
+                   {day?.dayName || `Day ${dIndex + 1}`}
                  </td>
-                 {day.slots.map((slot: any, sIndex: number) => {
+                 {(day?.slots || []).map((slot: any, sIndex: number) => {
                     if (!hasExtraSlots && sIndex >= day.slots.length - 2) return null;
                     
                     const slotId = `slot-${dIndex * day.slots.length + sIndex + 1}`;
