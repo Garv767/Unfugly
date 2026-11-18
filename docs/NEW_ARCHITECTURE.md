@@ -284,16 +284,23 @@ The backend executes a seamless, zero-cloud-cost automated handshake:
    - Computes `has_academia_access = (batch_year < 2030)`.
    - Encrypts student password via AES-256-GCM (AAD bound to `user_net_id`) and upserts into Supabase `public.profiles`.
 
-### 4.3 Deployment Egress, Residential Proxy & Cloudflare Worker Edge Relay
-Cloud hosting environments (Render, AWS, GCP, Vercel) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. To ensure consistent, production-grade connectivity:
+### 4.3 Deployment Egress, Residential Proxy, Cloudflare Worker & Vercel Edge Relay
+Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. Furthermore, SRMIST Student Portal enforces an aggressive per-IP rate limit on its CAPTCHA generation endpoint (`SCaptchaServlet`) that throttles or blocks IPs after fewer than 10 rapid attempts. To ensure consistent, production-grade connectivity:
 1. **Centralized Client Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
-2. **Cloudflare Worker Edge Relay (`SP_RELAY_URL`)**:
-   - Zero-cost egress routing using a lightweight Cloudflare Worker running on Cloudflare's global edge network (`AS13335`), which is natively trusted by SRMIST's Cloudflare WAF.
-   - Forwards target URLs via `X-Target-Url` header and transparently relays request/response streams.
-   - **Multi-Hop Redirect Ingestion**: When `spFetch` operates in relay mode, all HTTP 301/302/303/307/308 redirects (notably `LoginServlet` -> `HRDSystem.jsp`) are intercepted manually with `followRedirect: false`. Session cookies (`JSESSIONID`, `TS9dec798a027`) from the redirect response are immediately ingested into `cookieJar`, and subsequent redirect requests are piped through the Cloudflare Worker Relay, ensuring that deployment server IPs (e.g., Render) never attempt direct unproxied connections to SRMIST.
+2. **Dual Edge Relay Architecture (`SP_RELAY_URL`)**:
+   - **Vercel Edge Function Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
+     - Runs on Vercel's global edge network via `export const runtime = 'edge'`.
+     - Zero cold start, executing directly across distributed edge nodes worldwide. Because requests originate across rotating edge IP pools, calls to `SCaptchaServlet` and portal authentication bypass the <10 request per-IP rate limit enforced by SRMIST.
+     - Enforces strict security by only proxying to `ALLOWED_ORIGIN_PREFIXES` (`https://sp.srmist.edu.in/`).
+     - Supports optional pre-shared secret validation via `SP_RELAY_SECRET` (`X-Relay-Secret`).
+     - Preserves multiple `Set-Cookie` headers (`JSESSIONID`, `TS9dec798a027`) using standard `Headers.getSetCookie()`.
+     - Sets `redirect: 'manual'` so that all HTTP 302 redirects return intact to `spFetch` for session cookie ingestion.
+     - Backend automatically defaults to `${FRONTEND_URL}/api/sp-relay` or `https://unfugly.app/api/sp-relay` in production.
+   - **Cloudflare Worker Edge Relay**:
+     - Optional alternative running on Cloudflare's global edge network (`AS13335`), natively trusted by SRMIST's Cloudflare WAF.
+   - **Multi-Hop Redirect Ingestion**: When `spFetch` operates in relay mode, all HTTP 301/302/303/307/308 redirects (notably `LoginServlet` -> `HRDSystem.jsp`) are intercepted manually with `followRedirect: false`. Session cookies (`JSESSIONID`, `TS9dec798a027`) from the redirect response are immediately ingested into `cookieJar`, and subsequent redirect requests are piped through the Edge Relay, ensuring that deployment server IPs (e.g., Render) never attempt direct unproxied connections to SRMIST.
    - **Header & Fingerprint Parity (`useHeaderGenerator: false`)**: Disables `got-scraping`'s internal header generator across relay and direct modes. This prevents container runtime environments (such as Render's Linux containers) from auto-injecting Linux client hints (`Sec-Ch-Ua-Platform: "Linux"`) or mismatched User-Agents that conflict with the client telemetry payload (`telemetryPayload.platform: "Win32"`), ensuring F5 ASM and SRM WAF anti-bot checks pass consistently.
    - Handles cookie synchronization: `spFetch` binds session cookies to the actual target URL path (e.g. `/srmiststudentportal/`) across both direct and relayed hops, ensuring `JSESSIONID` and `TS9dec798a027` persistence across `youLogin.jsp`, `SCaptchaServlet`, and `LoginServlet`.
-   - Supports optional pre-shared authentication header via `SP_RELAY_SECRET` (`X-Relay-Secret`).
 3. **Residential Proxy Gateway Fallback (`SP_PROXY_URL`)**: If `SP_PROXY_URL` (or standard `HTTP_PROXY`/`PROXY_URL`) is defined, requests are routed through a residential proxy gateway (e.g., BrightData, SmartProxy, Oxylabs) with Indian egress IPs. If neither is defined, requests route directly via `got-scraping`'s browser TLS emulation.
 4. **Resilient DNS Resolver (`utils/dnsResolver.js`)**: In local development environments, local router or ISP DNS resolvers frequently refuse or fail to resolve education subdomains (`sp.srmist.edu.in`, `academia.srmist.edu.in`) returning `ENOTFOUND`. A monkey-patched fallback resolver automatically intercepts queries for SRMIST domains and queries Google DNS (`8.8.8.8`) and Cloudflare DNS (`1.1.1.1`) via `dns.promises.Resolver`, ensuring local dev servers communicate directly and reliably with SRMIST.
 5. **Local Direct Routing Parity**: In non-production environments (`NODE_ENV !== 'production'` without `RENDER` or `FORCE_SP_RELAY`), `spClient.js` bypasses datacenter relay hops and connects directly, utilizing native residential IP trust to avoid Cloudflare/F5 ASM IP quarantine.
