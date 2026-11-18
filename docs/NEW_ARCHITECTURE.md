@@ -527,6 +527,7 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Computes RFC 6238 HMAC-SHA1 TOTP tokens client-side using `crypto.subtle`.
   - Injected via an isolated Shadow DOM root (`unfugly-ktrete-authenticator-host`) to prevent CSS contamination from/to the host page.
   - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.
-  - Provides instant one-click copy with visual toast confirmation, an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
+  - Provides instant one-click copy with visual toast confirmation (both on the main bar and direct copy button in minimized view), an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
+  - Non-destructive setup preview & debug hooks: `Alt+S`, `Ctrl+Shift+U`, settings menu item, and `window.__unfuglyOpenSetupModal()` allow previewing the setup modal with existing secrets fully preserved.
 
 

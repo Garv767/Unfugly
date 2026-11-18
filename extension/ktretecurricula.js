@@ -1352,7 +1352,7 @@
       ${
         isMinimized && currentSecret
           ? `
-        <div class="unfugly-capsule" id="unfugly-minimized-bar" style="${getMiniPositionStyle()}" title="Drag anywhere or click code to expand">
+        <div class="unfugly-capsule" id="unfugly-minimized-bar" style="${getMiniPositionStyle()}">
           <div class="unfugly-grip" id="unfugly-mini-grip" title="Drag to reposition">
             <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">
               <circle cx="2" cy="2" r="1.1"/>
@@ -1363,17 +1363,38 @@
               <circle cx="6" cy="10" r="1.1"/>
             </svg>
           </div>
-          <div class="unfugly-live-dot"></div>
-          <span id="unfugly-min-expand-btn" style="font-family: ui-monospace, monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer;">
+          <div class="unfugly-live-dot" title="Active"></div>
+          <span class="unfugly-digits" id="unfugly-mini-code-click" title="Click to copy code" style="font-size: 14.5px; cursor: pointer; padding: 2px 4px; border-radius: 4px;">
             ${formatCode(currentTotpCode)}
           </span>
-          <div class="unfugly-ring-box">
+
+          <!-- Direct Copy Button in Minimized View -->
+          <button class="unfugly-icon-btn" id="unfugly-mini-copy-btn" title="Copy code" style="width: 22px; height: 22px;">
+            <svg id="unfugly-mini-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+
+          <div class="unfugly-ring-box" title="Code expiration countdown">
             <svg class="unfugly-ring-svg" viewBox="0 0 28 28">
               <circle class="unfugly-ring-bg" cx="14" cy="14" r="11"></circle>
               <circle class="unfugly-ring-fg" id="unfugly-mini-circle" cx="14" cy="14" r="11"></circle>
             </svg>
             <span class="unfugly-ring-num" id="unfugly-mini-seconds">30</span>
           </div>
+
+          <div class="unfugly-sep" style="height: 14px; margin: 0 1px;"></div>
+
+          <!-- Expand to Full Island Bar -->
+          <button class="unfugly-icon-btn" id="unfugly-mini-expand-btn" title="Expand to full bar" style="width: 22px; height: 22px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
         </div>
       `
           : `
@@ -1448,12 +1469,12 @@
 
               <!-- In-App Micro Menu (No browser alerts!) -->
               <div class="unfugly-popover ${isDropdownOpen ? 'open' : ''}" id="unfugly-dropdown-menu">
-                <button class="unfugly-menu-item" id="unfugly-menu-rescan">
+                <button class="unfugly-menu-item" id="unfugly-menu-rescan" title="View or re-scan without losing secret">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                   </svg>
-                  <span>Re-scan / Import QR</span>
+                  <span>Setup Modal (Preview)</span>
                 </button>
                 <button class="unfugly-menu-item" id="unfugly-menu-recenter">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1494,12 +1515,23 @@
         <div class="unfugly-sheet">
           <div class="unfugly-sheet-header">
             <div>
-              <div class="unfugly-sheet-title">KTRETE Authenticator</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="unfugly-sheet-title">KTRETE Authenticator</span>
+                ${
+                  currentSecret
+                    ? `<span style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.28); color: #34d399; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 9999px;">Secret Preserved</span>`
+                    : ''
+                }
+              </div>
               <div class="unfugly-sheet-subtitle">
-                Connect once to auto-generate and auto-fill your 2FA OTP codes.
+                ${
+                  currentSecret
+                    ? 'Preview / Re-scan Mode: Your existing secret remains active unless you save a new one.'
+                    : 'Connect once to auto-generate and auto-fill your 2FA OTP codes.'
+                }
               </div>
             </div>
-            <button class="unfugly-icon-btn" id="unfugly-close-modal-btn">
+            <button class="unfugly-icon-btn" id="unfugly-close-modal-btn" title="Close (Keeps existing secret)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1812,19 +1844,50 @@
       };
     }
 
+    // Copy Helper (Shared between main bar & minimized capsule)
+    const handleCopyCode = (triggerEl, iconEl) => {
+      if (!currentTotpCode || currentTotpCode === '------') return;
+      const cleanCode = currentTotpCode.replace(/\s+/g, '');
+      navigator.clipboard.writeText(cleanCode).then(() => {
+        showToast(`Copied ${cleanCode}`);
+        if (triggerEl) {
+          triggerEl.classList.add('copied');
+          setTimeout(() => triggerEl.classList.remove('copied'), 1500);
+        }
+        if (iconEl) {
+          const original = iconEl.innerHTML;
+          iconEl.innerHTML = `<polyline points="20 6 9 17 4 12" stroke="#34d399" stroke-width="2.5"></polyline>`;
+          setTimeout(() => {
+            iconEl.innerHTML = original;
+          }, 1500);
+        }
+      });
+    };
+
     // One-Click Hero Code Copy Action
     const codeBtn = shadowRoot.getElementById('unfugly-code-btn');
     if (codeBtn) {
-      codeBtn.onclick = () => {
-        if (!currentTotpCode || currentTotpCode === '------') return;
-        const cleanCode = currentTotpCode.replace(/\s+/g, '');
-        navigator.clipboard.writeText(cleanCode).then(() => {
-          showToast(`Copied ${cleanCode}`);
-          codeBtn.classList.add('copied');
-          setTimeout(() => {
-            codeBtn.classList.remove('copied');
-          }, 1500);
-        });
+      codeBtn.onclick = () => handleCopyCode(codeBtn, null);
+    }
+
+    // Minimized View Direct Copy & Expand
+    const miniCopyBtn = shadowRoot.getElementById('unfugly-mini-copy-btn');
+    const miniCopyIcon = shadowRoot.getElementById('unfugly-mini-copy-icon');
+    const miniCodeClick = shadowRoot.getElementById('unfugly-mini-code-click');
+
+    if (miniCopyBtn) {
+      miniCopyBtn.onclick = () => handleCopyCode(miniCopyBtn, miniCopyIcon);
+    }
+    if (miniCodeClick) {
+      miniCodeClick.onclick = () => handleCopyCode(miniCodeClick, miniCopyIcon);
+    }
+
+    const miniExpandBtn = shadowRoot.getElementById('unfugly-mini-expand-btn');
+    if (miniExpandBtn) {
+      miniExpandBtn.onclick = () => {
+        isMinimized = false;
+        setStorageData({ [STORAGE_KEYS.minimized]: false });
+        renderWidget();
       };
     }
 
@@ -1924,6 +1987,36 @@
       };
     }
   }
+
+  // Keyboard shortcut listener: Alt+S or Ctrl+Shift+U opens Setup Modal in preview mode without removing secret
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isSetupModalOpen) {
+      stopCameraScanner();
+      isSetupModalOpen = false;
+      renderWidget();
+      return;
+    }
+    if (
+      (e.altKey && (e.key === 's' || e.key === 'S')) ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'u' || e.key === 'U'))
+    ) {
+      e.preventDefault();
+      isSetupModalOpen = !isSetupModalOpen;
+      if (!isSetupModalOpen) stopCameraScanner();
+      renderWidget();
+      if (isSetupModalOpen) {
+        showToast('Setup modal opened in preview mode');
+      }
+    }
+  });
+
+  // Global debug hook accessible in developer tools console
+  window.__unfuglyOpenSetupModal = () => {
+    isSetupModalOpen = true;
+    renderWidget();
+    console.log('[Unfugly 2FA] Setup modal opened in preview mode. Existing secret is preserved.');
+  };
+  window.openUnfugly2FASetup = window.__unfuglyOpenSetupModal;
 
   // Handle global paste (Ctrl+V / Cmd+V)
   window.addEventListener('paste', async (e) => {
