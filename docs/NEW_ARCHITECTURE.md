@@ -515,13 +515,15 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
 
 ### 10.5 SRM KTR E-Curricula 2FA Authenticator Companion Extension Script
 - **Portal Scope**: Injected on `https://dld.srmist.edu.in/ktretecurricula/*` (and `https://dld.srmist.edu.in/*`) via `extension/ktretecurricula.js` and `extension/lib/jsQR.js`.
-- **First-Setup QR Decoding**:
-  - Accepts QR code input via drag-and-drop image upload, file browser, clipboard paste (`Ctrl+V`), automated DOM image detection (`jsQR`), or manual Base32 key input.
-  - Automatically parses standard Google Authenticator `otpauth://totp/...` URIs and raw Base32 secret keys.
+- **First-Setup QR & Migration Decoding**:
+  - Direct Google Authenticator Export support: Decodes Google Authenticator's native `otpauth-migration://offline?data=...` protobuf format (used by Authenticator's "Transfer accounts" -> "Export accounts" screen).
+  - Laptop Camera Scanner: Real-time video scanner (`getUserMedia`) that scans the export QR code held up on a phone screen directly through the laptop webcam.
+  - Multi-input ingestion: Drag-and-drop image upload, file browser, clipboard paste (`Ctrl+V`), automated DOM image detection (`jsQR`), or manual Base32 key input.
 - **Local Persistence & Privacy**:
-  - Secrets and account labels persist exclusively in `chrome.storage.local` under camelCase keys (`unfuglyKtreteTotpSecret`, `unfuglyKtreteTotpAccount`, `unfuglyKtreteTotpDigits`, `unfuglyKtreteTotpPeriod`, `unfuglyKtreteTotpMinimized`).
+  - Secrets, account labels, and positions persist exclusively in `chrome.storage.local` under camelCase keys (`unfuglyKtreteTotpSecret`, `unfuglyKtreteTotpAccount`, `unfuglyKtreteTotpDigits`, `unfuglyKtreteTotpPeriod`, `unfuglyKtreteTotpMinimized`, `unfuglyKtretePosition`, `unfuglyKtreteMiniPosition`).
   - No secret or TOTP data leaves the user's local browser environment (strictly 0 backend transmissions).
-- **Live TOTP Generation & Visual Timer UI**:
+- **Movable UI & Dynamic Radial Timer**:
+  - Fully draggable / movable top bar with dedicated grip handle, boundary clamping to screen dimensions, and coordinate persistence across sessions so it never obscures critical portal controls.
   - Computes RFC 6238 HMAC-SHA1 TOTP tokens client-side using `crypto.subtle`.
   - Injected via an isolated Shadow DOM root (`unfugly-ktrete-authenticator-host`) to prevent CSS contamination from/to the host page.
   - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.

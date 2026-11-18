@@ -16,7 +16,9 @@
     issuer: 'unfuglyKtreteTotpIssuer',
     digits: 'unfuglyKtreteTotpDigits',
     period: 'unfuglyKtreteTotpPeriod',
-    minimized: 'unfuglyKtreteTotpMinimized'
+    minimized: 'unfuglyKtreteTotpMinimized',
+    position: 'unfuglyKtretePosition',
+    miniPosition: 'unfuglyKtreteMiniPosition'
   };
 
   // State
@@ -29,6 +31,12 @@
   let isSetupModalOpen = false;
   let timerInterval = null;
   let lastStep = -1;
+  let savedPosition = null;
+  let savedMiniPosition = null;
+
+  // Camera stream state
+  let activeCameraStream = null;
+  let cameraScanInterval = null;
 
   // =========================================================================
   // 1. Storage Helpers
@@ -39,7 +47,6 @@
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           chrome.storage.local.get(keys, resolve);
         } else {
-          // Fallback to localStorage
           const res = {};
           keys.forEach((k) => {
             const v = localStorage.getItem(k);
@@ -66,7 +73,6 @@
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           chrome.storage.local.set(items, resolve);
         } else {
-          // Fallback to localStorage
           Object.entries(items).forEach(([k, v]) => {
             localStorage.setItem(k, JSON.stringify(v));
           });
@@ -74,22 +80,6 @@
         }
       } catch (err) {
         console.error('[Unfugly 2FA] Failed to set storage:', err);
-        resolve();
-      }
-    });
-  }
-
-  function removeStorageData(keys) {
-    return new Promise((resolve) => {
-      try {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.remove(keys, resolve);
-        } else {
-          keys.forEach((k) => localStorage.removeItem(k));
-          resolve();
-        }
-      } catch (err) {
-        console.error('[Unfugly 2FA] Failed to remove storage:', err);
         resolve();
       }
     });
@@ -112,6 +102,24 @@
       bytes.push(parseInt(bits.substring(i, i + 8), 2));
     }
     return new Uint8Array(bytes);
+  }
+
+  function bytesToBase32(bytes) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = '';
+    for (let i = 0; i < bytes.length; i++) {
+      bits += bytes[i].toString(2).padStart(8, '0');
+    }
+    let base32 = '';
+    for (let i = 0; i < bits.length; i += 5) {
+      const chunk = bits.substr(i, 5);
+      if (chunk.length < 5) {
+        base32 += alphabet[parseInt(chunk.padEnd(5, '0'), 2)];
+      } else {
+        base32 += alphabet[parseInt(chunk, 2)];
+      }
+    }
+    return base32;
   }
 
   async function generateTotp(secret, epochSeconds = Math.floor(Date.now() / 1000), stepSeconds = 30, digits = 6) {
@@ -157,13 +165,119 @@
   }
 
   // =========================================================================
-  // 3. Input & QR Code Parser
+  // 3. Google Authenticator Migration (otpauth-migration://) Protobuf Decoder
+  // =========================================================================
+  function decodeGoogleAuthMigration(dataParam) {
+    try {
+      const decodedStr = decodeURIComponent(dataParam);
+      const binaryStr = atob(decodedStr);
+      const buffer = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        buffer[i] = binaryStr.charCodeAt(i);
+      }
+
+      let pos = 0;
+      const accounts = [];
+
+      while (pos < buffer.length) {
+        const key = buffer[pos++];
+        const fieldNumber = key >> 3;
+        const wireType = key & 0x07;
+
+        let lenOrVal = 0, shift = 0;
+        while (pos < buffer.length) {
+          const b = buffer[pos++];
+          lenOrVal |= (b & 0x7f) << shift;
+          if ((b & 0x80) === 0) break;
+          shift += 7;
+        }
+
+        if (wireType === 2 && fieldNumber === 1) { // otp_parameters
+          const otpBytes = buffer.slice(pos, pos + lenOrVal);
+          pos += lenOrVal;
+
+          let subPos = 0;
+          let secretBytes = null;
+          let name = '';
+          let issuer = '';
+          let digits = 6;
+          let period = 30;
+
+          while (subPos < otpBytes.length) {
+            const subKey = otpBytes[subPos++];
+            const subFieldNumber = subKey >> 3;
+            const subWireType = subKey & 0x07;
+
+            let subVal = 0, subShift = 0;
+            while (subPos < otpBytes.length) {
+              const sb = otpBytes[subPos++];
+              subVal |= (sb & 0x7f) << subShift;
+              if ((sb & 0x80) === 0) break;
+              subShift += 7;
+            }
+
+            if (subWireType === 2) {
+              const chunk = otpBytes.slice(subPos, subPos + subVal);
+              subPos += subVal;
+              if (subFieldNumber === 1) secretBytes = chunk;
+              else if (subFieldNumber === 2) name = new TextDecoder().decode(chunk);
+              else if (subFieldNumber === 3) issuer = new TextDecoder().decode(chunk);
+            } else if (subWireType === 0) {
+              if (subFieldNumber === 5) digits = subVal === 2 ? 8 : 6;
+            }
+          }
+
+          if (secretBytes) {
+            const base32Secret = bytesToBase32(secretBytes);
+            accounts.push({
+              secret: base32Secret,
+              label: name || issuer || 'KTRETE Curricula',
+              issuer: issuer,
+              digits: digits,
+              period: period
+            });
+          }
+        } else if (wireType === 2) {
+          pos += lenOrVal;
+        }
+      }
+
+      return accounts;
+    } catch (err) {
+      console.error('[Unfugly 2FA] Failed to decode otpauth-migration:', err);
+      return [];
+    }
+  }
+
+  // =========================================================================
+  // 4. Input & QR Code Parser
   // =========================================================================
   function parseTotpInput(input) {
     if (!input || typeof input !== 'string') return null;
     const trimmed = input.trim();
 
-    // Check if it's an otpauth URI
+    // Check for Google Authenticator Export URL (otpauth-migration://offline?data=...)
+    if (trimmed.startsWith('otpauth-migration://')) {
+      try {
+        const url = new URL(trimmed);
+        const dataParam = url.searchParams.get('data');
+        if (dataParam) {
+          const accounts = decodeGoogleAuthMigration(dataParam);
+          if (accounts.length > 0) {
+            const srmAccount = accounts.find(
+              (a) =>
+                /srm|ktrete|curricula|dld/i.test(a.label) ||
+                /srm|ktrete|curricula|dld/i.test(a.issuer)
+            );
+            return srmAccount || accounts[0];
+          }
+        }
+      } catch (err) {
+        console.error('[Unfugly 2FA] Migration URL parse error:', err);
+      }
+    }
+
+    // Check if it's a standard otpauth URI
     if (trimmed.startsWith('otpauth://')) {
       try {
         const url = new URL(trimmed);
@@ -206,7 +320,6 @@
   }
 
   async function scanQrFromImage(imgElementOrCanvas) {
-    // 1. Try native BarcodeDetector if available
     if ('BarcodeDetector' in window) {
       try {
         const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
@@ -214,16 +327,13 @@
         if (codes && codes.length > 0 && codes[0].rawValue) {
           return codes[0].rawValue;
         }
-      } catch (_) {
-        // Fallback to jsQR
-      }
+      } catch (_) {}
     }
 
-    // 2. jsQR library decoding
     if (typeof jsQR !== 'undefined') {
       try {
-        let width = imgElementOrCanvas.naturalWidth || imgElementOrCanvas.width;
-        let height = imgElementOrCanvas.naturalHeight || imgElementOrCanvas.height;
+        let width = imgElementOrCanvas.videoWidth || imgElementOrCanvas.naturalWidth || imgElementOrCanvas.width;
+        let height = imgElementOrCanvas.videoHeight || imgElementOrCanvas.naturalHeight || imgElementOrCanvas.height;
         if (!width || !height) return null;
 
         const canvas = document.createElement('canvas');
@@ -238,7 +348,7 @@
           return qrResult.data;
         }
       } catch (err) {
-        console.warn('[Unfugly 2FA] jsQR canvas scan failed:', err);
+        console.warn('[Unfugly 2FA] jsQR scan failed:', err);
       }
     }
 
@@ -281,7 +391,7 @@
   }
 
   // =========================================================================
-  // 4. Autofill Helper for OTP Inputs
+  // 5. Autofill Helper for OTP Inputs
   // =========================================================================
   function findOtpInput() {
     if (
@@ -323,7 +433,176 @@
   }
 
   // =========================================================================
-  // 5. Shadow DOM UI Injection
+  // 6. Camera / Webcam Live QR Scanner
+  // =========================================================================
+  async function startCameraScanner() {
+    if (!shadowRoot) return;
+    const cameraWrap = shadowRoot.getElementById('unfugly-camera-wrap');
+    const video = shadowRoot.getElementById('unfugly-camera-video');
+    const dropzone = shadowRoot.getElementById('unfugly-dropzone');
+    const cameraBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
+
+    if (!cameraWrap || !video) return;
+
+    try {
+      if (activeCameraStream) {
+        stopCameraScanner();
+      }
+
+      showModalAlert('Accessing laptop camera...', 'success');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+
+      activeCameraStream = stream;
+      video.srcObject = stream;
+      await video.play();
+
+      cameraWrap.style.display = 'flex';
+      if (dropzone) dropzone.style.display = 'none';
+      if (cameraBtn) cameraBtn.style.display = 'none';
+
+      clearModalAlert();
+      showModalAlert('Hold phone screen with Google Authenticator Export QR code in front of camera', 'success');
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      cameraScanInterval = setInterval(async () => {
+        if (!video.videoWidth || !video.videoHeight) return;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        if (typeof jsQR !== 'undefined') {
+          const qrResult = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' });
+          if (qrResult && qrResult.data) {
+            const parsed = parseTotpInput(qrResult.data);
+            if (parsed) {
+              stopCameraScanner();
+              await saveNewSecret(parsed);
+            }
+          }
+        }
+      }, 150);
+    } catch (err) {
+      console.error('[Unfugly 2FA] Camera access error:', err);
+      showModalAlert('Camera access denied or unavailable. You can upload/paste a photo instead.', 'error');
+      stopCameraScanner();
+    }
+  }
+
+  function stopCameraScanner() {
+    if (cameraScanInterval) {
+      clearInterval(cameraScanInterval);
+      cameraScanInterval = null;
+    }
+    if (activeCameraStream) {
+      activeCameraStream.getTracks().forEach((track) => track.stop());
+      activeCameraStream = null;
+    }
+    if (shadowRoot) {
+      const cameraWrap = shadowRoot.getElementById('unfugly-camera-wrap');
+      const dropzone = shadowRoot.getElementById('unfugly-dropzone');
+      const cameraBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
+      if (cameraWrap) cameraWrap.style.display = 'none';
+      if (dropzone) dropzone.style.display = 'flex';
+      if (cameraBtn) cameraBtn.style.display = 'inline-flex';
+    }
+  }
+
+  // =========================================================================
+  // 7. Draggable Controller
+  // =========================================================================
+  function makeElementDraggable(element, dragHandle, onPositionSaved) {
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let startLeft = 0, startTop = 0;
+    let hasMoved = false;
+
+    const onPointerDown = (e) => {
+      if (e.button !== 0 && e.type !== 'touchstart') return;
+      if (e.target.closest('button, input, select, textarea, .unfugly-code-box, .unfugly-timer-wrap')) return;
+
+      isDragging = true;
+      hasMoved = false;
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      startX = clientX;
+      startY = clientY;
+
+      const rect = element.getBoundingClientRect();
+      startLeft = rect.left;
+      startTop = rect.top;
+
+      element.style.transform = 'none';
+      element.style.left = `${startLeft}px`;
+      element.style.top = `${startTop}px`;
+      element.style.right = 'auto';
+      element.style.bottom = 'auto';
+
+      dragHandle.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('touchmove', onPointerMove, { passive: false });
+      document.addEventListener('touchend', onPointerUp);
+    };
+
+    const onPointerMove = (e) => {
+      if (!isDragging) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasMoved = true;
+      }
+
+      if (!hasMoved) return;
+      if (e.cancelable) e.preventDefault();
+
+      const rect = element.getBoundingClientRect();
+      const maxX = Math.max(0, window.innerWidth - rect.width - 10);
+      const maxY = Math.max(0, window.innerHeight - rect.height - 10);
+
+      const newLeft = Math.max(10, Math.min(maxX, startLeft + dx));
+      const newTop = Math.max(10, Math.min(maxY, startTop + dy));
+
+      element.style.left = `${newLeft}px`;
+      element.style.top = `${newTop}px`;
+    };
+
+    const onPointerUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      dragHandle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('touchmove', onPointerMove);
+      document.removeEventListener('touchend', onPointerUp);
+
+      if (hasMoved && onPositionSaved) {
+        const rect = element.getBoundingClientRect();
+        onPositionSaved({ left: Math.round(rect.left), top: Math.round(rect.top) });
+      }
+    };
+
+    dragHandle.addEventListener('pointerdown', onPointerDown);
+    dragHandle.addEventListener('touchstart', onPointerDown, { passive: true });
+  }
+
+  // =========================================================================
+  // 8. Shadow DOM UI Injection
   // =========================================================================
   let shadowRoot = null;
 
@@ -336,10 +615,28 @@
     renderWidget();
   }
 
+  function getBarPositionStyle() {
+    if (savedPosition && typeof savedPosition.left === 'number' && typeof savedPosition.top === 'number') {
+      const clampLeft = Math.max(10, Math.min(window.innerWidth - 300, savedPosition.left));
+      const clampTop = Math.max(10, Math.min(window.innerHeight - 60, savedPosition.top));
+      return `left: ${clampLeft}px; top: ${clampTop}px; transform: none; right: auto;`;
+    }
+    return `left: 50%; top: 14px; transform: translateX(-50%);`;
+  }
+
+  function getMiniPositionStyle() {
+    if (savedMiniPosition && typeof savedMiniPosition.left === 'number' && typeof savedMiniPosition.top === 'number') {
+      const clampLeft = Math.max(10, Math.min(window.innerWidth - 180, savedMiniPosition.left));
+      const clampTop = Math.max(10, Math.min(window.innerHeight - 50, savedMiniPosition.top));
+      return `left: ${clampLeft}px; top: ${clampTop}px; right: auto;`;
+    }
+    return `top: 14px; right: 20px;`;
+  }
+
   function renderWidget() {
     if (!shadowRoot) return;
 
-    const CIRCLE_CIRCUMFERENCE = 81.68; // 2 * pi * 13
+    const CIRCLE_CIRCUMFERENCE = 81.68;
 
     shadowRoot.innerHTML = `
       <style>
@@ -360,12 +657,9 @@
           padding: 0;
         }
 
-        /* Top Bar Container */
+        /* Movable Top Bar Container */
         .unfugly-top-bar {
           position: fixed;
-          top: 14px;
-          left: 50%;
-          transform: translateX(-50%);
           background: rgba(15, 23, 42, 0.94);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
@@ -374,10 +668,12 @@
           box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 7px 14px 7px 16px;
+          gap: 11px;
+          padding: 7px 14px 7px 12px;
           z-index: 2147483647;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          cursor: default;
+          touch-action: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .unfugly-top-bar:hover {
@@ -385,11 +681,31 @@
           box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
         }
 
-        /* Minimized Pill */
+        /* Drag Handle Grip */
+        .unfugly-drag-handle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: grab;
+          color: #64748b;
+          padding: 3px 2px;
+          border-radius: 4px;
+          transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .unfugly-drag-handle:hover {
+          color: #38bdf8;
+          background: rgba(56, 189, 248, 0.12);
+        }
+
+        .unfugly-drag-handle.dragging {
+          cursor: grabbing !important;
+          color: #38bdf8;
+        }
+
+        /* Movable Minimized Pill */
         .unfugly-minimized-pill {
           position: fixed;
-          top: 14px;
-          right: 20px;
           background: rgba(15, 23, 42, 0.92);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
@@ -398,40 +714,40 @@
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 6px 14px;
-          cursor: pointer;
+          gap: 9px;
+          padding: 6px 14px 6px 10px;
+          cursor: grab;
           z-index: 2147483647;
-          transition: all 0.25s ease;
+          touch-action: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .unfugly-minimized-pill:hover {
-          transform: translateY(1px);
           border-color: rgba(56, 189, 248, 0.5);
           box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 12px rgba(56, 189, 248, 0.2);
         }
 
-        /* Branding Badge */
         .unfugly-brand {
           display: flex;
           align-items: center;
-          gap: 7px;
+          gap: 6px;
           font-weight: 600;
           font-size: 12.5px;
           letter-spacing: 0.3px;
           color: #94a3b8;
+          cursor: grab;
         }
 
         .unfugly-shield-icon {
-          width: 18px;
-          height: 18px;
+          width: 17px;
+          height: 17px;
           flex-shrink: 0;
           color: #38bdf8;
         }
 
         .unfugly-brand-text {
           white-space: nowrap;
-          max-width: 130px;
+          max-width: 125px;
           overflow: hidden;
           text-overflow: ellipsis;
         }
@@ -442,7 +758,6 @@
           background: rgba(255, 255, 255, 0.14);
         }
 
-        /* Code Display Box */
         .unfugly-code-box {
           display: flex;
           align-items: center;
@@ -462,7 +777,7 @@
         }
 
         .unfugly-code-text {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
           font-size: 19px;
           font-weight: 700;
           letter-spacing: 2.5px;
@@ -470,7 +785,6 @@
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
-        /* Circular Timer (Google Authenticator Style) */
         .unfugly-timer-wrap {
           position: relative;
           width: 30px;
@@ -519,13 +833,11 @@
           color: #f43f5e;
         }
 
-        /* Buttons */
         .unfugly-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          background: #0284c7;
           background: linear-gradient(135deg, #0284c7, #2563eb);
           color: #ffffff;
           border: none;
@@ -557,7 +869,7 @@
           background: rgba(51, 65, 85, 0.6);
           color: #cbd5e1;
           box-shadow: none;
-          padding: 6px 10px;
+          padding: 6px 11px;
         }
 
         .unfugly-btn-secondary:hover {
@@ -592,7 +904,7 @@
           left: 0;
           width: 100vw;
           height: 100vh;
-          background: rgba(3, 7, 18, 0.75);
+          background: rgba(3, 7, 18, 0.78);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           display: flex;
@@ -611,7 +923,7 @@
 
         .unfugly-modal-card {
           width: 90%;
-          max-width: 480px;
+          max-width: 500px;
           background: #0f172a;
           border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 20px;
@@ -630,7 +942,7 @@
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
 
         .unfugly-modal-title {
@@ -643,24 +955,39 @@
         }
 
         .unfugly-modal-subtitle {
-          font-size: 13px;
+          font-size: 12.5px;
           color: #94a3b8;
           margin-top: 4px;
+          line-height: 1.45;
         }
 
-        /* Dropzone */
+        .unfugly-help-box {
+          background: rgba(56, 189, 248, 0.08);
+          border: 1px solid rgba(56, 189, 248, 0.2);
+          border-radius: 10px;
+          padding: 10px 14px;
+          margin-bottom: 14px;
+          font-size: 12px;
+          color: #bae6fd;
+          line-height: 1.45;
+        }
+
+        .unfugly-help-box strong {
+          color: #38bdf8;
+        }
+
         .unfugly-dropzone {
           border: 2px dashed rgba(56, 189, 248, 0.4);
           background: rgba(30, 41, 59, 0.5);
           border-radius: 14px;
-          padding: 24px 16px;
+          padding: 20px 16px;
           text-align: center;
           cursor: pointer;
           transition: all 0.2s ease;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
 
         .unfugly-dropzone:hover, .unfugly-dropzone.dragover {
@@ -670,8 +997,8 @@
         }
 
         .unfugly-dropzone-icon {
-          width: 42px;
-          height: 42px;
+          width: 38px;
+          height: 38px;
           color: #38bdf8;
           background: rgba(56, 189, 248, 0.12);
           border-radius: 50%;
@@ -681,13 +1008,13 @@
         }
 
         .unfugly-dropzone-title {
-          font-size: 14px;
+          font-size: 13.5px;
           font-weight: 600;
           color: #f8fafc;
         }
 
         .unfugly-dropzone-hint {
-          font-size: 12px;
+          font-size: 11.5px;
           color: #94a3b8;
           line-height: 1.4;
         }
@@ -700,19 +1027,53 @@
           color: #38bdf8;
         }
 
+        .unfugly-camera-wrap {
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          background: #020617;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          border-radius: 14px;
+          padding: 10px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .unfugly-camera-video {
+          width: 100%;
+          max-height: 220px;
+          border-radius: 10px;
+          object-fit: cover;
+          background: #000;
+        }
+
+        .unfugly-camera-reticle {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -60%);
+          width: 130px;
+          height: 130px;
+          border: 2px solid #38bdf8;
+          border-radius: 12px;
+          box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+          pointer-events: none;
+        }
+
         .unfugly-modal-actions {
           display: flex;
           gap: 10px;
-          margin-top: 14px;
+          margin-top: 12px;
         }
 
         .unfugly-or-divider {
           display: flex;
           align-items: center;
           text-align: center;
-          margin: 18px 0;
+          margin: 16px 0;
           color: #64748b;
-          font-size: 12px;
+          font-size: 11.5px;
         }
 
         .unfugly-or-divider::before, .unfugly-or-divider::after {
@@ -754,9 +1115,9 @@
 
         .unfugly-alert {
           margin-top: 12px;
-          padding: 10px 14px;
+          padding: 9px 13px;
           border-radius: 8px;
-          font-size: 12.5px;
+          font-size: 12px;
           display: none;
         }
 
@@ -774,7 +1135,6 @@
           color: #6ee7b7;
         }
 
-        /* Toast feedback */
         .unfugly-toast {
           position: fixed;
           bottom: 24px;
@@ -806,12 +1166,21 @@
       ${
         isMinimized && currentSecret
           ? `
-        <!-- Minimized Floating Pill -->
-        <div class="unfugly-minimized-pill" id="unfugly-minimized-trigger" title="Click to expand Authenticator">
+        <div class="unfugly-minimized-pill" id="unfugly-minimized-bar" style="${getMiniPositionStyle()}" title="Drag anywhere or click to expand">
+          <div class="unfugly-drag-handle" id="unfugly-mini-drag-handle" title="Drag to move">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="8" cy="6" r="2"></circle>
+              <circle cx="16" cy="6" r="2"></circle>
+              <circle cx="8" cy="12" r="2"></circle>
+              <circle cx="16" cy="12" r="2"></circle>
+              <circle cx="8" cy="18" r="2"></circle>
+              <circle cx="16" cy="18" r="2"></circle>
+            </svg>
+          </div>
           <svg class="unfugly-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          <span style="font-family: ui-monospace, monospace; font-size: 15px; font-weight: 700; letter-spacing: 1px;">
+          <span id="unfugly-min-expand-btn" style="font-family: ui-monospace, monospace; font-size: 14.5px; font-weight: 700; letter-spacing: 1px; cursor: pointer;">
             ${formatCode(currentTotpCode)}
           </span>
           <div class="unfugly-timer-wrap">
@@ -824,9 +1193,20 @@
         </div>
       `
           : `
-        <!-- Main Top Bar -->
-        <div class="unfugly-top-bar" id="unfugly-top-bar">
-          <div class="unfugly-brand">
+        <div class="unfugly-top-bar" id="unfugly-top-bar" style="${getBarPositionStyle()}">
+          <!-- Drag Handle Grip -->
+          <div class="unfugly-drag-handle" id="unfugly-drag-handle" title="Drag to move anywhere on screen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="8" cy="5" r="2"></circle>
+              <circle cx="16" cy="5" r="2"></circle>
+              <circle cx="8" cy="12" r="2"></circle>
+              <circle cx="16" cy="12" r="2"></circle>
+              <circle cx="8" cy="19" r="2"></circle>
+              <circle cx="16" cy="19" r="2"></circle>
+            </svg>
+          </div>
+
+          <div class="unfugly-brand" id="unfugly-brand-drag" title="Drag to move">
             <svg class="unfugly-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
@@ -840,12 +1220,10 @@
           ${
             currentSecret
               ? `
-            <!-- Live Authenticator Code Box -->
             <div class="unfugly-code-box" id="unfugly-code-click" title="Click to copy code">
               <span class="unfugly-code-text" id="unfugly-code-text">${formatCode(currentTotpCode)}</span>
             </div>
 
-            <!-- Dynamic Radial Countdown Timer -->
             <div class="unfugly-timer-wrap" title="Time remaining before code refresh">
               <svg class="unfugly-timer-svg" viewBox="0 0 30 30">
                 <circle class="unfugly-timer-bg" cx="15" cy="15" r="13"></circle>
@@ -854,8 +1232,7 @@
               <span class="unfugly-timer-seconds" id="unfugly-timer-seconds">30</span>
             </div>
 
-            <!-- Copy Button -->
-            <button class="unfugly-btn" id="unfugly-copy-btn">
+            <button class="unfugly-btn" id="unfugly-copy-btn" title="Copy code to clipboard">
               <svg id="unfugly-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -863,7 +1240,6 @@
               <span id="unfugly-copy-label">Copy</span>
             </button>
 
-            <!-- Quick Autofill Button -->
             <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-autofill-btn" title="Paste directly into page OTP field">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -872,23 +1248,20 @@
               <span>Autofill</span>
             </button>
 
-            <!-- Settings / Reset Button -->
-            <button class="unfugly-icon-btn" id="unfugly-settings-btn" title="Change QR Code or Reset">
+            <button class="unfugly-icon-btn" id="unfugly-settings-btn" title="Settings / Reset QR / Center position">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
               </svg>
             </button>
 
-            <!-- Minimize Button -->
-            <button class="unfugly-icon-btn" id="unfugly-minimize-btn" title="Minimize">
+            <button class="unfugly-icon-btn" id="unfugly-minimize-btn" title="Minimize to small floating badge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
           `
               : `
-            <!-- First-Time Setup CTA -->
             <button class="unfugly-btn" id="unfugly-open-setup-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7"></rect>
@@ -916,7 +1289,7 @@
                 <span>KTRETE 2FA Setup</span>
               </div>
               <div class="unfugly-modal-subtitle">
-                Provide your 2FA QR code once to auto-generate codes on top of this portal.
+                Import your 2FA code once to auto-generate and auto-fill OTPs on this portal.
               </div>
             </div>
             <button class="unfugly-icon-btn" id="unfugly-close-modal-btn">
@@ -924,6 +1297,22 @@
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
+            </button>
+          </div>
+
+          <!-- Google Authenticator Export Guidance Box -->
+          <div class="unfugly-help-box">
+            💡 <strong>Exporting from Google Authenticator:</strong><br/>
+            Open Authenticator app → Tap <strong>Menu (top right)</strong> → <strong>Transfer accounts</strong> → <strong>Export accounts</strong>.
+            Then click <strong>"Scan with Laptop Camera"</strong> below and hold your phone up to the screen!
+          </div>
+
+          <!-- Camera Live Scanner -->
+          <div class="unfugly-camera-wrap" id="unfugly-camera-wrap">
+            <video class="unfugly-camera-video" id="unfugly-camera-video" playsinline autoplay muted></video>
+            <div class="unfugly-camera-reticle"></div>
+            <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-stop-camera-btn" style="margin-top: 6px;">
+              <span>Cancel Camera</span>
             </button>
           </div>
 
@@ -937,21 +1326,28 @@
                 <rect x="3" y="14" width="7" height="7"></rect>
               </svg>
             </div>
-            <div class="unfugly-dropzone-title">Click to upload QR code image</div>
+            <div class="unfugly-dropzone-title">Upload QR Image / Photo</div>
             <div class="unfugly-dropzone-hint">
-              Drag & drop a QR screenshot or press <kbd>Ctrl+V</kbd> anywhere to paste
+              Drop screenshot or press <kbd>Ctrl+V</kbd> to paste
             </div>
             <input type="file" id="unfugly-file-input" accept="image/*" style="display: none;" />
           </div>
 
-          <!-- Scan from page action -->
+          <!-- Primary Actions: Camera & DOM detect -->
           <div class="unfugly-modal-actions">
+            <button class="unfugly-btn" id="unfugly-camera-scan-btn" style="flex: 1.2;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span>Scan with Laptop Camera</span>
+            </button>
             <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-scan-page-btn" style="flex: 1;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <span>Auto-Detect QR on Page</span>
+              <span>Detect on Page</span>
             </button>
           </div>
 
@@ -963,7 +1359,7 @@
               type="text"
               class="unfugly-input"
               id="unfugly-manual-secret-input"
-              placeholder="Base32 Secret or otpauth:// URI"
+              placeholder="Base32 Key or otpauth:// URI"
               autocomplete="off"
               spellcheck="false"
             />
@@ -972,7 +1368,6 @@
             </button>
           </div>
 
-          <!-- Alert / Status -->
           <div class="unfugly-alert" id="unfugly-modal-alert"></div>
         </div>
       </div>
@@ -990,7 +1385,6 @@
     updateTimerTick();
   }
 
-  // Format code with middle space for visual clarity (e.g. "123 456")
   function formatCode(code) {
     if (!code || code === '------') return '------';
     const clean = code.replace(/\s+/g, '');
@@ -1035,10 +1429,37 @@
   }
 
   // =========================================================================
-  // 6. Action Handlers & Event Listeners
+  // 9. Action Handlers & Event Listeners
   // =========================================================================
   function attachEventListeners() {
     if (!shadowRoot) return;
+
+    // Draggable controllers
+    const topBar = shadowRoot.getElementById('unfugly-top-bar');
+    const dragHandle = shadowRoot.getElementById('unfugly-drag-handle');
+    const brandDrag = shadowRoot.getElementById('unfugly-brand-drag');
+
+    if (topBar && dragHandle) {
+      makeElementDraggable(topBar, dragHandle, (newPos) => {
+        savedPosition = newPos;
+        setStorageData({ [STORAGE_KEYS.position]: newPos });
+      });
+      if (brandDrag) {
+        makeElementDraggable(topBar, brandDrag, (newPos) => {
+          savedPosition = newPos;
+          setStorageData({ [STORAGE_KEYS.position]: newPos });
+        });
+      }
+    }
+
+    const miniBar = shadowRoot.getElementById('unfugly-minimized-bar');
+    const miniDragHandle = shadowRoot.getElementById('unfugly-mini-drag-handle');
+    if (miniBar && miniDragHandle) {
+      makeElementDraggable(miniBar, miniDragHandle, (newPos) => {
+        savedMiniPosition = newPos;
+        setStorageData({ [STORAGE_KEYS.miniPosition]: newPos });
+      });
+    }
 
     // Open Setup Modal
     const openSetupBtn = shadowRoot.getElementById('unfugly-open-setup-btn');
@@ -1053,6 +1474,7 @@
     const closeModalBtn = shadowRoot.getElementById('unfugly-close-modal-btn');
     if (closeModalBtn) {
       closeModalBtn.onclick = () => {
+        stopCameraScanner();
         isSetupModalOpen = false;
         renderWidget();
       };
@@ -1062,10 +1484,22 @@
     if (modalOverlay) {
       modalOverlay.onclick = (e) => {
         if (e.target === modalOverlay) {
+          stopCameraScanner();
           isSetupModalOpen = false;
           renderWidget();
         }
       };
+    }
+
+    // Camera Scan Trigger
+    const cameraScanBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
+    if (cameraScanBtn) {
+      cameraScanBtn.onclick = () => startCameraScanner();
+    }
+
+    const stopCameraBtn = shadowRoot.getElementById('unfugly-stop-camera-btn');
+    if (stopCameraBtn) {
+      stopCameraBtn.onclick = () => stopCameraScanner();
     }
 
     // Dropzone File Upload
@@ -1109,12 +1543,12 @@
         scanPageBtn.textContent = 'Scanning page images...';
         const parsed = await scanDomForQrCode();
         scanPageBtn.disabled = false;
-        scanPageBtn.textContent = 'Auto-Detect QR on Page';
+        scanPageBtn.textContent = 'Detect on Page';
 
         if (parsed) {
           await saveNewSecret(parsed);
         } else {
-          showModalAlert('No QR code detected on the current page. Please upload or paste a screenshot instead.', 'error');
+          showModalAlert('No QR code detected on current page. Try scanning your phone screen with camera or upload a photo.', 'error');
         }
       };
     }
@@ -1180,16 +1614,26 @@
       };
     }
 
-    // Settings / Reset Action
+    // Settings Action (Reset QR or Reset Position)
     const settingsBtn = shadowRoot.getElementById('unfugly-settings-btn');
     if (settingsBtn) {
       settingsBtn.onclick = () => {
-        const confirmReset = window.confirm(
-          'Do you want to re-scan or change your KTRETE 2FA Authenticator QR code?'
+        const action = window.prompt(
+          'KTRETE 2FA Authenticator Options:\n1: Re-scan / Change QR Code\n2: Reset bar position to Top Center\n\nEnter 1 or 2:',
+          '1'
         );
-        if (confirmReset) {
+        if (action === '1') {
           isSetupModalOpen = true;
           renderWidget();
+        } else if (action === '2') {
+          savedPosition = null;
+          savedMiniPosition = null;
+          setStorageData({
+            [STORAGE_KEYS.position]: null,
+            [STORAGE_KEYS.miniPosition]: null
+          });
+          renderWidget();
+          showToast('Position reset to Top Center');
         }
       };
     }
@@ -1204,9 +1648,9 @@
       };
     }
 
-    const minTrigger = shadowRoot.getElementById('unfugly-minimized-trigger');
-    if (minTrigger) {
-      minTrigger.onclick = () => {
+    const minExpandBtn = shadowRoot.getElementById('unfugly-min-expand-btn');
+    if (minExpandBtn) {
+      minExpandBtn.onclick = () => {
         isMinimized = false;
         setStorageData({ [STORAGE_KEYS.minimized]: false });
         renderWidget();
@@ -1214,7 +1658,7 @@
     }
   }
 
-  // Handle global paste (Ctrl+V) anywhere on the page for seamless QR screenshot pasting
+  // Handle global paste (Ctrl+V)
   window.addEventListener('paste', async (e) => {
     const items = (e.clipboardData || window.clipboardData).items;
     for (const item of items) {
@@ -1222,7 +1666,6 @@
         const file = item.getAsFile();
         if (file) {
           if (!isSetupModalOpen && currentSecret) {
-            // Secret already configured, ask or notify before replacing
             const ok = window.confirm('Pasted QR image detected. Update 2FA Authenticator secret?');
             if (!ok) return;
           }
@@ -1234,7 +1677,6 @@
       }
     }
 
-    // If text was pasted while modal is open
     if (isSetupModalOpen) {
       const text = e.clipboardData.getData('text');
       const parsed = parseTotpInput(text);
@@ -1272,6 +1714,7 @@
       [STORAGE_KEYS.period]: currentPeriod
     });
 
+    stopCameraScanner();
     isSetupModalOpen = false;
     showToast('Authenticator connected successfully!');
     await updateTotpCode(true);
@@ -1279,9 +1722,9 @@
   }
 
   // =========================================================================
-  // 7. Dynamic Radial Timer & TOTP Update Loop
+  // 10. Dynamic Radial Timer & TOTP Update Loop
   // =========================================================================
-  const CIRCLE_CIRCUMFERENCE = 81.68; // 2 * pi * 13
+  const CIRCLE_CIRCUMFERENCE = 81.68;
 
   async function updateTotpCode(force = false) {
     if (!currentSecret) {
@@ -1300,7 +1743,6 @@
         const codeText = shadowRoot.getElementById('unfugly-code-text');
         if (codeText) {
           codeText.textContent = formatCode(currentTotpCode);
-          // Subtle pulse effect on code refresh
           codeText.style.transition = 'none';
           codeText.style.color = '#38bdf8';
           setTimeout(() => {
@@ -1320,55 +1762,39 @@
     const elapsedMs = nowMs % periodMs;
     const remainingMs = periodMs - elapsedMs;
     const remainingSec = Math.ceil(remainingMs / 1000);
-    const fraction = remainingMs / periodMs; // 1 down to 0
+    const fraction = remainingMs / periodMs;
 
-    // Stroke dashoffset: at fraction=1 offset=0 (full); at fraction=0 offset=CIRCUMFERENCE (empty)
     const offset = CIRCLE_CIRCUMFERENCE * (1 - fraction);
     const isWarning = remainingSec <= 5;
 
     if (shadowRoot) {
-      // Main Bar Ring
       const circle = shadowRoot.getElementById('unfugly-timer-circle');
       const secLabel = shadowRoot.getElementById('unfugly-timer-seconds');
       if (circle) {
         circle.style.strokeDashoffset = offset;
-        if (isWarning) {
-          circle.classList.add('warning');
-        } else {
-          circle.classList.remove('warning');
-        }
+        if (isWarning) circle.classList.add('warning');
+        else circle.classList.remove('warning');
       }
       if (secLabel) {
         secLabel.textContent = remainingSec;
-        if (isWarning) {
-          secLabel.classList.add('warning');
-        } else {
-          secLabel.classList.remove('warning');
-        }
+        if (isWarning) secLabel.classList.add('warning');
+        else secLabel.classList.remove('warning');
       }
 
-      // Minimized Pill Ring
       const miniCircle = shadowRoot.getElementById('unfugly-mini-circle');
       const miniSec = shadowRoot.getElementById('unfugly-mini-seconds');
       if (miniCircle) {
         miniCircle.style.strokeDashoffset = offset;
-        if (isWarning) {
-          miniCircle.classList.add('warning');
-        } else {
-          miniCircle.classList.remove('warning');
-        }
+        if (isWarning) miniCircle.classList.add('warning');
+        else miniCircle.classList.remove('warning');
       }
       if (miniSec) {
         miniSec.textContent = remainingSec;
-        if (isWarning) {
-          miniSec.classList.add('warning');
-        } else {
-          miniSec.classList.remove('warning');
-        }
+        if (isWarning) miniSec.classList.add('warning');
+        else miniSec.classList.remove('warning');
       }
     }
 
-    // Refresh code when step rolls over
     updateTotpCode();
   }
 
@@ -1377,7 +1803,6 @@
     timerInterval = setInterval(updateTimerTick, 100);
   }
 
-  // Page visibility change handler to prevent stale state when returning to tab
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       updateTotpCode(true);
@@ -1385,7 +1810,6 @@
     }
   });
 
-  // Keep state synced across tabs
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local') {
@@ -1402,6 +1826,10 @@
           isMinimized = !!changes[STORAGE_KEYS.minimized].newValue;
           shouldRerender = true;
         }
+        if (changes[STORAGE_KEYS.position]) {
+          savedPosition = changes[STORAGE_KEYS.position].newValue;
+          shouldRerender = true;
+        }
         if (shouldRerender) {
           updateTotpCode(true).then(() => renderWidget());
         }
@@ -1410,7 +1838,7 @@
   }
 
   // =========================================================================
-  // 8. Bootstrap
+  // 11. Bootstrap
   // =========================================================================
   async function init() {
     const stored = await getStorageData([
@@ -1418,7 +1846,9 @@
       STORAGE_KEYS.account,
       STORAGE_KEYS.digits,
       STORAGE_KEYS.period,
-      STORAGE_KEYS.minimized
+      STORAGE_KEYS.minimized,
+      STORAGE_KEYS.position,
+      STORAGE_KEYS.miniPosition
     ]);
 
     currentSecret = stored[STORAGE_KEYS.secret] || null;
@@ -1426,12 +1856,13 @@
     currentDigits = stored[STORAGE_KEYS.digits] || 6;
     currentPeriod = stored[STORAGE_KEYS.period] || 30;
     isMinimized = !!stored[STORAGE_KEYS.minimized];
+    savedPosition = stored[STORAGE_KEYS.position] || null;
+    savedMiniPosition = stored[STORAGE_KEYS.miniPosition] || null;
 
     if (currentSecret) {
       await updateTotpCode(true);
     }
 
-    // Mount UI when document is ready
     if (document.body) {
       initUi();
     } else {
