@@ -29,6 +29,8 @@
   let currentTotpCode = '------';
   let isMinimized = false;
   let isSetupModalOpen = false;
+  let isDropdownOpen = false;
+  let activeSetupTab = 'camera'; // 'camera' | 'upload' | 'manual'
   let timerInterval = null;
   let lastStep = -1;
   let savedPosition = null;
@@ -80,6 +82,22 @@
         }
       } catch (err) {
         console.error('[Unfugly 2FA] Failed to set storage:', err);
+        resolve();
+      }
+    });
+  }
+
+  function removeStorageData(keys) {
+    return new Promise((resolve) => {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.remove(keys, resolve);
+        } else {
+          keys.forEach((k) => localStorage.removeItem(k));
+          resolve();
+        }
+      } catch (err) {
+        console.error('[Unfugly 2FA] Failed to remove storage:', err);
         resolve();
       }
     });
@@ -437,19 +455,19 @@
   // =========================================================================
   async function startCameraScanner() {
     if (!shadowRoot) return;
-    const cameraWrap = shadowRoot.getElementById('unfugly-camera-wrap');
     const video = shadowRoot.getElementById('unfugly-camera-video');
-    const dropzone = shadowRoot.getElementById('unfugly-dropzone');
-    const cameraBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
+    const startBtn = shadowRoot.getElementById('unfugly-start-cam-btn');
+    const stopBtn = shadowRoot.getElementById('unfugly-stop-cam-btn');
+    const laser = shadowRoot.getElementById('unfugly-scan-laser');
 
-    if (!cameraWrap || !video) return;
+    if (!video) return;
 
     try {
       if (activeCameraStream) {
         stopCameraScanner();
       }
 
-      showModalAlert('Accessing laptop camera...', 'success');
+      showModalAlert('Accessing camera...', 'info');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
@@ -458,12 +476,12 @@
       video.srcObject = stream;
       await video.play();
 
-      cameraWrap.style.display = 'flex';
-      if (dropzone) dropzone.style.display = 'none';
-      if (cameraBtn) cameraBtn.style.display = 'none';
+      if (startBtn) startBtn.style.display = 'none';
+      if (stopBtn) stopBtn.style.display = 'inline-flex';
+      if (laser) laser.style.display = 'block';
 
       clearModalAlert();
-      showModalAlert('Hold phone screen with Google Authenticator Export QR code in front of camera', 'success');
+      showModalAlert('Align Google Authenticator Export QR code in frame', 'info');
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -489,7 +507,7 @@
       }, 150);
     } catch (err) {
       console.error('[Unfugly 2FA] Camera access error:', err);
-      showModalAlert('Camera access denied or unavailable. You can upload/paste a photo instead.', 'error');
+      showModalAlert('Camera permission was blocked or unavailable. Try screenshot / file upload.', 'error');
       stopCameraScanner();
     }
   }
@@ -504,12 +522,12 @@
       activeCameraStream = null;
     }
     if (shadowRoot) {
-      const cameraWrap = shadowRoot.getElementById('unfugly-camera-wrap');
-      const dropzone = shadowRoot.getElementById('unfugly-dropzone');
-      const cameraBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
-      if (cameraWrap) cameraWrap.style.display = 'none';
-      if (dropzone) dropzone.style.display = 'flex';
-      if (cameraBtn) cameraBtn.style.display = 'inline-flex';
+      const startBtn = shadowRoot.getElementById('unfugly-start-cam-btn');
+      const stopBtn = shadowRoot.getElementById('unfugly-stop-cam-btn');
+      const laser = shadowRoot.getElementById('unfugly-scan-laser');
+      if (startBtn) startBtn.style.display = 'inline-flex';
+      if (stopBtn) stopBtn.style.display = 'none';
+      if (laser) laser.style.display = 'none';
     }
   }
 
@@ -524,7 +542,7 @@
 
     const onPointerDown = (e) => {
       if (e.button !== 0 && e.type !== 'touchstart') return;
-      if (e.target.closest('button, input, select, textarea, .unfugly-code-box, .unfugly-timer-wrap')) return;
+      if (e.target.closest('button, input, select, textarea, .unfugly-code-chip')) return;
 
       isDragging = true;
       hasMoved = false;
@@ -570,11 +588,11 @@
       if (e.cancelable) e.preventDefault();
 
       const rect = element.getBoundingClientRect();
-      const maxX = Math.max(0, window.innerWidth - rect.width - 10);
-      const maxY = Math.max(0, window.innerHeight - rect.height - 10);
+      const maxX = Math.max(0, window.innerWidth - rect.width - 12);
+      const maxY = Math.max(0, window.innerHeight - rect.height - 12);
 
-      const newLeft = Math.max(10, Math.min(maxX, startLeft + dx));
-      const newTop = Math.max(10, Math.min(maxY, startTop + dy));
+      const newLeft = Math.max(12, Math.min(maxX, startLeft + dx));
+      const newTop = Math.max(12, Math.min(maxY, startTop + dy));
 
       element.style.left = `${newLeft}px`;
       element.style.top = `${newTop}px`;
@@ -602,7 +620,7 @@
   }
 
   // =========================================================================
-  // 8. Shadow DOM UI Injection
+  // 8. Shadow DOM UI Injection (Ultra-Refined Minimalist Glass Aesthetic)
   // =========================================================================
   let shadowRoot = null;
 
@@ -617,8 +635,8 @@
 
   function getBarPositionStyle() {
     if (savedPosition && typeof savedPosition.left === 'number' && typeof savedPosition.top === 'number') {
-      const clampLeft = Math.max(10, Math.min(window.innerWidth - 300, savedPosition.left));
-      const clampTop = Math.max(10, Math.min(window.innerHeight - 60, savedPosition.top));
+      const clampLeft = Math.max(12, Math.min(window.innerWidth - 300, savedPosition.left));
+      const clampTop = Math.max(12, Math.min(window.innerHeight - 56, savedPosition.top));
       return `left: ${clampLeft}px; top: ${clampTop}px; transform: none; right: auto;`;
     }
     return `left: 50%; top: 14px; transform: translateX(-50%);`;
@@ -626,30 +644,32 @@
 
   function getMiniPositionStyle() {
     if (savedMiniPosition && typeof savedMiniPosition.left === 'number' && typeof savedMiniPosition.top === 'number') {
-      const clampLeft = Math.max(10, Math.min(window.innerWidth - 180, savedMiniPosition.left));
-      const clampTop = Math.max(10, Math.min(window.innerHeight - 50, savedMiniPosition.top));
+      const clampLeft = Math.max(12, Math.min(window.innerWidth - 160, savedMiniPosition.left));
+      const clampTop = Math.max(12, Math.min(window.innerHeight - 44, savedMiniPosition.top));
       return `left: ${clampLeft}px; top: ${clampTop}px; right: auto;`;
     }
     return `top: 14px; right: 20px;`;
   }
 
+  const CIRCLE_RADIUS = 11;
+  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS; // ~69.115
+
   function renderWidget() {
     if (!shadowRoot) return;
-
-    const CIRCLE_CIRCUMFERENCE = 81.68;
 
     shadowRoot.innerHTML = `
       <style>
         :host {
           all: initial;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
-          font-size: 14px;
+          font-size: 13px;
           line-height: 1.4;
           box-sizing: border-box;
-          color: #f8fafc;
+          color: #f1f5f9;
           user-select: none;
           z-index: 2147483647;
           position: relative;
+          -webkit-font-smoothing: antialiased;
         }
         *, *::before, *::after {
           box-sizing: border-box;
@@ -657,235 +677,255 @@
           padding: 0;
         }
 
-        /* Movable Top Bar Container */
-        .unfugly-top-bar {
+        /* Dynamic Island Floating Bar */
+        .unfugly-island {
           position: fixed;
-          background: rgba(15, 23, 42, 0.94);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(13, 16, 23, 0.88);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 9999px;
-          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+          box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
           display: flex;
           align-items: center;
-          gap: 11px;
-          padding: 7px 14px 7px 12px;
+          gap: 10px;
+          padding: 5px 12px 5px 10px;
           z-index: 2147483647;
-          cursor: default;
           touch-action: none;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
         }
 
-        .unfugly-top-bar:hover {
-          border-color: rgba(56, 189, 248, 0.4);
-          box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
+        .unfugly-island:hover {
+          border-color: rgba(255, 255, 255, 0.18);
+          box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
         }
 
-        /* Drag Handle Grip */
-        .unfugly-drag-handle {
+        /* Subtle Grip Handle */
+        .unfugly-grip {
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: grab;
-          color: #64748b;
-          padding: 3px 2px;
+          color: #475569;
+          padding: 2px 2px;
           border-radius: 4px;
-          transition: color 0.15s ease, background 0.15s ease;
+          opacity: 0.6;
+          transition: opacity 0.15s ease, color 0.15s ease;
         }
 
-        .unfugly-drag-handle:hover {
-          color: #38bdf8;
-          background: rgba(56, 189, 248, 0.12);
+        .unfugly-island:hover .unfugly-grip {
+          opacity: 1;
         }
 
-        .unfugly-drag-handle.dragging {
+        .unfugly-grip:hover {
+          color: #94a3b8;
+        }
+
+        .unfugly-grip.dragging {
           cursor: grabbing !important;
           color: #38bdf8;
         }
 
-        /* Movable Minimized Pill */
-        .unfugly-minimized-pill {
+        /* Minimized Capsule */
+        .unfugly-capsule {
           position: fixed;
-          background: rgba(15, 23, 42, 0.92);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(13, 16, 23, 0.9);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 9999px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
           display: flex;
           align-items: center;
-          gap: 9px;
-          padding: 6px 14px 6px 10px;
+          gap: 8px;
+          padding: 5px 11px 5px 8px;
           cursor: grab;
           z-index: 2147483647;
           touch-action: none;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          transition: border-color 0.2s ease, transform 0.15s ease;
         }
 
-        .unfugly-minimized-pill:hover {
-          border-color: rgba(56, 189, 248, 0.5);
-          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 12px rgba(56, 189, 248, 0.2);
+        .unfugly-capsule:hover {
+          border-color: rgba(255, 255, 255, 0.2);
+          transform: translateY(-1px);
         }
 
+        /* Brand & Status Indicator */
         .unfugly-brand {
           display: flex;
           align-items: center;
-          gap: 6px;
-          font-weight: 600;
-          font-size: 12.5px;
-          letter-spacing: 0.3px;
-          color: #94a3b8;
+          gap: 7px;
           cursor: grab;
         }
 
-        .unfugly-shield-icon {
-          width: 17px;
-          height: 17px;
-          flex-shrink: 0;
-          color: #38bdf8;
+        .unfugly-live-dot {
+          width: 6.5px;
+          height: 6.5px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+          animation: unfuglyPulse 2.5s infinite;
         }
 
-        .unfugly-brand-text {
+        @keyframes unfuglyPulse {
+          0% { transform: scale(0.95); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .unfugly-title {
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.2px;
+          color: #94a3b8;
+          max-width: 110px;
           white-space: nowrap;
-          max-width: 125px;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .unfugly-divider {
+        .unfugly-sep {
           width: 1px;
-          height: 20px;
-          background: rgba(255, 255, 255, 0.14);
+          height: 16px;
+          background: rgba(255, 255, 255, 0.1);
         }
 
-        .unfugly-code-box {
+        /* Central Code Button (The Primary Hero Element) */
+        .unfugly-code-chip {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 3px 8px;
           display: flex;
           align-items: center;
           gap: 6px;
-          background: rgba(30, 41, 59, 0.7);
-          padding: 4px 10px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
           cursor: pointer;
+          color: #f8fafc;
           transition: all 0.15s ease;
         }
 
-        .unfugly-code-box:hover {
-          background: rgba(30, 41, 59, 0.95);
-          border-color: rgba(56, 189, 248, 0.4);
+        .unfugly-code-chip:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
           transform: scale(1.02);
         }
 
-        .unfugly-code-text {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          font-size: 19px;
-          font-weight: 700;
-          letter-spacing: 2.5px;
-          color: #f8fafc;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        .unfugly-code-chip:active {
+          transform: scale(0.98);
         }
 
-        .unfugly-timer-wrap {
+        .unfugly-digits {
+          font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+          font-size: 17.5px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          color: #ffffff;
+          font-feature-settings: "tnum";
+          font-variant-numeric: tabular-nums;
+        }
+
+        .unfugly-copy-icon {
+          color: #64748b;
+          transition: color 0.15s ease;
+        }
+
+        .unfugly-code-chip:hover .unfugly-copy-icon {
+          color: #94a3b8;
+        }
+
+        .unfugly-code-chip.copied {
+          background: rgba(16, 185, 129, 0.15) !important;
+          border-color: rgba(16, 185, 129, 0.4) !important;
+        }
+
+        .unfugly-code-chip.copied .unfugly-copy-icon {
+          color: #34d399 !important;
+        }
+
+        /* Google Authenticator Minimal Radial Progress Ring */
+        .unfugly-ring-box {
           position: relative;
-          width: 30px;
-          height: 30px;
+          width: 26px;
+          height: 26px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .unfugly-timer-svg {
-          width: 30px;
-          height: 30px;
+        .unfugly-ring-svg {
+          width: 26px;
+          height: 26px;
           transform: rotate(-90deg);
         }
 
-        .unfugly-timer-bg {
+        .unfugly-ring-bg {
           fill: none;
-          stroke: rgba(255, 255, 255, 0.12);
-          stroke-width: 3;
+          stroke: rgba(255, 255, 255, 0.08);
+          stroke-width: 2.2;
         }
 
-        .unfugly-timer-circle {
+        .unfugly-ring-fg {
           fill: none;
           stroke: #38bdf8;
-          stroke-width: 3;
+          stroke-width: 2.2;
           stroke-linecap: round;
           stroke-dasharray: ${CIRCLE_CIRCUMFERENCE};
           stroke-dashoffset: 0;
-          transition: stroke-dashoffset 0.25s linear, stroke 0.3s ease;
+          transition: stroke-dashoffset 0.2s linear, stroke 0.3s ease;
         }
 
-        .unfugly-timer-circle.warning {
+        .unfugly-ring-fg.urgent {
           stroke: #f43f5e;
           filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.6));
         }
 
-        .unfugly-timer-seconds {
+        .unfugly-ring-num {
           position: absolute;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 700;
-          color: #cbd5e1;
-          font-family: ui-monospace, SFMono-Regular, monospace;
+          color: #94a3b8;
+          font-family: ui-monospace, monospace;
         }
 
-        .unfugly-timer-seconds.warning {
-          color: #f43f5e;
+        .unfugly-ring-num.urgent {
+          color: #fb7185;
         }
 
-        .unfugly-btn {
+        /* Micro Action Buttons */
+        .unfugly-nav-actions {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .unfugly-pill-btn {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
-          gap: 6px;
-          background: linear-gradient(135deg, #0284c7, #2563eb);
-          color: #ffffff;
-          border: none;
-          border-radius: 9999px;
-          padding: 6px 13px;
-          font-size: 12.5px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
-        }
-
-        .unfugly-btn:hover {
-          background: linear-gradient(135deg, #0369a1, #1d4ed8);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
-        }
-
-        .unfugly-btn:active {
-          transform: translateY(0);
-        }
-
-        .unfugly-btn-copied {
-          background: linear-gradient(135deg, #059669, #10b981) !important;
-          box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4) !important;
-        }
-
-        .unfugly-btn-secondary {
-          background: rgba(51, 65, 85, 0.6);
+          gap: 4px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           color: #cbd5e1;
-          box-shadow: none;
-          padding: 6px 11px;
+          border-radius: 9999px;
+          padding: 4px 9px;
+          font-size: 11.5px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
         }
 
-        .unfugly-btn-secondary:hover {
-          background: rgba(71, 85, 105, 0.85);
-          color: #f8fafc;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        .unfugly-pill-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #ffffff;
         }
 
         .unfugly-icon-btn {
           background: transparent;
           border: none;
-          color: #94a3b8;
+          color: #64748b;
           cursor: pointer;
           border-radius: 50%;
-          width: 26px;
-          height: 26px;
+          width: 24px;
+          height: 24px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -893,20 +933,102 @@
         }
 
         .unfugly-icon-btn:hover {
-          color: #f8fafc;
-          background: rgba(255, 255, 255, 0.1);
+          color: #f1f5f9;
+          background: rgba(255, 255, 255, 0.08);
         }
 
-        /* Modal Overlay */
-        .unfugly-modal-overlay {
+        /* In-App Settings Popover (Clean native popover, zero prompt dialogs) */
+        .unfugly-popover {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: 190px;
+          background: #11141c;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 12px;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+          padding: 5px;
+          display: none;
+          flex-direction: column;
+          gap: 2px;
+          z-index: 2147483647;
+          animation: popoverFadeIn 0.15s ease;
+        }
+
+        @keyframes popoverFadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .unfugly-popover.open {
+          display: flex;
+        }
+
+        .unfugly-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 7px 10px;
+          border-radius: 7px;
+          background: transparent;
+          border: none;
+          color: #cbd5e1;
+          font-size: 12px;
+          cursor: pointer;
+          text-align: left;
+          width: 100%;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .unfugly-menu-item:hover {
+          background: rgba(255, 255, 255, 0.07);
+          color: #ffffff;
+        }
+
+        .unfugly-menu-item.danger:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: #fca5a5;
+        }
+
+        .unfugly-popover-sep {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.08);
+          margin: 3px 0;
+        }
+
+        /* Setup Trigger CTA */
+        .unfugly-setup-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #0284c7;
+          background: linear-gradient(135deg, #0ea5e9, #2563eb);
+          color: #ffffff;
+          border: none;
+          border-radius: 9999px;
+          padding: 5px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+        }
+
+        .unfugly-setup-cta:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(14, 165, 233, 0.45);
+        }
+
+        /* Modal Backdrop */
+        .unfugly-modal-backdrop {
           position: fixed;
           top: 0;
           left: 0;
           width: 100vw;
           height: 100vh;
-          background: rgba(3, 7, 18, 0.78);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
+          background: rgba(4, 6, 12, 0.82);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -916,71 +1038,177 @@
           transition: opacity 0.2s ease;
         }
 
-        .unfugly-modal-overlay.open {
+        .unfugly-modal-backdrop.open {
           opacity: 1;
           pointer-events: auto;
         }
 
-        .unfugly-modal-card {
+        /* Sheet Card (Linear / Raycast Style) */
+        .unfugly-sheet {
           width: 90%;
-          max-width: 500px;
-          background: #0f172a;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 20px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(56, 189, 248, 0.1);
-          padding: 24px;
-          color: #f8fafc;
-          transform: scale(0.95);
+          max-width: 460px;
+          background: #0d111a;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 18px;
+          box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+          padding: 22px;
+          color: #f1f5f9;
+          transform: scale(0.96);
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .unfugly-modal-overlay.open .unfugly-modal-card {
+        .unfugly-modal-backdrop.open .unfugly-sheet {
           transform: scale(1);
         }
 
-        .unfugly-modal-header {
+        .unfugly-sheet-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          margin-bottom: 14px;
+          margin-bottom: 16px;
         }
 
-        .unfugly-modal-title {
-          font-size: 18px;
+        .unfugly-sheet-title {
+          font-size: 16px;
           font-weight: 700;
-          color: #f8fafc;
+          color: #ffffff;
+          letter-spacing: -0.01em;
+        }
+
+        .unfugly-sheet-subtitle {
+          font-size: 12px;
+          color: #818cf8;
+          color: #94a3b8;
+          margin-top: 3px;
+          line-height: 1.4;
+        }
+
+        /* Clean Segmented Tab Control */
+        .unfugly-tabs {
+          display: flex;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 3px;
+          border-radius: 10px;
+          margin-bottom: 16px;
+          gap: 2px;
+        }
+
+        .unfugly-tab-btn {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: #94a3b8;
+          padding: 6px 10px;
+          border-radius: 7px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
           display: flex;
           align-items: center;
-          gap: 9px;
+          justify-content: center;
+          gap: 6px;
         }
 
-        .unfugly-modal-subtitle {
-          font-size: 12.5px;
-          color: #94a3b8;
-          margin-top: 4px;
-          line-height: 1.45;
+        .unfugly-tab-btn:hover {
+          color: #f1f5f9;
         }
 
-        .unfugly-help-box {
-          background: rgba(56, 189, 248, 0.08);
-          border: 1px solid rgba(56, 189, 248, 0.2);
-          border-radius: 10px;
-          padding: 10px 14px;
-          margin-bottom: 14px;
-          font-size: 12px;
-          color: #bae6fd;
-          line-height: 1.45;
+        .unfugly-tab-btn.active {
+          background: rgba(255, 255, 255, 0.12);
+          color: #ffffff;
+          font-weight: 600;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .unfugly-help-box strong {
-          color: #38bdf8;
+        /* Camera Viewfinder (Face ID aesthetic) */
+        .unfugly-scanner-box {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #020617;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .unfugly-dropzone {
-          border: 2px dashed rgba(56, 189, 248, 0.4);
-          background: rgba(30, 41, 59, 0.5);
-          border-radius: 14px;
-          padding: 20px 16px;
+        .unfugly-scanner-video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .unfugly-viewfinder-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+
+        .unfugly-target-frame {
+          width: 120px;
+          height: 120px;
+          position: relative;
+        }
+
+        /* Sleek Corner Brackets */
+        .unfugly-target-frame::before, .unfugly-target-frame::after {
+          content: '';
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          border-color: #38bdf8;
+          border-style: solid;
+        }
+        .unfugly-target-frame::before {
+          top: 0; left: 0; border-width: 2.5px 0 0 2.5px; border-top-left-radius: 4px;
+        }
+        .unfugly-target-frame::after {
+          top: 0; right: 0; border-width: 2.5px 2.5px 0 0; border-top-right-radius: 4px;
+        }
+        .unfugly-frame-bottom::before, .unfugly-frame-bottom::after {
+          content: '';
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          border-color: #38bdf8;
+          border-style: solid;
+        }
+        .unfugly-frame-bottom::before {
+          bottom: 0; left: 0; border-width: 0 0 2.5px 2.5px; border-bottom-left-radius: 4px;
+        }
+        .unfugly-frame-bottom::after {
+          bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; border-bottom-right-radius: 4px;
+        }
+
+        .unfugly-laser {
+          position: absolute;
+          left: 10%;
+          width: 80%;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+          box-shadow: 0 0 8px #38bdf8;
+          display: none;
+          animation: scanLaser 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes scanLaser {
+          0% { top: 15%; opacity: 0.8; }
+          100% { top: 85%; opacity: 0.8; }
+        }
+
+        /* Clean Drop Area */
+        .unfugly-drop-panel {
+          border: 1px dashed rgba(255, 255, 255, 0.18);
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 12px;
+          padding: 24px 16px;
           text-align: center;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -990,174 +1218,132 @@
           gap: 8px;
         }
 
-        .unfugly-dropzone:hover, .unfugly-dropzone.dragover {
-          border-color: #38bdf8;
-          background: rgba(56, 189, 248, 0.08);
-          transform: translateY(-1px);
+        .unfugly-drop-panel:hover, .unfugly-drop-panel.dragover {
+          background: rgba(56, 189, 248, 0.04);
+          border-color: rgba(56, 189, 248, 0.5);
         }
 
-        .unfugly-dropzone-icon {
-          width: 38px;
-          height: 38px;
-          color: #38bdf8;
-          background: rgba(56, 189, 248, 0.12);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .unfugly-dropzone-title {
-          font-size: 13.5px;
+        .unfugly-drop-title {
+          font-size: 13px;
           font-weight: 600;
-          color: #f8fafc;
+          color: #f1f5f9;
         }
 
-        .unfugly-dropzone-hint {
+        .unfugly-drop-note {
           font-size: 11.5px;
-          color: #94a3b8;
-          line-height: 1.4;
-        }
-
-        .unfugly-dropzone-hint kbd {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-family: inherit;
-          color: #38bdf8;
-        }
-
-        .unfugly-camera-wrap {
-          display: none;
-          flex-direction: column;
-          align-items: center;
-          gap: 10px;
-          background: #020617;
-          border: 1px solid rgba(56, 189, 248, 0.3);
-          border-radius: 14px;
-          padding: 10px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .unfugly-camera-video {
-          width: 100%;
-          max-height: 220px;
-          border-radius: 10px;
-          object-fit: cover;
-          background: #000;
-        }
-
-        .unfugly-camera-reticle {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -60%);
-          width: 130px;
-          height: 130px;
-          border: 2px solid #38bdf8;
-          border-radius: 12px;
-          box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
-          pointer-events: none;
-        }
-
-        .unfugly-modal-actions {
-          display: flex;
-          gap: 10px;
-          margin-top: 12px;
-        }
-
-        .unfugly-or-divider {
-          display: flex;
-          align-items: center;
-          text-align: center;
-          margin: 16px 0;
           color: #64748b;
-          font-size: 11.5px;
         }
 
-        .unfugly-or-divider::before, .unfugly-or-divider::after {
-          content: '';
-          flex: 1;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .unfugly-or-divider:not(:empty)::before {
-          margin-right: .75em;
-        }
-
-        .unfugly-or-divider:not(:empty)::after {
-          margin-left: .75em;
-        }
-
-        .unfugly-input-group {
+        /* Modern Input */
+        .unfugly-input-row {
           display: flex;
           gap: 8px;
         }
 
-        .unfugly-input {
+        .unfugly-text-input {
           flex: 1;
-          background: rgba(30, 41, 59, 0.8);
+          background: rgba(255, 255, 255, 0.04);
           border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 10px;
+          border-radius: 8px;
           padding: 8px 12px;
           color: #f8fafc;
-          font-size: 13px;
+          font-size: 12.5px;
           font-family: ui-monospace, monospace;
           outline: none;
           transition: border-color 0.2s ease;
         }
 
-        .unfugly-input:focus {
+        .unfugly-text-input:focus {
           border-color: #38bdf8;
-          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+          box-shadow: 0 0 0 1px #38bdf8;
         }
 
-        .unfugly-alert {
-          margin-top: 12px;
-          padding: 9px 13px;
+        /* Footer Actions */
+        .unfugly-sheet-footer {
+          margin-top: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .unfugly-guide-text {
+          font-size: 11.5px;
+          color: #64748b;
+          line-height: 1.4;
+        }
+
+        .unfugly-solid-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #ffffff;
+          color: #0f172a;
+          border: none;
           border-radius: 8px;
+          padding: 7px 14px;
           font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.15s ease, transform 0.1s ease;
+        }
+
+        .unfugly-solid-btn:hover {
+          opacity: 0.92;
+        }
+
+        .unfugly-solid-btn:active {
+          transform: scale(0.98);
+        }
+
+        /* Alerts */
+        .unfugly-sheet-alert {
+          margin-top: 12px;
+          padding: 8px 12px;
+          border-radius: 7px;
+          font-size: 11.5px;
           display: none;
         }
 
-        .unfugly-alert.error {
+        .unfugly-sheet-alert.error {
           display: block;
-          background: rgba(239, 68, 68, 0.15);
-          border: 1px solid rgba(239, 68, 68, 0.4);
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
           color: #fca5a5;
         }
 
-        .unfugly-alert.success {
+        .unfugly-sheet-alert.info {
           display: block;
-          background: rgba(16, 185, 129, 0.15);
-          border: 1px solid rgba(16, 185, 129, 0.4);
-          color: #6ee7b7;
+          background: rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          color: #7dd3fc;
         }
 
-        .unfugly-toast {
+        /* Minimal Toast Chip */
+        .unfugly-chip-toast {
           position: fixed;
           bottom: 24px;
           left: 50%;
-          transform: translateX(-50%) translateY(20px);
-          background: #0f172a;
-          border: 1px solid #10b981;
-          color: #6ee7b7;
-          padding: 8px 18px;
+          transform: translateX(-50%) translateY(12px);
+          background: rgba(15, 23, 42, 0.95);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #f8fafc;
+          padding: 6px 14px;
           border-radius: 9999px;
-          font-size: 13px;
-          font-weight: 600;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(16, 185, 129, 0.3);
+          font-size: 12px;
+          font-weight: 500;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
           opacity: 0;
           pointer-events: none;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 2147483647;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
 
-        .unfugly-toast.show {
+        .unfugly-chip-toast.show {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
@@ -1166,110 +1352,136 @@
       ${
         isMinimized && currentSecret
           ? `
-        <div class="unfugly-minimized-pill" id="unfugly-minimized-bar" style="${getMiniPositionStyle()}" title="Drag anywhere or click to expand">
-          <div class="unfugly-drag-handle" id="unfugly-mini-drag-handle" title="Drag to move">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="8" cy="6" r="2"></circle>
-              <circle cx="16" cy="6" r="2"></circle>
-              <circle cx="8" cy="12" r="2"></circle>
-              <circle cx="16" cy="12" r="2"></circle>
-              <circle cx="8" cy="18" r="2"></circle>
-              <circle cx="16" cy="18" r="2"></circle>
+        <div class="unfugly-capsule" id="unfugly-minimized-bar" style="${getMiniPositionStyle()}" title="Drag anywhere or click code to expand">
+          <div class="unfugly-grip" id="unfugly-mini-grip" title="Drag to reposition">
+            <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">
+              <circle cx="2" cy="2" r="1.1"/>
+              <circle cx="6" cy="2" r="1.1"/>
+              <circle cx="2" cy="6" r="1.1"/>
+              <circle cx="6" cy="6" r="1.1"/>
+              <circle cx="2" cy="10" r="1.1"/>
+              <circle cx="6" cy="10" r="1.1"/>
             </svg>
           </div>
-          <svg class="unfugly-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span id="unfugly-min-expand-btn" style="font-family: ui-monospace, monospace; font-size: 14.5px; font-weight: 700; letter-spacing: 1px; cursor: pointer;">
+          <div class="unfugly-live-dot"></div>
+          <span id="unfugly-min-expand-btn" style="font-family: ui-monospace, monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer;">
             ${formatCode(currentTotpCode)}
           </span>
-          <div class="unfugly-timer-wrap">
-            <svg class="unfugly-timer-svg" viewBox="0 0 30 30">
-              <circle class="unfugly-timer-bg" cx="15" cy="15" r="13"></circle>
-              <circle class="unfugly-timer-circle" id="unfugly-mini-circle" cx="15" cy="15" r="13"></circle>
+          <div class="unfugly-ring-box">
+            <svg class="unfugly-ring-svg" viewBox="0 0 28 28">
+              <circle class="unfugly-ring-bg" cx="14" cy="14" r="11"></circle>
+              <circle class="unfugly-ring-fg" id="unfugly-mini-circle" cx="14" cy="14" r="11"></circle>
             </svg>
-            <span class="unfugly-timer-seconds" id="unfugly-mini-seconds">30</span>
+            <span class="unfugly-ring-num" id="unfugly-mini-seconds">30</span>
           </div>
         </div>
       `
           : `
-        <div class="unfugly-top-bar" id="unfugly-top-bar" style="${getBarPositionStyle()}">
-          <!-- Drag Handle Grip -->
-          <div class="unfugly-drag-handle" id="unfugly-drag-handle" title="Drag to move anywhere on screen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="8" cy="5" r="2"></circle>
-              <circle cx="16" cy="5" r="2"></circle>
-              <circle cx="8" cy="12" r="2"></circle>
-              <circle cx="16" cy="12" r="2"></circle>
-              <circle cx="8" cy="19" r="2"></circle>
-              <circle cx="16" cy="19" r="2"></circle>
+        <div class="unfugly-island" id="unfugly-top-bar" style="${getBarPositionStyle()}">
+          <!-- Drag Handle -->
+          <div class="unfugly-grip" id="unfugly-drag-handle" title="Drag to reposition">
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+              <circle cx="2" cy="2" r="1.2"/>
+              <circle cx="8" cy="2" r="1.2"/>
+              <circle cx="2" cy="7" r="1.2"/>
+              <circle cx="8" cy="7" r="1.2"/>
+              <circle cx="2" cy="12" r="1.2"/>
+              <circle cx="8" cy="12" r="1.2"/>
             </svg>
           </div>
 
-          <div class="unfugly-brand" id="unfugly-brand-drag" title="Drag to move">
-            <svg class="unfugly-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <span class="unfugly-brand-text" title="${escapeHtml(currentAccount)}">
-              ${escapeHtml(currentAccount || 'KTRETE 2FA')}
+          <!-- Brand Status -->
+          <div class="unfugly-brand" id="unfugly-brand-drag" title="Drag to reposition">
+            <div class="unfugly-live-dot"></div>
+            <span class="unfugly-title" title="${escapeHtml(currentAccount)}">
+              ${escapeHtml(currentAccount || 'KTRETE')}
             </span>
           </div>
 
-          <div class="unfugly-divider"></div>
+          <div class="unfugly-sep"></div>
 
           ${
             currentSecret
               ? `
-            <div class="unfugly-code-box" id="unfugly-code-click" title="Click to copy code">
-              <span class="unfugly-code-text" id="unfugly-code-text">${formatCode(currentTotpCode)}</span>
-            </div>
-
-            <div class="unfugly-timer-wrap" title="Time remaining before code refresh">
-              <svg class="unfugly-timer-svg" viewBox="0 0 30 30">
-                <circle class="unfugly-timer-bg" cx="15" cy="15" r="13"></circle>
-                <circle class="unfugly-timer-circle" id="unfugly-timer-circle" cx="15" cy="15" r="13"></circle>
-              </svg>
-              <span class="unfugly-timer-seconds" id="unfugly-timer-seconds">30</span>
-            </div>
-
-            <button class="unfugly-btn" id="unfugly-copy-btn" title="Copy code to clipboard">
-              <svg id="unfugly-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Click to Copy Hero Code Box -->
+            <button class="unfugly-code-chip" id="unfugly-code-btn" title="Click to copy 6-digit code">
+              <span class="unfugly-digits" id="unfugly-code-text">${formatCode(currentTotpCode)}</span>
+              <svg class="unfugly-copy-icon" id="unfugly-copy-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              <span id="unfugly-copy-label">Copy</span>
             </button>
 
-            <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-autofill-btn" title="Paste directly into page OTP field">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            <!-- Google Authenticator Dynamic Radial Countdown -->
+            <div class="unfugly-ring-box" title="Code expiration countdown">
+              <svg class="unfugly-ring-svg" viewBox="0 0 28 28">
+                <circle class="unfugly-ring-bg" cx="14" cy="14" r="11"></circle>
+                <circle class="unfugly-ring-fg" id="unfugly-timer-circle" cx="14" cy="14" r="11"></circle>
               </svg>
-              <span>Autofill</span>
-            </button>
+              <span class="unfugly-ring-num" id="unfugly-timer-seconds">30</span>
+            </div>
 
-            <button class="unfugly-icon-btn" id="unfugly-settings-btn" title="Settings / Reset QR / Center position">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-            </button>
+            <!-- Action Buttons Group -->
+            <div class="unfugly-nav-actions" style="position: relative;">
+              <button class="unfugly-pill-btn" id="unfugly-autofill-btn" title="Paste directly into OTP field">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Fill</span>
+              </button>
 
-            <button class="unfugly-icon-btn" id="unfugly-minimize-btn" title="Minimize to small floating badge">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
+              <button class="unfugly-icon-btn" id="unfugly-settings-btn" title="Options">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </button>
+
+              <button class="unfugly-icon-btn" id="unfugly-minimize-btn" title="Minimize">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+
+              <!-- In-App Micro Menu (No browser alerts!) -->
+              <div class="unfugly-popover ${isDropdownOpen ? 'open' : ''}" id="unfugly-dropdown-menu">
+                <button class="unfugly-menu-item" id="unfugly-menu-rescan">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  <span>Re-scan / Import QR</span>
+                </button>
+                <button class="unfugly-menu-item" id="unfugly-menu-recenter">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span>Reset Position</span>
+                </button>
+                <div class="unfugly-popover-sep"></div>
+                <button class="unfugly-menu-item danger" id="unfugly-menu-disconnect">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  <span>Remove Secret</span>
+                </button>
+              </div>
+            </div>
           `
               : `
-            <button class="unfugly-btn" id="unfugly-open-setup-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <button class="unfugly-setup-cta" id="unfugly-open-setup-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7"></rect>
                 <rect x="14" y="3" width="7" height="7"></rect>
                 <rect x="14" y="14" width="7" height="7"></rect>
                 <rect x="3" y="14" width="7" height="7"></rect>
               </svg>
-              <span>Set Up 2FA Authenticator</span>
+              <span>Setup 2FA</span>
             </button>
           `
           }
@@ -1277,107 +1489,119 @@
       `
       }
 
-      <!-- Setup Modal -->
-      <div class="unfugly-modal-overlay ${isSetupModalOpen ? 'open' : ''}" id="unfugly-setup-modal">
-        <div class="unfugly-modal-card">
-          <div class="unfugly-modal-header">
+      <!-- Setup Sheet Modal -->
+      <div class="unfugly-modal-backdrop ${isSetupModalOpen ? 'open' : ''}" id="unfugly-setup-modal">
+        <div class="unfugly-sheet">
+          <div class="unfugly-sheet-header">
             <div>
-              <div class="unfugly-modal-title">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                <span>KTRETE 2FA Setup</span>
-              </div>
-              <div class="unfugly-modal-subtitle">
-                Import your 2FA code once to auto-generate and auto-fill OTPs on this portal.
+              <div class="unfugly-sheet-title">KTRETE Authenticator</div>
+              <div class="unfugly-sheet-subtitle">
+                Connect once to auto-generate and auto-fill your 2FA OTP codes.
               </div>
             </div>
             <button class="unfugly-icon-btn" id="unfugly-close-modal-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
             </button>
           </div>
 
-          <!-- Google Authenticator Export Guidance Box -->
-          <div class="unfugly-help-box">
-            💡 <strong>Exporting from Google Authenticator:</strong><br/>
-            Open Authenticator app → Tap <strong>Menu (top right)</strong> → <strong>Transfer accounts</strong> → <strong>Export accounts</strong>.
-            Then click <strong>"Scan with Laptop Camera"</strong> below and hold your phone up to the screen!
-          </div>
-
-          <!-- Camera Live Scanner -->
-          <div class="unfugly-camera-wrap" id="unfugly-camera-wrap">
-            <video class="unfugly-camera-video" id="unfugly-camera-video" playsinline autoplay muted></video>
-            <div class="unfugly-camera-reticle"></div>
-            <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-stop-camera-btn" style="margin-top: 6px;">
-              <span>Cancel Camera</span>
+          <!-- Segmented Tab Header -->
+          <div class="unfugly-tabs">
+            <button class="unfugly-tab-btn ${activeSetupTab === 'camera' ? 'active' : ''}" id="unfugly-tab-camera">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              <span>Phone Camera</span>
+            </button>
+            <button class="unfugly-tab-btn ${activeSetupTab === 'upload' ? 'active' : ''}" id="unfugly-tab-upload">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <span>Upload / Paste</span>
+            </button>
+            <button class="unfugly-tab-btn ${activeSetupTab === 'manual' ? 'active' : ''}" id="unfugly-tab-manual">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line></svg>
+              <span>Manual Key</span>
             </button>
           </div>
 
-          <!-- Drag and drop QR zone -->
-          <div class="unfugly-dropzone" id="unfugly-dropzone">
-            <div class="unfugly-dropzone-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
+          <!-- Tab Content: Phone Camera -->
+          <div id="unfugly-panel-camera" style="display: ${activeSetupTab === 'camera' ? 'block' : 'none'};">
+            <div class="unfugly-scanner-box">
+              <video class="unfugly-scanner-video" id="unfugly-camera-video" playsinline autoplay muted></video>
+              <div class="unfugly-viewfinder-overlay">
+                <div class="unfugly-target-frame">
+                  <div class="unfugly-frame-bottom"></div>
+                  <div class="unfugly-laser" id="unfugly-scan-laser"></div>
+                </div>
+              </div>
             </div>
-            <div class="unfugly-dropzone-title">Upload QR Image / Photo</div>
-            <div class="unfugly-dropzone-hint">
-              Drop screenshot or press <kbd>Ctrl+V</kbd> to paste
+
+            <div class="unfugly-sheet-footer">
+              <div class="unfugly-guide-text">
+                Authenticator app → Menu → <strong>Transfer accounts</strong> → <strong>Export</strong>
+              </div>
+              <div>
+                <button class="unfugly-solid-btn" id="unfugly-start-cam-btn">
+                  <span>Start Camera</span>
+                </button>
+                <button class="unfugly-pill-btn" id="unfugly-stop-cam-btn" style="display: none;">
+                  <span>Stop</span>
+                </button>
+              </div>
             </div>
-            <input type="file" id="unfugly-file-input" accept="image/*" style="display: none;" />
           </div>
 
-          <!-- Primary Actions: Camera & DOM detect -->
-          <div class="unfugly-modal-actions">
-            <button class="unfugly-btn" id="unfugly-camera-scan-btn" style="flex: 1.2;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
+          <!-- Tab Content: Upload / Screenshot / DOM -->
+          <div id="unfugly-panel-upload" style="display: ${activeSetupTab === 'upload' ? 'block' : 'none'};">
+            <div class="unfugly-drop-panel" id="unfugly-dropzone">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <span>Scan with Laptop Camera</span>
-            </button>
-            <button class="unfugly-btn unfugly-btn-secondary" id="unfugly-scan-page-btn" style="flex: 1;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <span>Detect on Page</span>
-            </button>
+              <div class="unfugly-drop-title">Drop QR screenshot or browse</div>
+              <div class="unfugly-drop-note">Or press Ctrl+V / ⌘V anywhere to paste</div>
+              <input type="file" id="unfugly-file-input" accept="image/*" style="display: none;" />
+            </div>
+
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+              <button class="unfugly-pill-btn" id="unfugly-scan-page-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span>Detect QR on Current Page</span>
+              </button>
+            </div>
           </div>
 
-          <div class="unfugly-or-divider">OR ENTER SECRET MANUALLY</div>
-
-          <!-- Manual Secret Input -->
-          <div class="unfugly-input-group">
-            <input
-              type="text"
-              class="unfugly-input"
-              id="unfugly-manual-secret-input"
-              placeholder="Base32 Key or otpauth:// URI"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <button class="unfugly-btn" id="unfugly-manual-save-btn">
-              <span>Save</span>
-            </button>
+          <!-- Tab Content: Manual Key -->
+          <div id="unfugly-panel-manual" style="display: ${activeSetupTab === 'manual' ? 'block' : 'none'};">
+            <div class="unfugly-input-row">
+              <input
+                type="text"
+                class="unfugly-text-input"
+                id="unfugly-manual-secret-input"
+                placeholder="Base32 key (e.g. JBSWY3DPEHPK3PXP)"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button class="unfugly-solid-btn" id="unfugly-manual-save-btn">
+                <span>Save</span>
+              </button>
+            </div>
+            <div class="unfugly-guide-text" style="margin-top: 8px;">
+              Also accepts full <code>otpauth://totp/...</code> URI strings.
+            </div>
           </div>
 
-          <div class="unfugly-alert" id="unfugly-modal-alert"></div>
+          <!-- Alert Notification -->
+          <div class="unfugly-sheet-alert" id="unfugly-sheet-alert"></div>
         </div>
       </div>
 
-      <!-- Toast Feedback -->
-      <div class="unfugly-toast" id="unfugly-toast">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Minimal Toast -->
+      <div class="unfugly-chip-toast" id="unfugly-toast">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span id="unfugly-toast-text">Copied to clipboard!</span>
+        <span id="unfugly-toast-text">Copied to clipboard</span>
       </div>
     `;
 
@@ -1409,22 +1633,22 @@
     toast.classList.add('show');
     setTimeout(() => {
       toast.classList.remove('show');
-    }, 2200);
+    }, 2000);
   }
 
   function showModalAlert(message, type = 'error') {
     if (!shadowRoot) return;
-    const alertBox = shadowRoot.getElementById('unfugly-modal-alert');
+    const alertBox = shadowRoot.getElementById('unfugly-sheet-alert');
     if (!alertBox) return;
 
     alertBox.textContent = message;
-    alertBox.className = `unfugly-alert ${type}`;
+    alertBox.className = `unfugly-sheet-alert ${type}`;
     alertBox.style.display = 'block';
   }
 
   function clearModalAlert() {
     if (!shadowRoot) return;
-    const alertBox = shadowRoot.getElementById('unfugly-modal-alert');
+    const alertBox = shadowRoot.getElementById('unfugly-sheet-alert');
     if (alertBox) alertBox.style.display = 'none';
   }
 
@@ -1453,15 +1677,15 @@
     }
 
     const miniBar = shadowRoot.getElementById('unfugly-minimized-bar');
-    const miniDragHandle = shadowRoot.getElementById('unfugly-mini-drag-handle');
-    if (miniBar && miniDragHandle) {
-      makeElementDraggable(miniBar, miniDragHandle, (newPos) => {
+    const miniGrip = shadowRoot.getElementById('unfugly-mini-grip');
+    if (miniBar && miniGrip) {
+      makeElementDraggable(miniBar, miniGrip, (newPos) => {
         savedMiniPosition = newPos;
         setStorageData({ [STORAGE_KEYS.miniPosition]: newPos });
       });
     }
 
-    // Open Setup Modal
+    // Modal Opening & Closing
     const openSetupBtn = shadowRoot.getElementById('unfugly-open-setup-btn');
     if (openSetupBtn) {
       openSetupBtn.onclick = () => {
@@ -1470,7 +1694,6 @@
       };
     }
 
-    // Close Setup Modal
     const closeModalBtn = shadowRoot.getElementById('unfugly-close-modal-btn');
     if (closeModalBtn) {
       closeModalBtn.onclick = () => {
@@ -1480,10 +1703,10 @@
       };
     }
 
-    const modalOverlay = shadowRoot.getElementById('unfugly-setup-modal');
-    if (modalOverlay) {
-      modalOverlay.onclick = (e) => {
-        if (e.target === modalOverlay) {
+    const modalBackdrop = shadowRoot.getElementById('unfugly-setup-modal');
+    if (modalBackdrop) {
+      modalBackdrop.onclick = (e) => {
+        if (e.target === modalBackdrop) {
           stopCameraScanner();
           isSetupModalOpen = false;
           renderWidget();
@@ -1491,15 +1714,30 @@
       };
     }
 
+    // Tab Switching
+    const tabCam = shadowRoot.getElementById('unfugly-tab-camera');
+    const tabUpload = shadowRoot.getElementById('unfugly-tab-upload');
+    const tabManual = shadowRoot.getElementById('unfugly-tab-manual');
+
+    const switchTab = (tab) => {
+      activeSetupTab = tab;
+      if (tab !== 'camera') stopCameraScanner();
+      renderWidget();
+    };
+
+    if (tabCam) tabCam.onclick = () => switchTab('camera');
+    if (tabUpload) tabUpload.onclick = () => switchTab('upload');
+    if (tabManual) tabManual.onclick = () => switchTab('manual');
+
     // Camera Scan Trigger
-    const cameraScanBtn = shadowRoot.getElementById('unfugly-camera-scan-btn');
-    if (cameraScanBtn) {
-      cameraScanBtn.onclick = () => startCameraScanner();
+    const startCamBtn = shadowRoot.getElementById('unfugly-start-cam-btn');
+    if (startCamBtn) {
+      startCamBtn.onclick = () => startCameraScanner();
     }
 
-    const stopCameraBtn = shadowRoot.getElementById('unfugly-stop-camera-btn');
-    if (stopCameraBtn) {
-      stopCameraBtn.onclick = () => stopCameraScanner();
+    const stopCamBtn = shadowRoot.getElementById('unfugly-stop-cam-btn');
+    if (stopCamBtn) {
+      stopCamBtn.onclick = () => stopCameraScanner();
     }
 
     // Dropzone File Upload
@@ -1540,15 +1778,15 @@
     if (scanPageBtn) {
       scanPageBtn.onclick = async () => {
         scanPageBtn.disabled = true;
-        scanPageBtn.textContent = 'Scanning page images...';
+        scanPageBtn.textContent = 'Scanning...';
         const parsed = await scanDomForQrCode();
         scanPageBtn.disabled = false;
-        scanPageBtn.textContent = 'Detect on Page';
+        scanPageBtn.textContent = 'Detect QR on Current Page';
 
         if (parsed) {
           await saveNewSecret(parsed);
         } else {
-          showModalAlert('No QR code detected on current page. Try scanning your phone screen with camera or upload a photo.', 'error');
+          showModalAlert('No QR code detected on current page.', 'error');
         }
       };
     }
@@ -1563,7 +1801,7 @@
         if (parsed) {
           await saveNewSecret(parsed);
         } else {
-          showModalAlert('Invalid secret. Please provide a valid Base32 key or otpauth:// URI.', 'error');
+          showModalAlert('Invalid key. Enter a valid Base32 secret or otpauth:// URI.', 'error');
         }
       };
 
@@ -1574,29 +1812,21 @@
       };
     }
 
-    // Copy Code Actions
-    const copyBtn = shadowRoot.getElementById('unfugly-copy-btn');
-    const codeBox = shadowRoot.getElementById('unfugly-code-click');
-
-    const handleCopy = () => {
-      if (!currentTotpCode || currentTotpCode === '------') return;
-      const cleanCode = currentTotpCode.replace(/\s+/g, '');
-      navigator.clipboard.writeText(cleanCode).then(() => {
-        showToast(`Copied ${cleanCode}!`);
-        if (copyBtn) {
-          copyBtn.classList.add('unfugly-btn-copied');
-          const label = shadowRoot.getElementById('unfugly-copy-label');
-          if (label) label.textContent = 'Copied!';
+    // One-Click Hero Code Copy Action
+    const codeBtn = shadowRoot.getElementById('unfugly-code-btn');
+    if (codeBtn) {
+      codeBtn.onclick = () => {
+        if (!currentTotpCode || currentTotpCode === '------') return;
+        const cleanCode = currentTotpCode.replace(/\s+/g, '');
+        navigator.clipboard.writeText(cleanCode).then(() => {
+          showToast(`Copied ${cleanCode}`);
+          codeBtn.classList.add('copied');
           setTimeout(() => {
-            if (copyBtn) copyBtn.classList.remove('unfugly-btn-copied');
-            if (label) label.textContent = 'Copy';
-          }, 1800);
-        }
-      });
-    };
-
-    if (copyBtn) copyBtn.onclick = handleCopy;
-    if (codeBox) codeBox.onclick = handleCopy;
+            codeBtn.classList.remove('copied');
+          }, 1500);
+        });
+      };
+    }
 
     // Autofill Action
     const autofillBtn = shadowRoot.getElementById('unfugly-autofill-btn');
@@ -1606,35 +1836,72 @@
         const cleanCode = currentTotpCode.replace(/\s+/g, '');
         const filled = autofillOtp(cleanCode);
         if (filled) {
-          showToast(`Autofilled ${cleanCode}!`);
+          showToast(`Autofilled ${cleanCode}`);
         } else {
-          showToast(`Copied ${cleanCode} (No OTP field found)`);
+          showToast(`Copied ${cleanCode}`);
           navigator.clipboard.writeText(cleanCode);
         }
       };
     }
 
-    // Settings Action (Reset QR or Reset Position)
+    // In-App Settings Popover Toggle
     const settingsBtn = shadowRoot.getElementById('unfugly-settings-btn');
-    if (settingsBtn) {
-      settingsBtn.onclick = () => {
-        const action = window.prompt(
-          'KTRETE 2FA Authenticator Options:\n1: Re-scan / Change QR Code\n2: Reset bar position to Top Center\n\nEnter 1 or 2:',
-          '1'
-        );
-        if (action === '1') {
-          isSetupModalOpen = true;
-          renderWidget();
-        } else if (action === '2') {
-          savedPosition = null;
-          savedMiniPosition = null;
-          setStorageData({
-            [STORAGE_KEYS.position]: null,
-            [STORAGE_KEYS.miniPosition]: null
-          });
-          renderWidget();
-          showToast('Position reset to Top Center');
+    const dropdownMenu = shadowRoot.getElementById('unfugly-dropdown-menu');
+
+    if (settingsBtn && dropdownMenu) {
+      settingsBtn.onclick = (e) => {
+        e.stopPropagation();
+        isDropdownOpen = !isDropdownOpen;
+        dropdownMenu.classList.toggle('open', isDropdownOpen);
+      };
+
+      // Close popover when clicking anywhere else
+      document.addEventListener('click', () => {
+        if (isDropdownOpen) {
+          isDropdownOpen = false;
+          dropdownMenu.classList.remove('open');
         }
+      });
+    }
+
+    const menuRescan = shadowRoot.getElementById('unfugly-menu-rescan');
+    if (menuRescan) {
+      menuRescan.onclick = () => {
+        isDropdownOpen = false;
+        isSetupModalOpen = true;
+        renderWidget();
+      };
+    }
+
+    const menuRecenter = shadowRoot.getElementById('unfugly-menu-recenter');
+    if (menuRecenter) {
+      menuRecenter.onclick = () => {
+        isDropdownOpen = false;
+        savedPosition = null;
+        savedMiniPosition = null;
+        setStorageData({
+          [STORAGE_KEYS.position]: null,
+          [STORAGE_KEYS.miniPosition]: null
+        });
+        renderWidget();
+        showToast('Position reset to center');
+      };
+    }
+
+    const menuDisconnect = shadowRoot.getElementById('unfugly-menu-disconnect');
+    if (menuDisconnect) {
+      menuDisconnect.onclick = async () => {
+        isDropdownOpen = false;
+        currentSecret = null;
+        currentTotpCode = '------';
+        await removeStorageData([
+          STORAGE_KEYS.secret,
+          STORAGE_KEYS.account,
+          STORAGE_KEYS.digits,
+          STORAGE_KEYS.period
+        ]);
+        renderWidget();
+        showToast('2FA secret removed');
       };
     }
 
@@ -1658,18 +1925,15 @@
     }
   }
 
-  // Handle global paste (Ctrl+V)
+  // Handle global paste (Ctrl+V / Cmd+V)
   window.addEventListener('paste', async (e) => {
     const items = (e.clipboardData || window.clipboardData).items;
     for (const item of items) {
       if (item.type.indexOf('image') !== -1) {
         const file = item.getAsFile();
         if (file) {
-          if (!isSetupModalOpen && currentSecret) {
-            const ok = window.confirm('Pasted QR image detected. Update 2FA Authenticator secret?');
-            if (!ok) return;
-          }
           isSetupModalOpen = true;
+          activeSetupTab = 'upload';
           renderWidget();
           await processUploadedFile(file);
           return;
@@ -1687,15 +1951,15 @@
   });
 
   async function processUploadedFile(file) {
-    showModalAlert('Scanning QR code image...', 'success');
+    showModalAlert('Decoding image...', 'info');
     const rawCode = await scanFileBlob(file);
     if (!rawCode) {
-      showModalAlert('No QR code found in this image. Please ensure the QR code is clearly visible.', 'error');
+      showModalAlert('No QR code detected in image. Ensure it is clearly visible.', 'error');
       return;
     }
     const parsed = parseTotpInput(rawCode);
     if (!parsed) {
-      showModalAlert('Detected QR code does not contain a valid 2FA TOTP secret.', 'error');
+      showModalAlert('Image did not contain a valid 2FA TOTP secret.', 'error');
       return;
     }
     await saveNewSecret(parsed);
@@ -1716,7 +1980,7 @@
 
     stopCameraScanner();
     isSetupModalOpen = false;
-    showToast('Authenticator connected successfully!');
+    showToast('Authenticator connected');
     await updateTotpCode(true);
     renderWidget();
   }
@@ -1724,8 +1988,6 @@
   // =========================================================================
   // 10. Dynamic Radial Timer & TOTP Update Loop
   // =========================================================================
-  const CIRCLE_CIRCUMFERENCE = 81.68;
-
   async function updateTotpCode(force = false) {
     if (!currentSecret) {
       currentTotpCode = '------';
@@ -1743,12 +2005,11 @@
         const codeText = shadowRoot.getElementById('unfugly-code-text');
         if (codeText) {
           codeText.textContent = formatCode(currentTotpCode);
-          codeText.style.transition = 'none';
-          codeText.style.color = '#38bdf8';
+          codeText.style.opacity = '0.4';
           setTimeout(() => {
-            codeText.style.transition = 'color 0.4s ease';
-            codeText.style.color = '#f8fafc';
-          }, 300);
+            codeText.style.transition = 'opacity 0.3s ease';
+            codeText.style.opacity = '1';
+          }, 80);
         }
       }
     }
@@ -1765,33 +2026,33 @@
     const fraction = remainingMs / periodMs;
 
     const offset = CIRCLE_CIRCUMFERENCE * (1 - fraction);
-    const isWarning = remainingSec <= 5;
+    const isUrgent = remainingSec <= 5;
 
     if (shadowRoot) {
       const circle = shadowRoot.getElementById('unfugly-timer-circle');
       const secLabel = shadowRoot.getElementById('unfugly-timer-seconds');
       if (circle) {
         circle.style.strokeDashoffset = offset;
-        if (isWarning) circle.classList.add('warning');
-        else circle.classList.remove('warning');
+        if (isUrgent) circle.classList.add('urgent');
+        else circle.classList.remove('urgent');
       }
       if (secLabel) {
         secLabel.textContent = remainingSec;
-        if (isWarning) secLabel.classList.add('warning');
-        else secLabel.classList.remove('warning');
+        if (isUrgent) secLabel.classList.add('urgent');
+        else secLabel.classList.remove('urgent');
       }
 
       const miniCircle = shadowRoot.getElementById('unfugly-mini-circle');
       const miniSec = shadowRoot.getElementById('unfugly-mini-seconds');
       if (miniCircle) {
         miniCircle.style.strokeDashoffset = offset;
-        if (isWarning) miniCircle.classList.add('warning');
-        else miniCircle.classList.remove('warning');
+        if (isUrgent) miniCircle.classList.add('urgent');
+        else miniCircle.classList.remove('urgent');
       }
       if (miniSec) {
         miniSec.textContent = remainingSec;
-        if (isWarning) miniSec.classList.add('warning');
-        else miniSec.classList.remove('warning');
+        if (isUrgent) miniSec.classList.add('urgent');
+        else miniSec.classList.remove('urgent');
       }
     }
 
