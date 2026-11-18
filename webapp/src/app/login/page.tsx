@@ -513,9 +513,10 @@ export default function LoginPage() {
     }
   };
 
-  const fetchManualCaptcha = async () => {
+  const fetchManualCaptcha = async (options?: { keepError?: boolean }) => {
+    const keepError = Boolean(options?.keepError);
     setManualCaptchaLoading(true);
-    setPortalError('');
+    if (!keepError) setPortalError('');
     setDiagInfo(null);
     try {
       const res = await fetch(`${API_URL}/api/v2/auth/sp-challenge`);
@@ -576,7 +577,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       setPortalError(err.message);
-      fetchManualCaptcha();
+      fetchManualCaptcha({ keepError: true });
     } finally {
       setPortalLoading(false);
     }
@@ -1202,7 +1203,7 @@ export default function LoginPage() {
                   <span className="text-[11px] font-semibold text-muted">Live Captcha from SRM:</span>
                   <button
                     type="button"
-                    onClick={fetchManualCaptcha}
+                    onClick={() => fetchManualCaptcha()}
                     disabled={manualCaptchaLoading}
                     className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
                   >
@@ -1419,7 +1420,7 @@ export default function LoginPage() {
                       <span className="text-xs font-semibold text-text">Portal Captcha Challenge</span>
                       <button
                         type="button"
-                        onClick={fetchManualCaptcha}
+                        onClick={() => fetchManualCaptcha()}
                         disabled={manualCaptchaLoading}
                         className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
                       >

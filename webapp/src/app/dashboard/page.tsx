@@ -296,9 +296,10 @@ export default function Dashboard() {
 
   };
 
-  const fetchPortalCaptcha = async () => {
+  const fetchPortalCaptcha = async (options?: { keepError?: boolean }) => {
+    const keepError = Boolean(options?.keepError);
     setPortalCaptchaLoading(true);
-    setPortalModalError('');
+    if (!keepError) setPortalModalError('');
     try {
       const res = await fetch(`${API_URL}/api/v2/auth/sp-challenge`);
       const challenge = await res.json();
@@ -320,7 +321,15 @@ export default function Dashboard() {
       return;
     }
     const token = typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null;
-    const netId = data?.netId || '';
+    let netId = (data?.netId || '').toLowerCase().trim();
+    if (!netId && token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload?.net_id) netId = payload.net_id.toLowerCase().trim();
+        else if (payload?.user_metadata?.user_net_id) netId = payload.user_metadata.user_net_id.toLowerCase().trim();
+      } catch {}
+    }
+
     setPortalCaptchaLoading(true);
     setPortalModalError('');
     try {
@@ -350,7 +359,7 @@ export default function Dashboard() {
       }, 1000);
     } catch (err: any) {
       setPortalModalError(err.message);
-      fetchPortalCaptcha();
+      fetchPortalCaptcha({ keepError: true });
     } finally {
       setPortalCaptchaLoading(false);
     }
@@ -661,7 +670,7 @@ export default function Dashboard() {
                          <span className="text-xs font-semibold text-gray-400">Live Captcha Challenge:</span>
                          <button
                             type="button"
-                            onClick={fetchPortalCaptcha}
+                            onClick={() => fetchPortalCaptcha()}
                             disabled={portalCaptchaLoading}
                             className="text-xs text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
                          >
