@@ -10,7 +10,7 @@ const LOG_COLORS = {
 };
 
 const log = (level, code, message, ...args) => {
-  if (level === 'INFO') return; // Suppress INFO logs entirely in console
+  if (level === 'INFO' && code !== 'CAPTCHA') return; // Allow CAPTCHA logs, suppress general verbose logs
   
   const time = getTimestamp();
   const color = LOG_COLORS[level] || '#fff';
@@ -21,6 +21,8 @@ const log = (level, code, message, ...args) => {
     console.error(formattedPrefix, style, message, ...args);
   } else if (level === 'WARN') {
     console.warn(formattedPrefix, style, message, ...args);
+  } else {
+    console.log(formattedPrefix, style, message, ...args);
   }
 };
 

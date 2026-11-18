@@ -350,6 +350,7 @@ function setupSpCaptchaSolver() {
     }
 
     isSolving = true;
+    console.log('%c[UNFUGLY SP] Captcha blob detected, starting solve...', 'color: #00E676; font-weight: bold;');
     injectUnfuglyStyles();
 
     input.classList.add('unfugly-solving-input');
@@ -358,6 +359,7 @@ function setupSpCaptchaSolver() {
     try {
       const imageBase64 = await extractImageBase64(img);
       solvedBlobUrl = src;
+      console.log('%c[UNFUGLY SP] Image extracted, delegating to offline ONNX solver...', 'color: #00E676;');
 
       chrome.runtime.sendMessage(
         { action: 'solve_sp_captcha', imageBase64 },
@@ -367,6 +369,7 @@ function setupSpCaptchaSolver() {
 
           if (response && response.success && response.text) {
             const cleanText = response.text.trim();
+            console.log(`%c[UNFUGLY SP] Solved successfully: "${cleanText}" (${response.duration || 'ok'})`, 'color: #00E676; font-weight: bold;');
             setNativeInputValue(input, cleanText);
 
             // Unfugly signature colour border
@@ -379,10 +382,12 @@ function setupSpCaptchaSolver() {
             renderUiReflection(input, cleanText, response.duration);
             retryCount = 0;
           } else {
+            console.warn('%c[UNFUGLY SP] Solve failed:', 'color: #FFD600;', response?.error || 'Unknown error');
             input.classList.remove('unfugly-solved-input');
             input.title = 'Captcha solver failed — please enter manually';
             if (retryCount < 2) {
               retryCount++;
+              console.log(`%c[UNFUGLY SP] Retrying solve in 1.2s (attempt ${retryCount}/2)...`, 'color: #FFD600;');
               setTimeout(() => {
                 solvedBlobUrl = '';
                 triggerSolve(true);
@@ -392,6 +397,7 @@ function setupSpCaptchaSolver() {
         }
       );
     } catch (err) {
+      console.error('%c[UNFUGLY SP] Error during captcha extraction:', 'color: #FF1744;', err);
       isSolving = false;
       input.classList.remove('unfugly-solving-input');
     }

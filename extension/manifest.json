@@ -9,6 +9,9 @@
     "declarativeNetRequest",
     "offscreen"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "host_permissions": [
     "https://srmist.edu.in/*",
     "https://*.srmist.edu.in/*",

@@ -16,11 +16,14 @@ async function getCharsets() {
 async function getOnnxSession() {
   if (!onnxSessionPromise) {
     onnxSessionPromise = (async () => {
+      console.log('[Unfugly Offscreen] Initializing ONNX runtime (wasm)...');
       // Point wasm paths to extension bundled wasm binaries
       ort.env.wasm.wasmPaths = chrome.runtime.getURL('lib/onnx/');
       ort.env.wasm.numThreads = 1;
+      ort.env.wasm.proxy = false;
 
       const modelUrl = chrome.runtime.getURL('lib/onnx/common_old.onnx');
+      console.log('[Unfugly Offscreen] Loading model from:', modelUrl);
       const response = await fetch(modelUrl);
       const modelBuffer = await response.arrayBuffer();
 
