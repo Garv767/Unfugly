@@ -305,6 +305,21 @@ To debug and verify firewall connectivity directly from the deployed server's eg
 - `GET /api/v2/auth/sp-proxy-view`: Proxies the Student Portal login page through the backend, injects `<base href="...">`, and strips `X-Frame-Options` and CSP headers to allow safe rendering inside an embedded iframe on the same tab.
 - `GET /api/v2/auth/sp-live-embed`: Serves an interactive standalone diagnostics console displaying the server's public IP, active proxy status, live embedded portal frame, and a direct challenge solver.
 
+### 4.6 Automated Extension ONNX Captcha Solver (`sp_content.js`)
+When a student opens Student Portal (`https://sp.srmist.edu.in/...`):
+1. **Zero-Click Page Load Detection**:
+   - `sp_content.js` automatically detects the presence of `#captcha` (or `input[name="captcha"]`) and `#secure_captcha` / `#captchaImg`.
+   - Once the portal's `guardlogin.js` completes the XMLHttpRequest and sets `img.src = URL.createObjectURL(blob)`, the extension extracts the clean image binary via an offscreen `<canvas>` drawing (`toDataURL('image/png')`).
+2. **Instant In-Process ONNX Solving**:
+   - Sends `chrome.runtime.sendMessage({ action: "solve_sp_captcha", imageBase64 })` to `background.js`.
+   - The backend `POST /api/v2/auth/solve-captcha` executes `solveCaptchaBuffer` via pure in-process `onnxruntime-node` with `common_old.onnx` and `charsets.json`, returning the decoded 6-character string in sub-20ms.
+3. **UI Reflection & Signature Styling**:
+   - The solved text is populated into the captcha input using prototype descriptor setters and synthetic `input`/`change` events.
+   - **Signature Unfugly Border**: Applies `#00E676` (Unfugly neon emerald) border and glowing box-shadow (`box-shadow: 0 0 0 3px rgba(0, 230, 118, 0.22)`).
+   - **UI Verification Badge**: Injects a sleek glassmorphic pill badge directly beneath the captcha field displaying the exact solved text (`Solved with by Unfugly: [ABC123]`) with an instant re-solve button, allowing students to verify the solution against the image.
+   - **Hover Tooltip**: Displays `"Solved with by Unfugly"` on hover across both the input and the badge.
+   - **Auto-Refresh Observer**: Automatically detects when a student clicks the captcha image to refresh, immediately re-extracting and re-solving the new challenge seamlessly.
+
 ---
 
 ## 5. Software Features & Predictive Engines
@@ -527,6 +542,7 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Computes RFC 6238 HMAC-SHA1 TOTP tokens client-side using `crypto.subtle`.
   - Injected via an isolated Shadow DOM root (`unfugly-ktrete-authenticator-host`) to prevent CSS contamination from/to the host page.
   - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.
+  - Real-time live code updates in both full island (`#unfugly-code-text`) and minimized capsule (`#unfugly-mini-code-click`) views with smooth opacity transitions whenever tokens roll over.
   - Provides instant one-click copy with visual toast confirmation (both on the main bar and direct copy button in minimized view), an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
   - Non-destructive setup preview & debug hooks: `Alt+S`, `Ctrl+Shift+U`, settings menu item, and `window.__unfuglyOpenSetupModal()` allow previewing the setup modal with existing secrets fully preserved.
 - **Portal Anti-DevTools & Right-Click Unblocking (`theajack/disable-devtool` Shield)**:

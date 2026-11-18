@@ -53,7 +53,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleFetchBackend(request, sendResponse);
     return true; // Keep message channel open for async response
   }
+
+  if (request.action === "solve_sp_captcha") {
+    handleSolveSpCaptcha(request, sendResponse);
+    return true; // Keep message channel open for async response
+  }
 });
+
+async function handleSolveSpCaptcha(request, sendResponse) {
+  const payload = JSON.stringify({ imageBase64: request.imageBase64 });
+  const endpoints = [
+    'https://unfugly-backend.onrender.com/api/v2/auth/solve-captcha',
+    'http://localhost:5000/api/v2/auth/solve-captcha'
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+      if (res.ok) {
+        const data = await res.json();
+        UnfuglyLog.info('CAPTCHA', `Solved via ${url}: ${data.text} (${data.duration || 'ok'})`);
+        sendResponse(data);
+        return;
+      }
+    } catch (_) {}
+  }
+
+  UnfuglyLog.error('CAPTCHA', 'All captcha solving endpoints failed');
+  sendResponse({ success: false, error: 'Failed to reach captcha solver backend' });
+}
 
 async function handleFetchBackend(request, sendResponse) {
   try {

@@ -2819,12 +2819,24 @@
 
       if (shadowRoot) {
         const codeText = shadowRoot.getElementById('unfugly-code-text');
+        const miniCodeClick = shadowRoot.getElementById('unfugly-mini-code-click');
+        const formatted = formatCode(currentTotpCode);
+
         if (codeText) {
-          codeText.textContent = formatCode(currentTotpCode);
+          codeText.textContent = formatted;
           codeText.style.opacity = '0.4';
           setTimeout(() => {
             codeText.style.transition = 'opacity 0.3s ease';
             codeText.style.opacity = '1';
+          }, 80);
+        }
+
+        if (miniCodeClick) {
+          miniCodeClick.textContent = formatted;
+          miniCodeClick.style.opacity = '0.4';
+          setTimeout(() => {
+            miniCodeClick.style.transition = 'opacity 0.3s ease';
+            miniCodeClick.style.opacity = '1';
           }, 80);
         }
       }
