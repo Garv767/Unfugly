@@ -1350,7 +1350,7 @@ export default function LoginPage() {
 
             {/* STEP 1: STUDENT PORTAL PASSWORD */}
             {portalStep === 'sp' && (
-              <form onSubmit={handleConnectSp} className="space-y-4">
+              <form onSubmit={manualCaptchaMode ? handleManualCaptchaVerify : handleConnectSp} className="space-y-4">
                 <div className="p-3 rounded-lg bg-surface2/50 border border-border/40 text-xs text-muted space-y-1">
                   <p className="text-text font-medium">🔒 Bank-Grade AES-256-GCM Encryption</p>
                   <p>

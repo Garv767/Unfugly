@@ -333,7 +333,7 @@ export default function Dashboard() {
         body: JSON.stringify({
           net_id: netId,
           sp_password: portalSpPassword,
-          captcha_code: portalCaptchaCode.trim().toUpperCase(),
+          captcha_code: portalCaptchaCode.trim(),
           challenge_id: portalChallengeId
         })
       });
