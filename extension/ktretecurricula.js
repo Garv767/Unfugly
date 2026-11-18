@@ -5,7 +5,68 @@
 (function () {
   'use strict';
 
-  // Prevent multiple injections
+  // =========================================================================
+  // 0. Anti-DevTools & Right-Click Unblocker (Runs immediately on execution)
+  // =========================================================================
+  function unblockDevTools() {
+    // 1. Capture phase: Stop page scripts from blocking contextmenu, copy, cut
+    ['contextmenu', 'copy', 'cut', 'selectstart'].forEach((evt) => {
+      window.addEventListener(
+        evt,
+        (e) => {
+          e.stopImmediatePropagation();
+        },
+        true
+      );
+    });
+
+    // 2. Capture phase: Stop page scripts from intercepting F12, Ctrl+Shift+I/J/C, Ctrl+U
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (
+          e.key === 'F12' ||
+          (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
+          (e.ctrlKey && ['U', 'u'].includes(e.key))
+        ) {
+          e.stopImmediatePropagation();
+        }
+      },
+      true
+    );
+
+    // 3. Inject script into main page context to neuter anti-debug debugger statements
+    try {
+      const script = document.createElement('script');
+      script.textContent = `
+        (function() {
+          try {
+            window.oncontextmenu = null;
+            document.oncontextmenu = null;
+            window.onkeydown = null;
+            document.onkeydown = null;
+
+            const origConstructor = Function.prototype.constructor;
+            Function.prototype.constructor = function(str) {
+              if (typeof str === 'string' && str.includes('debugger')) {
+                return function() {};
+              }
+              return origConstructor.apply(this, arguments);
+            };
+
+            const origClear = console.clear;
+            console.clear = function() {};
+          } catch (_) {}
+        })();
+      `;
+      (document.head || document.documentElement).appendChild(script);
+      script.remove();
+    } catch (_) {}
+  }
+
+  unblockDevTools();
+
+  // Prevent multiple injections of content script
   if (window.unfuglyKtreteTotpLoaded) return;
   window.unfuglyKtreteTotpLoaded = true;
 
@@ -18,7 +79,8 @@
     period: 'unfuglyKtreteTotpPeriod',
     minimized: 'unfuglyKtreteTotpMinimized',
     position: 'unfuglyKtretePosition',
-    miniPosition: 'unfuglyKtreteMiniPosition'
+    miniPosition: 'unfuglyKtreteMiniPosition',
+    autoInject: 'unfuglyKtreteAutoInject'
   };
 
   // State
@@ -29,7 +91,9 @@
   let currentTotpCode = '------';
   let isMinimized = false;
   let isSetupModalOpen = false;
+  let isInspectorOpen = false;
   let isDropdownOpen = false;
+  let isAutoInjectEnabled = true;
   let activeSetupTab = 'camera'; // 'camera' | 'upload' | 'manual'
   let timerInterval = null;
   let lastStep = -1;
@@ -39,6 +103,14 @@
   // Camera stream state
   let activeCameraStream = null;
   let cameraScanInterval = null;
+
+  // Inspector & Element Picker State
+  let inspectedElement = null;
+  let isPickerActive = false;
+  let pickerOverlay = null;
+
+  // Auto-inject cooldown tracking
+  let autoInjectCooldown = 0;
 
   // =========================================================================
   // 1. Storage Helpers
@@ -210,7 +282,7 @@
           shift += 7;
         }
 
-        if (wireType === 2 && fieldNumber === 1) { // otp_parameters
+        if (wireType === 2 && fieldNumber === 1) {
           const otpBytes = buffer.slice(pos, pos + lenOrVal);
           pos += lenOrVal;
 
@@ -274,7 +346,6 @@
     if (!input || typeof input !== 'string') return null;
     const trimmed = input.trim();
 
-    // Check for Google Authenticator Export URL (otpauth-migration://offline?data=...)
     if (trimmed.startsWith('otpauth-migration://')) {
       try {
         const url = new URL(trimmed);
@@ -295,7 +366,6 @@
       }
     }
 
-    // Check if it's a standard otpauth URI
     if (trimmed.startsWith('otpauth://')) {
       try {
         const url = new URL(trimmed);
@@ -323,7 +393,6 @@
       }
     }
 
-    // Check if it's a raw base32 secret (letters A-Z and digits 2-7, >= 8 chars)
     const cleaned = trimmed.replace(/\s+/g, '').toUpperCase();
     if (/^[A-Z2-7]{8,}$/.test(cleaned)) {
       return {
@@ -409,9 +478,86 @@
   }
 
   // =========================================================================
-  // 5. Autofill Helper for OTP Inputs
+  // 5. Intelligent Multi-Popup Auto-Injector
   // =========================================================================
-  function findOtpInput() {
+  function findActiveModal() {
+    const modalSelectors = [
+      '.modal.show',
+      '.modal.in',
+      '.modal[style*="display: block"]',
+      '.modal[style*="display:block"]',
+      '.swal2-container',
+      '.swal-overlay',
+      '.swal-modal',
+      'mat-dialog-container',
+      '.p-dialog',
+      '[role="dialog"]:not([aria-hidden="true"])',
+      '[aria-modal="true"]:not([aria-hidden="true"])',
+      '.cdk-overlay-pane',
+      '.dialog:not([style*="display: none"])',
+      '.popup:not([style*="display: none"])',
+      '.overlay:not([style*="display: none"])',
+      '#otpModal',
+      '#verifyModal',
+      '#checkModal'
+    ];
+    for (const sel of modalSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.offsetParent !== null) {
+        return el;
+      }
+    }
+    return null;
+  }
+
+  function findActiveOtpTargets() {
+    // 1. Check inside active modal/dialog (submission verification or 5-min check)
+    const activeModal = findActiveModal();
+    if (activeModal) {
+      // Split 6-digit box inputs inside modal
+      const splitInputs = Array.from(
+        activeModal.querySelectorAll('input[maxlength="1"], input.otp-box, input.digit-input, input[aria-label*="digit" i]')
+      ).filter((el) => el.offsetParent !== null && !el.disabled && !el.readOnly);
+
+      if (splitInputs.length === 6) {
+        return { type: 'split', inputs: splitInputs, container: activeModal };
+      }
+
+      // Explicit OTP input inside modal
+      const modalOtpInput = activeModal.querySelector(
+        'input[name*="otp" i], input[id*="otp" i], input[placeholder*="otp" i], input[placeholder*="code" i], input[placeholder*="authenticator" i], input[placeholder*="token" i], input[autocomplete="one-time-code"], input[maxlength="6"], input[formcontrolname*="otp" i], input[ng-model*="otp" i]'
+      );
+      if (modalOtpInput && modalOtpInput.offsetParent !== null && !modalOtpInput.disabled && !modalOtpInput.readOnly) {
+        return { type: 'single', inputs: [modalOtpInput], container: activeModal };
+      }
+
+      // If modal has only 1 text/number input, that IS the verification input
+      const visibleInputs = Array.from(
+        activeModal.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"])')
+      ).filter((el) => el.offsetParent !== null && !el.disabled && !el.readOnly);
+
+      if (visibleInputs.length === 1) {
+        return { type: 'single', inputs: [visibleInputs[0]], container: activeModal };
+      }
+    }
+
+    // 2. Global fallback
+    const globalSplit = Array.from(
+      document.querySelectorAll('input[maxlength="1"], input.otp-box, input.digit-input, input[aria-label*="digit" i]')
+    ).filter((el) => el.offsetParent !== null && !el.disabled && !el.readOnly);
+    if (globalSplit.length === 6) {
+      return { type: 'split', inputs: globalSplit, container: document.body };
+    }
+
+    const globalSingle = findSingleOtpInput();
+    if (globalSingle) {
+      return { type: 'single', inputs: [globalSingle], container: document.body };
+    }
+
+    return null;
+  }
+
+  function findSingleOtpInput() {
     if (
       document.activeElement &&
       document.activeElement.tagName === 'INPUT' &&
@@ -426,10 +572,14 @@
       'input[placeholder*="code" i]',
       'input[placeholder*="authenticator" i]',
       'input[placeholder*="token" i]',
+      'input[placeholder*="verification" i]',
+      'input[placeholder*="digit" i]',
       'input[name*="code" i]',
       'input[id*="code" i]',
       'input[autocomplete="one-time-code"]',
-      'input[maxlength="6"]'
+      'input[maxlength="6"]',
+      'input[formcontrolname*="otp" i]',
+      'input[ng-model*="otp" i]'
     ];
     for (const sel of selectors) {
       const el = document.querySelector(sel);
@@ -440,14 +590,86 @@
     return null;
   }
 
-  function autofillOtp(code) {
-    const input = findOtpInput();
-    if (!input) return false;
+  // Framework-compliant value injection (Angular, React, Vue)
+  function injectNativeValue(input, val) {
     input.focus();
-    input.value = code;
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (nativeSetter) {
+      nativeSetter.call(input, val);
+    } else {
+      input.value = val;
+    }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: val.slice(-1) }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: val.slice(-1) }));
+    input.dispatchEvent(new KeyboardEvent('keypress', { bubbles: true, key: val.slice(-1) }));
+  }
+
+  function autofillOtp(code) {
+    const targets = findActiveOtpTargets();
+    if (!targets) return false;
+
+    const cleanCode = code.replace(/\s+/g, '');
+    if (targets.type === 'split') {
+      targets.inputs.forEach((inp, idx) => {
+        if (cleanCode[idx]) injectNativeValue(inp, cleanCode[idx]);
+      });
+    } else {
+      injectNativeValue(targets.inputs[0], cleanCode);
+    }
     return true;
+  }
+
+  // Automatic Injection on Modal/Popup Appearance (Submissions + 5-min check)
+  function checkAndAutoInject() {
+    if (!currentSecret || !isAutoInjectEnabled) return;
+
+    const targets = findActiveOtpTargets();
+    if (!targets || targets.inputs.length === 0) return;
+
+    const primaryInput = targets.inputs[0];
+    const cleanCode = currentTotpCode.replace(/\s+/g, '');
+    if (!cleanCode || cleanCode === '------') return;
+
+    const now = Date.now();
+    const lastFilledCode = primaryInput.dataset.unfuglyLastFilledCode;
+    const lastFilledTime = parseInt(primaryInput.dataset.unfuglyLastFilledTime, 10) || 0;
+
+    // Skip if already filled recently with the same code
+    if (lastFilledCode === cleanCode && now - lastFilledTime < 6000) return;
+    if (now - autoInjectCooldown < 1200) return;
+
+    autoInjectCooldown = now;
+    primaryInput.dataset.unfuglyLastFilledCode = cleanCode;
+    primaryInput.dataset.unfuglyLastFilledTime = String(now);
+
+    if (targets.type === 'split') {
+      targets.inputs.forEach((inp, idx) => {
+        if (cleanCode[idx]) injectNativeValue(inp, cleanCode[idx]);
+      });
+    } else {
+      injectNativeValue(primaryInput, cleanCode);
+    }
+
+    showToast(`Auto-filled OTP (${cleanCode})`);
+  }
+
+  // MutationObserver to catch every subsequent submission & 5-minute inactivity popup
+  function setupPopupObserver() {
+    const observer = new MutationObserver(() => {
+      checkAndAutoInject();
+    });
+
+    observer.observe(document.documentElement || document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class', 'hidden']
+    });
+
+    // Fallback periodic check every 1.5 seconds
+    setInterval(checkAndAutoInject, 1500);
   }
 
   // =========================================================================
@@ -620,7 +842,95 @@
   }
 
   // =========================================================================
-  // 8. Shadow DOM UI Injection (Ultra-Refined Minimalist Glass Aesthetic)
+  // 8. Interactive Element Picker Tool
+  // =========================================================================
+  function startElementPicker() {
+    isPickerActive = true;
+    isInspectorOpen = false;
+    renderWidget();
+
+    showToast('Click any popup or element on page to inspect its HTML');
+
+    pickerOverlay = document.createElement('div');
+    pickerOverlay.id = 'unfugly-picker-overlay';
+    pickerOverlay.style.cssText =
+      'position: fixed; pointer-events: none; border: 2px solid #38bdf8; background: rgba(56, 189, 248, 0.15); z-index: 2147483646; transition: all 0.05s ease; border-radius: 4px; display: none;';
+    document.documentElement.appendChild(pickerOverlay);
+
+    const onMove = (e) => {
+      if (!isPickerActive) return;
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (target && !target.closest('#unfugly-ktrete-authenticator-host')) {
+        const rect = target.getBoundingClientRect();
+        pickerOverlay.style.display = 'block';
+        pickerOverlay.style.top = `${rect.top}px`;
+        pickerOverlay.style.left = `${rect.left}px`;
+        pickerOverlay.style.width = `${rect.width}px`;
+        pickerOverlay.style.height = `${rect.height}px`;
+      }
+    };
+
+    const onClick = (e) => {
+      if (!isPickerActive) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      stopElementPicker();
+
+      if (target && !target.closest('#unfugly-ktrete-authenticator-host')) {
+        inspectedElement = target;
+        isInspectorOpen = true;
+        renderWidget();
+      }
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && isPickerActive) {
+        stopElementPicker();
+        isInspectorOpen = true;
+        renderWidget();
+      }
+    };
+
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+
+    window._unfuglyCleanPicker = () => {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+      if (pickerOverlay) {
+        pickerOverlay.remove();
+        pickerOverlay = null;
+      }
+    };
+  }
+
+  function stopElementPicker() {
+    isPickerActive = false;
+    if (window._unfuglyCleanPicker) {
+      window._unfuglyCleanPicker();
+      window._unfuglyCleanPicker = null;
+    }
+  }
+
+  function generateSelector(el) {
+    if (!el || el.nodeType !== 1) return '';
+    if (el.id) return `#${el.id}`;
+    let path = el.tagName.toLowerCase();
+    if (el.className && typeof el.className === 'string') {
+      const classes = el.className.trim().split(/\s+/).filter((c) => c && !c.startsWith('ng-'));
+      if (classes.length) path += `.${classes.slice(0, 2).join('.')}`;
+    }
+    if (el.getAttribute('name')) path += `[name="${el.getAttribute('name')}"]`;
+    if (el.getAttribute('placeholder')) path += `[placeholder*="${el.getAttribute('placeholder').slice(0, 10)}"]`;
+    return path;
+  }
+
+  // =========================================================================
+  // 9. Shadow DOM UI Injection (Ultra-Refined Minimalist Glass Aesthetic)
   // =========================================================================
   let shadowRoot = null;
 
@@ -656,6 +966,11 @@
 
   function renderWidget() {
     if (!shadowRoot) return;
+
+    // Detect active modal & inputs for inspector
+    const activeModal = findActiveModal();
+    const modalHtml = activeModal ? activeModal.outerHTML : '';
+    const allInputs = Array.from(document.querySelectorAll('input:not([type="hidden"])'));
 
     shadowRoot.innerHTML = `
       <style>
@@ -700,7 +1015,6 @@
           box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
         }
 
-        /* Subtle Grip Handle */
         .unfugly-grip {
           display: flex;
           align-items: center;
@@ -713,18 +1027,9 @@
           transition: opacity 0.15s ease, color 0.15s ease;
         }
 
-        .unfugly-island:hover .unfugly-grip {
-          opacity: 1;
-        }
-
-        .unfugly-grip:hover {
-          color: #94a3b8;
-        }
-
-        .unfugly-grip.dragging {
-          cursor: grabbing !important;
-          color: #38bdf8;
-        }
+        .unfugly-island:hover .unfugly-grip { opacity: 1; }
+        .unfugly-grip:hover { color: #94a3b8; }
+        .unfugly-grip.dragging { cursor: grabbing !important; color: #38bdf8; }
 
         /* Minimized Capsule */
         .unfugly-capsule {
@@ -737,9 +1042,9 @@
           box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 5px 11px 5px 8px;
-          cursor: grab;
+          gap: 6px;
+          padding: 4px 8px 4px 8px;
+          cursor: default;
           z-index: 2147483647;
           touch-action: none;
           transition: border-color 0.2s ease, transform 0.15s ease;
@@ -750,7 +1055,6 @@
           transform: translateY(-1px);
         }
 
-        /* Brand & Status Indicator */
         .unfugly-brand {
           display: flex;
           align-items: center;
@@ -790,7 +1094,6 @@
           background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Central Code Button (The Primary Hero Element) */
         .unfugly-code-chip {
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.08);
@@ -810,9 +1113,7 @@
           transform: scale(1.02);
         }
 
-        .unfugly-code-chip:active {
-          transform: scale(0.98);
-        }
+        .unfugly-code-chip:active { transform: scale(0.98); }
 
         .unfugly-digits {
           font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -829,20 +1130,13 @@
           transition: color 0.15s ease;
         }
 
-        .unfugly-code-chip:hover .unfugly-copy-icon {
-          color: #94a3b8;
-        }
+        .unfugly-code-chip:hover .unfugly-copy-icon { color: #94a3b8; }
 
         .unfugly-code-chip.copied {
           background: rgba(16, 185, 129, 0.15) !important;
           border-color: rgba(16, 185, 129, 0.4) !important;
         }
 
-        .unfugly-code-chip.copied .unfugly-copy-icon {
-          color: #34d399 !important;
-        }
-
-        /* Google Authenticator Minimal Radial Progress Ring */
         .unfugly-ring-box {
           position: relative;
           width: 26px;
@@ -887,11 +1181,8 @@
           font-family: ui-monospace, monospace;
         }
 
-        .unfugly-ring-num.urgent {
-          color: #fb7185;
-        }
+        .unfugly-ring-num.urgent { color: #fb7185; }
 
-        /* Micro Action Buttons */
         .unfugly-nav-actions {
           display: flex;
           align-items: center;
@@ -937,12 +1228,11 @@
           background: rgba(255, 255, 255, 0.08);
         }
 
-        /* In-App Settings Popover (Clean native popover, zero prompt dialogs) */
         .unfugly-popover {
           position: absolute;
           top: calc(100% + 8px);
           right: 0;
-          width: 190px;
+          width: 205px;
           background: #11141c;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 12px;
@@ -960,9 +1250,7 @@
           to { opacity: 1; transform: translateY(0); }
         }
 
-        .unfugly-popover.open {
-          display: flex;
-        }
+        .unfugly-popover.open { display: flex; }
 
         .unfugly-menu-item {
           display: flex;
@@ -996,12 +1284,10 @@
           margin: 3px 0;
         }
 
-        /* Setup Trigger CTA */
         .unfugly-setup-cta {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: #0284c7;
           background: linear-gradient(135deg, #0ea5e9, #2563eb);
           color: #ffffff;
           border: none;
@@ -1019,7 +1305,6 @@
           box-shadow: 0 4px 12px rgba(14, 165, 233, 0.45);
         }
 
-        /* Modal Backdrop */
         .unfugly-modal-backdrop {
           position: fixed;
           top: 0;
@@ -1043,10 +1328,9 @@
           pointer-events: auto;
         }
 
-        /* Sheet Card (Linear / Raycast Style) */
         .unfugly-sheet {
           width: 90%;
-          max-width: 460px;
+          max-width: 480px;
           background: #0d111a;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 18px;
@@ -1077,13 +1361,11 @@
 
         .unfugly-sheet-subtitle {
           font-size: 12px;
-          color: #818cf8;
           color: #94a3b8;
           margin-top: 3px;
           line-height: 1.4;
         }
 
-        /* Clean Segmented Tab Control */
         .unfugly-tabs {
           display: flex;
           background: rgba(255, 255, 255, 0.05);
@@ -1110,10 +1392,7 @@
           gap: 6px;
         }
 
-        .unfugly-tab-btn:hover {
-          color: #f1f5f9;
-        }
-
+        .unfugly-tab-btn:hover { color: #f1f5f9; }
         .unfugly-tab-btn.active {
           background: rgba(255, 255, 255, 0.12);
           color: #ffffff;
@@ -1121,7 +1400,6 @@
           box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
         }
 
-        /* Camera Viewfinder (Face ID aesthetic) */
         .unfugly-scanner-box {
           position: relative;
           width: 100%;
@@ -1157,7 +1435,6 @@
           position: relative;
         }
 
-        /* Sleek Corner Brackets */
         .unfugly-target-frame::before, .unfugly-target-frame::after {
           content: '';
           position: absolute;
@@ -1203,7 +1480,6 @@
           100% { top: 85%; opacity: 0.8; }
         }
 
-        /* Clean Drop Area */
         .unfugly-drop-panel {
           border: 1px dashed rgba(255, 255, 255, 0.18);
           background: rgba(255, 255, 255, 0.02);
@@ -1223,22 +1499,10 @@
           border-color: rgba(56, 189, 248, 0.5);
         }
 
-        .unfugly-drop-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: #f1f5f9;
-        }
+        .unfugly-drop-title { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+        .unfugly-drop-note { font-size: 11.5px; color: #64748b; }
 
-        .unfugly-drop-note {
-          font-size: 11.5px;
-          color: #64748b;
-        }
-
-        /* Modern Input */
-        .unfugly-input-row {
-          display: flex;
-          gap: 8px;
-        }
+        .unfugly-input-row { display: flex; gap: 8px; }
 
         .unfugly-text-input {
           flex: 1;
@@ -1258,7 +1522,6 @@
           box-shadow: 0 0 0 1px #38bdf8;
         }
 
-        /* Footer Actions */
         .unfugly-sheet-footer {
           margin-top: 14px;
           display: flex;
@@ -1267,11 +1530,7 @@
           gap: 10px;
         }
 
-        .unfugly-guide-text {
-          font-size: 11.5px;
-          color: #64748b;
-          line-height: 1.4;
-        }
+        .unfugly-guide-text { font-size: 11.5px; color: #64748b; line-height: 1.4; }
 
         .unfugly-solid-btn {
           display: inline-flex;
@@ -1288,15 +1547,9 @@
           transition: opacity 0.15s ease, transform 0.1s ease;
         }
 
-        .unfugly-solid-btn:hover {
-          opacity: 0.92;
-        }
+        .unfugly-solid-btn:hover { opacity: 0.92; }
+        .unfugly-solid-btn:active { transform: scale(0.98); }
 
-        .unfugly-solid-btn:active {
-          transform: scale(0.98);
-        }
-
-        /* Alerts */
         .unfugly-sheet-alert {
           margin-top: 12px;
           padding: 8px 12px;
@@ -1319,7 +1572,32 @@
           color: #7dd3fc;
         }
 
-        /* Minimal Toast Chip */
+        /* Inspector Code Block */
+        .unfugly-code-view {
+          background: #020617;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 10px;
+          font-family: ui-monospace, "SF Mono", monospace;
+          font-size: 11.5px;
+          color: #38bdf8;
+          max-height: 220px;
+          overflow: auto;
+          white-space: pre-wrap;
+          word-break: break-all;
+          user-select: text;
+        }
+
+        .unfugly-input-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 8px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
         .unfugly-chip-toast {
           position: fixed;
           bottom: 24px;
@@ -1457,7 +1735,7 @@
               <button class="unfugly-icon-btn" id="unfugly-settings-btn" title="Options">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
               </button>
 
@@ -1467,8 +1745,21 @@
                 </svg>
               </button>
 
-              <!-- In-App Micro Menu (No browser alerts!) -->
+              <!-- In-App Micro Menu -->
               <div class="unfugly-popover ${isDropdownOpen ? 'open' : ''}" id="unfugly-dropdown-menu">
+                <button class="unfugly-menu-item" id="unfugly-menu-inspect" title="Inspect dialogs & HTML structures">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                  </svg>
+                  <span>Inspect HTML & Popups</span>
+                </button>
+                <button class="unfugly-menu-item" id="unfugly-menu-toggle-auto">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${isAutoInjectEnabled ? '#10b981' : '#64748b'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Auto-Fill Popups: ${isAutoInjectEnabled ? 'ON' : 'OFF'}</span>
+                </button>
                 <button class="unfugly-menu-item" id="unfugly-menu-rescan" title="View or re-scan without losing secret">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"></polyline>
@@ -1623,8 +1914,105 @@
             </div>
           </div>
 
-          <!-- Alert Notification -->
           <div class="unfugly-sheet-alert" id="unfugly-sheet-alert"></div>
+        </div>
+      </div>
+
+      <!-- DOM & Dialog HTML Inspector Sheet -->
+      <div class="unfugly-modal-backdrop ${isInspectorOpen ? 'open' : ''}" id="unfugly-inspector-modal">
+        <div class="unfugly-sheet" style="max-width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
+          <div class="unfugly-sheet-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="unfugly-sheet-title">HTML & Dialog Inspector</span>
+                <span style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.28); color: #38bdf8; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 9999px;">DevTools Unblocked</span>
+              </div>
+              <div class="unfugly-sheet-subtitle">
+                Inspect popup dialogs, submission checks, and OTP form structures.
+              </div>
+            </div>
+            <button class="unfugly-icon-btn" id="unfugly-close-inspector-btn" title="Close (Alt+I)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Inspector Action Toolbar -->
+          <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button class="unfugly-pill-btn" id="unfugly-inspect-pick-btn" title="Click any element on page to inspect its HTML">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+              <span>Pick Element on Page</span>
+            </button>
+            <button class="unfugly-pill-btn" id="unfugly-copy-modal-html-btn" title="Copy active popup outer HTML">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy Modal HTML</span>
+            </button>
+            <button class="unfugly-pill-btn" id="unfugly-copy-page-html-btn" title="Copy entire page HTML">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              <span>Copy Full Page HTML</span>
+            </button>
+          </div>
+
+          <!-- Inspector Content -->
+          <div style="flex: 1; overflow-y: auto; max-height: 380px; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+            ${
+              inspectedElement
+                ? `
+              <div style="font-size: 11.5px; font-weight: 600; color: #38bdf8;">Picked Element:</div>
+              <div class="unfugly-input-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #f8fafc;">${escapeHtml(generateSelector(inspectedElement))}</span>
+                  <button class="unfugly-pill-btn" id="unfugly-copy-picked-btn" style="padding: 2px 7px;">Copy HTML</button>
+                </div>
+                <div class="unfugly-code-view" style="max-height: 140px;">${escapeHtml(inspectedElement.outerHTML)}</div>
+              </div>
+            `
+                : ''
+            }
+
+            <div style="font-size: 11.5px; font-weight: 600; color: #94a3b8; display: flex; justify-content: space-between;">
+              <span>Active Dialog / Modal:</span>
+              <span>${activeModal ? 'Detected' : 'No active popup detected'}</span>
+            </div>
+
+            ${
+              modalHtml
+                ? `
+              <div class="unfugly-code-view" style="max-height: 160px;">${escapeHtml(modalHtml)}</div>
+            `
+                : `
+              <div style="padding: 14px; text-align: center; font-size: 11.5px; color: #64748b; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                Trigger your submission or 5-min check popup, then press <strong>Alt + I</strong> to see its HTML here.
+              </div>
+            `
+            }
+
+            <div style="font-size: 11.5px; font-weight: 600; color: #94a3b8; margin-top: 4px;">
+              Detected Input Fields (${allInputs.length}):
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${allInputs
+                .slice(0, 8)
+                .map((inp, i) => {
+                  const sel = generateSelector(inp);
+                  return `
+                  <div class="unfugly-input-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #38bdf8;">${escapeHtml(sel)}</span>
+                      <button class="unfugly-pill-btn unfugly-fill-specific-btn" data-input-idx="${i}" style="padding: 2px 7px;">Fill OTP</button>
+                    </div>
+                    <div style="font-size: 10.5px; color: #94a3b8;">
+                      type="${escapeHtml(inp.type)}" ${inp.id ? `id="${escapeHtml(inp.id)}"` : ''} ${inp.name ? `name="${escapeHtml(inp.name)}"` : ''} ${inp.placeholder ? `placeholder="${escapeHtml(inp.placeholder)}"` : ''}
+                    </div>
+                  </div>
+                `;
+                })
+                .join('')}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1685,7 +2073,7 @@
   }
 
   // =========================================================================
-  // 9. Action Handlers & Event Listeners
+  // 10. Action Handlers & Event Listeners
   // =========================================================================
   function attachEventListeners() {
     if (!shadowRoot) return;
@@ -1864,7 +2252,7 @@
       });
     };
 
-    // One-Click Hero Code Copy Action
+    // Hero Code Copy Action
     const codeBtn = shadowRoot.getElementById('unfugly-code-btn');
     if (codeBtn) {
       codeBtn.onclick = () => handleCopyCode(codeBtn, null);
@@ -1891,7 +2279,7 @@
       };
     }
 
-    // Autofill Action
+    // Manual Autofill Action
     const autofillBtn = shadowRoot.getElementById('unfugly-autofill-btn');
     if (autofillBtn) {
       autofillBtn.onclick = () => {
@@ -1907,7 +2295,7 @@
       };
     }
 
-    // In-App Settings Popover Toggle
+    // Settings Popover Toggle
     const settingsBtn = shadowRoot.getElementById('unfugly-settings-btn');
     const dropdownMenu = shadowRoot.getElementById('unfugly-dropdown-menu');
 
@@ -1918,13 +2306,33 @@
         dropdownMenu.classList.toggle('open', isDropdownOpen);
       };
 
-      // Close popover when clicking anywhere else
       document.addEventListener('click', () => {
         if (isDropdownOpen) {
           isDropdownOpen = false;
           dropdownMenu.classList.remove('open');
         }
       });
+    }
+
+    // Open Inspector from Menu
+    const menuInspect = shadowRoot.getElementById('unfugly-menu-inspect');
+    if (menuInspect) {
+      menuInspect.onclick = () => {
+        isDropdownOpen = false;
+        isInspectorOpen = true;
+        renderWidget();
+      };
+    }
+
+    // Toggle Auto-Inject from Menu
+    const menuToggleAuto = shadowRoot.getElementById('unfugly-menu-toggle-auto');
+    if (menuToggleAuto) {
+      menuToggleAuto.onclick = () => {
+        isAutoInjectEnabled = !isAutoInjectEnabled;
+        setStorageData({ [STORAGE_KEYS.autoInject]: isAutoInjectEnabled });
+        renderWidget();
+        showToast(`Auto-Fill Popups: ${isAutoInjectEnabled ? 'ENABLED' : 'DISABLED'}`);
+      };
     }
 
     const menuRescan = shadowRoot.getElementById('unfugly-menu-rescan');
@@ -1968,6 +2376,73 @@
       };
     }
 
+    // Inspector Action Buttons
+    const closeInspectorBtn = shadowRoot.getElementById('unfugly-close-inspector-btn');
+    if (closeInspectorBtn) {
+      closeInspectorBtn.onclick = () => {
+        isInspectorOpen = false;
+        renderWidget();
+      };
+    }
+
+    const inspectModal = shadowRoot.getElementById('unfugly-inspector-modal');
+    if (inspectModal) {
+      inspectModal.onclick = (e) => {
+        if (e.target === inspectModal) {
+          isInspectorOpen = false;
+          renderWidget();
+        }
+      };
+    }
+
+    const inspectPickBtn = shadowRoot.getElementById('unfugly-inspect-pick-btn');
+    if (inspectPickBtn) {
+      inspectPickBtn.onclick = () => startElementPicker();
+    }
+
+    const copyModalHtmlBtn = shadowRoot.getElementById('unfugly-copy-modal-html-btn');
+    if (copyModalHtmlBtn) {
+      copyModalHtmlBtn.onclick = () => {
+        const modal = findActiveModal();
+        if (modal) {
+          navigator.clipboard.writeText(modal.outerHTML);
+          showToast('Copied active modal HTML');
+        } else {
+          showToast('No active modal found on screen');
+        }
+      };
+    }
+
+    const copyPageHtmlBtn = shadowRoot.getElementById('unfugly-copy-page-html-btn');
+    if (copyPageHtmlBtn) {
+      copyPageHtmlBtn.onclick = () => {
+        navigator.clipboard.writeText(document.documentElement.outerHTML);
+        showToast('Copied full page HTML');
+      };
+    }
+
+    const copyPickedBtn = shadowRoot.getElementById('unfugly-copy-picked-btn');
+    if (copyPickedBtn && inspectedElement) {
+      copyPickedBtn.onclick = () => {
+        navigator.clipboard.writeText(inspectedElement.outerHTML);
+        showToast('Copied picked element HTML');
+      };
+    }
+
+    // Specific input test autofill from inspector
+    const allInputs = Array.from(document.querySelectorAll('input:not([type="hidden"])'));
+    shadowRoot.querySelectorAll('.unfugly-fill-specific-btn').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.inputIdx, 10);
+        const targetInp = allInputs[idx];
+        if (targetInp && currentTotpCode && currentTotpCode !== '------') {
+          const cleanCode = currentTotpCode.replace(/\s+/g, '');
+          injectNativeValue(targetInp, cleanCode);
+          showToast(`Injected ${cleanCode} into ${generateSelector(targetInp)}`);
+        }
+      };
+    });
+
     // Minimize & Restore
     const minimizeBtn = shadowRoot.getElementById('unfugly-minimize-btn');
     if (minimizeBtn) {
@@ -1977,25 +2452,38 @@
         renderWidget();
       };
     }
-
-    const minExpandBtn = shadowRoot.getElementById('unfugly-min-expand-btn');
-    if (minExpandBtn) {
-      minExpandBtn.onclick = () => {
-        isMinimized = false;
-        setStorageData({ [STORAGE_KEYS.minimized]: false });
-        renderWidget();
-      };
-    }
   }
 
-  // Keyboard shortcut listener: Alt+S or Ctrl+Shift+U opens Setup Modal in preview mode without removing secret
+  // Keyboard shortcut listener:
+  // - Alt+S or Ctrl+Shift+U: Toggle Setup Modal in preview mode
+  // - Alt+I: Toggle HTML & Dialog Inspector
+  // - Esc: Close any open modal
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isSetupModalOpen) {
-      stopCameraScanner();
-      isSetupModalOpen = false;
+    if (e.key === 'Escape') {
+      if (isPickerActive) {
+        stopElementPicker();
+        return;
+      }
+      if (isInspectorOpen) {
+        isInspectorOpen = false;
+        renderWidget();
+        return;
+      }
+      if (isSetupModalOpen) {
+        stopCameraScanner();
+        isSetupModalOpen = false;
+        renderWidget();
+        return;
+      }
+    }
+
+    if ((e.altKey && (e.key === 'i' || e.key === 'I'))) {
+      e.preventDefault();
+      isInspectorOpen = !isInspectorOpen;
       renderWidget();
       return;
     }
+
     if (
       (e.altKey && (e.key === 's' || e.key === 'S')) ||
       (e.ctrlKey && e.shiftKey && (e.key === 'u' || e.key === 'U'))
@@ -2010,7 +2498,7 @@
     }
   });
 
-  // Global debug hook accessible in developer tools console
+  // Global console debug hooks
   window.__unfuglyOpenSetupModal = () => {
     isSetupModalOpen = true;
     renderWidget();
@@ -2018,7 +2506,14 @@
   };
   window.openUnfugly2FASetup = window.__unfuglyOpenSetupModal;
 
-  // Handle global paste (Ctrl+V / Cmd+V)
+  window.__unfuglyInspect = () => {
+    isInspectorOpen = true;
+    renderWidget();
+    console.log('[Unfugly 2FA] HTML & Dialog Inspector opened.');
+  };
+  window.inspectUnfuglyPage = window.__unfuglyInspect;
+
+  // Global paste handler (Ctrl+V / Cmd+V)
   window.addEventListener('paste', async (e) => {
     const items = (e.clipboardData || window.clipboardData).items;
     for (const item of items) {
@@ -2079,7 +2574,7 @@
   }
 
   // =========================================================================
-  // 10. Dynamic Radial Timer & TOTP Update Loop
+  // 11. Dynamic Radial Timer & TOTP Update Loop
   // =========================================================================
   async function updateTotpCode(force = false) {
     if (!currentSecret) {
@@ -2184,6 +2679,10 @@
           savedPosition = changes[STORAGE_KEYS.position].newValue;
           shouldRerender = true;
         }
+        if (changes[STORAGE_KEYS.autoInject]) {
+          isAutoInjectEnabled = !!changes[STORAGE_KEYS.autoInject].newValue;
+          shouldRerender = true;
+        }
         if (shouldRerender) {
           updateTotpCode(true).then(() => renderWidget());
         }
@@ -2192,7 +2691,7 @@
   }
 
   // =========================================================================
-  // 11. Bootstrap
+  // 12. Bootstrap
   // =========================================================================
   async function init() {
     const stored = await getStorageData([
@@ -2202,7 +2701,8 @@
       STORAGE_KEYS.period,
       STORAGE_KEYS.minimized,
       STORAGE_KEYS.position,
-      STORAGE_KEYS.miniPosition
+      STORAGE_KEYS.miniPosition,
+      STORAGE_KEYS.autoInject
     ]);
 
     currentSecret = stored[STORAGE_KEYS.secret] || null;
@@ -2212,6 +2712,7 @@
     isMinimized = !!stored[STORAGE_KEYS.minimized];
     savedPosition = stored[STORAGE_KEYS.position] || null;
     savedMiniPosition = stored[STORAGE_KEYS.miniPosition] || null;
+    isAutoInjectEnabled = stored[STORAGE_KEYS.autoInject] !== undefined ? !!stored[STORAGE_KEYS.autoInject] : true;
 
     if (currentSecret) {
       await updateTotpCode(true);
@@ -2224,6 +2725,7 @@
     }
 
     startTimerLoop();
+    setupPopupObserver();
   }
 
   init();

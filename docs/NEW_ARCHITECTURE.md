@@ -529,5 +529,16 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.
   - Provides instant one-click copy with visual toast confirmation (both on the main bar and direct copy button in minimized view), an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
   - Non-destructive setup preview & debug hooks: `Alt+S`, `Ctrl+Shift+U`, settings menu item, and `window.__unfuglyOpenSetupModal()` allow previewing the setup modal with existing secrets fully preserved.
+- **Portal Anti-DevTools & Right-Click Unblocking**:
+  - Runs at `document_start` to intercept capture-phase keyboard shortcuts (`F12`, `Ctrl+Shift+I/J/C`, `Ctrl+U`) and context menu blocks (`contextmenu`, `selectstart`, `copy`).
+  - Injects a main-world prototype guard overriding `Function.prototype.constructor` and dynamic eval loops that execute `debugger` statements, neutralizing portal anti-debugging lockups.
+- **Built-in DOM & Dialog HTML Inspector (`Alt+I`)**:
+  - A built-in floating developer inspection drawer activated via `Alt+I`, the settings popover, or `window.__unfuglyInspect()`.
+  - Enables viewing, formatting, and 1-click copying of active modal dialog HTML structures, full page HTML, and an interactive element reticle picker without opening browser DevTools.
+- **Automated Multi-Stage OTP Autofill**:
+  - Continuous `MutationObserver` and periodic polling (every 800ms) detects OTP input triggers across all portal lifecycle stages: initial login, assignment / test submissions, and 5-minute inactivity verification prompts.
+  - Automatically identifies both single 6-digit inputs and split 6-box digit inputs (`input[maxlength="1"]`, `otp-box`, etc.).
+  - Employs prototype descriptor value setting (`HTMLInputElement.prototype.value`) followed by synthetic `input`, `change`, and `keyup` bubbling events to properly update reactive frontend frameworks (Angular / Vue / React).
+
 
 
