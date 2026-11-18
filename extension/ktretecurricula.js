@@ -5,6 +5,14 @@
 (function () {
   'use strict';
 
+  // Strict URL guard: only execute on https://dld.srmist.edu.in/ktretecurricula/#/
+  if (
+    !window.location.origin.includes('dld.srmist.edu.in') ||
+    !window.location.pathname.startsWith('/ktretecurricula')
+  ) {
+    return;
+  }
+
   // =========================================================================
   // 0. Anti-DevTools & Disable-Devtool Lockout Shield (Runs immediately)
   // =========================================================================

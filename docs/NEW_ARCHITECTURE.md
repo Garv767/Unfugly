@@ -532,7 +532,7 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
 - Metadata is passed to Supabase Auth (`options.data: { user_net_id, service, app_name }`), allowing custom Go-template conditionals in Supabase email templates or custom SMTP routing to deliver service-branded transactional OTPs and verification links.
 
 ### 10.5 SRM KTR E-Curricula 2FA Authenticator Companion Extension Script
-- **Portal Scope**: Injected on `https://dld.srmist.edu.in/ktretecurricula/*` (and `https://dld.srmist.edu.in/*`) via `extension/ktretecurricula.js` and `extension/lib/jsQR.js`.
+- **Portal Scope**: Strictly restricted to `https://dld.srmist.edu.in/ktretecurricula/*` (specifically `https://dld.srmist.edu.in/ktretecurricula/#/`) via `extension/manifest.json` content script matching, strict origin/path runtime guards in `extension/ktretecurricula.js`, and `initiatorDomains: ["dld.srmist.edu.in"]` in DNR redirect rules, ensuring zero script execution or intrusion across other university subdomains or portals.
 - **First-Setup QR & Migration Decoding**:
   - Direct Google Authenticator Export support: Decodes Google Authenticator's native `otpauth-migration://offline?data=...` protobuf format (used by Authenticator's "Transfer accounts" -> "Export accounts" screen).
   - Laptop Camera Scanner: Real-time video scanner (`getUserMedia`) that scans the export QR code held up on a phone screen directly through the laptop webcam.

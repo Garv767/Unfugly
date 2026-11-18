@@ -42,8 +42,7 @@
     },
     {
       "matches": [
-        "https://dld.srmist.edu.in/ktretecurricula/*",
-        "https://dld.srmist.edu.in/*"
+        "https://dld.srmist.edu.in/ktretecurricula/*"
       ],
       "js": [
         "lib/jsQR.js",

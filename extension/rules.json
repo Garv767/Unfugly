@@ -10,6 +10,7 @@
     },
     "condition": {
       "urlFilter": "*://theajack.github.io/*",
+      "initiatorDomains": ["dld.srmist.edu.in"],
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   }
