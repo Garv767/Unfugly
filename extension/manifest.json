@@ -5,12 +5,14 @@
   "description": "Revamp your Academia with a unified dashboard and Auto-generates a downloadable timetable",
   "permissions": [
     "cookies",
-    "storage"
+    "storage",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://srmist.edu.in/*",
     "https://*.srmist.edu.in/*",
     "https://dld.srmist.edu.in/*",
+    "https://theajack.github.io/*",
     "https://creatorapp.zoho.com/srm_university/*",
     "https://unfugly-backend.onrender.com/*",
     "https://zoho.in/*",
@@ -47,6 +49,15 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "antidevtool_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
   },
   "icons": {
     "16": "images/icon16.png",

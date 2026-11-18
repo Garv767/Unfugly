@@ -6,10 +6,10 @@
   'use strict';
 
   // =========================================================================
-  // 0. Anti-DevTools & Right-Click Unblocker (Runs immediately on execution)
+  // 0. Anti-DevTools & Disable-Devtool Lockout Shield (Runs immediately)
   // =========================================================================
   function unblockDevTools() {
-    // 1. Capture phase: Stop page scripts from blocking contextmenu, copy, cut
+    // 1. Capture phase: Stop page scripts from blocking contextmenu, copy, cut, text selection
     ['contextmenu', 'copy', 'cut', 'selectstart'].forEach((evt) => {
       window.addEventListener(
         evt,
@@ -35,31 +35,133 @@
       true
     );
 
-    // 3. Inject script into main page context to neuter anti-debug debugger statements
+    // 3. Inject script into main execution context to fully neuter 'disable-devtool' & debugger traps
     try {
       const script = document.createElement('script');
       script.textContent = `
         (function() {
           try {
-            window.oncontextmenu = null;
-            document.oncontextmenu = null;
-            window.onkeydown = null;
-            document.onkeydown = null;
+            // A. NEUTER disable-devtool VIA USER-AGENT BOT BYPASS (Instant Library Exit)
+            // The disable-devtool library explicitly checks: if (d.seo && info.seoBot) return disable('disable by bot');
+            // where seoBot = !mobile && /(googlebot|baiduspider|bingbot|applebot|petalbot|yandexbot|bytespider|chrome\\-lighthouse|moto g power)/i.test(navigator.userAgent.toLowerCase())
+            // Appending Googlebot triggers immediate clean exit before any detector runs.
+            try {
+              const origUADesc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
+              const origGetter = origUADesc ? origUADesc.get : null;
+              Object.defineProperty(Navigator.prototype, 'userAgent', {
+                get: function() {
+                  const raw = origGetter ? origGetter.call(this) : (navigator.userAgent || 'Mozilla/5.0');
+                  return raw.includes('Googlebot') ? raw : raw + ' (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (_) {}
 
-            const origConstructor = Function.prototype.constructor;
-            Function.prototype.constructor = function(str) {
-              if (typeof str === 'string' && str.includes('debugger')) {
-                return function() {};
+            // B. GLOBAL DisableDevtool OBJECT PRE-EMPTION
+            // In case any script references or initializes DisableDevtool, freeze it in permanently suspended state.
+            try {
+              const dummyDisableDevtool = function() {
+                return { success: false, reason: 'suspended' };
+              };
+              dummyDisableDevtool.isSuspend = true;
+              dummyDisableDevtool.isRunning = true;
+              dummyDisableDevtool.stop = function() {};
+              dummyDisableDevtool.close = function() {};
+              dummyDisableDevtool.isDevToolOpened = function() { return false; };
+              dummyDisableDevtool.DetectorType = {};
+              dummyDisableDevtool.version = '0.3.9';
+
+              Object.defineProperty(window, 'DisableDevtool', {
+                get: function() { return dummyDisableDevtool; },
+                set: function() {},
+                configurable: true
+              });
+              Object.defineProperty(window, 'disableDevtool', {
+                get: function() { return dummyDisableDevtool; },
+                set: function() {},
+                configurable: true
+              });
+              if (typeof globalThis !== 'undefined') {
+                Object.defineProperty(globalThis, 'DisableDevtool', {
+                  get: function() { return dummyDisableDevtool; },
+                  set: function() {},
+                  configurable: true
+                });
               }
-              return origConstructor.apply(this, arguments);
-            };
+            } catch (_) {}
 
-            const origClear = console.clear;
-            console.clear = function() {};
+            // C. DEFANG console.table AND console.clear (Performance Benchmark Detector neutralization)
+            // disable-devtool compares high-volume console.table execution time against console.log
+            try {
+              console.table = function() {};
+              console.clear = function() {};
+            } catch (_) {}
+
+            // D. INTERCEPT DYNAMIC DEBUGGER EVALUATION
+            try {
+              const origConstructor = Function.prototype.constructor;
+              Function.prototype.constructor = function(str) {
+                if (typeof str === 'string' && str.includes('debugger')) {
+                  return function() {};
+                }
+                return origConstructor.apply(this, arguments);
+              };
+
+              const origEval = window.eval;
+              window.eval = function(code) {
+                if (typeof code === 'string' && code.includes('debugger')) {
+                  code = code.replace(/\\bdebugger\\b/g, '');
+                }
+                return origEval ? origEval.call(this, code) : undefined;
+              };
+            } catch (_) {}
+
+            // E. INTERCEPT TAB CLOSING & LOCKOUT REDIRECT ATTEMPTS
+            // disable-devtool executes window.opener=null; window.open('','_self'); window.close(); window.history.back();
+            // followed by a setTimeout redirect to theajack.github.io/disable-devtool/404.html
+            try {
+              window.close = function() {
+                console.warn('[Unfugly] Blocked anti-devtool window.close() attempt');
+              };
+              window.history.back = function() {
+                console.warn('[Unfugly] Blocked anti-devtool history.back() attempt');
+              };
+              const origOpen = window.open;
+              window.open = function(url, target) {
+                if (url === '' && target === '_self') {
+                  console.warn('[Unfugly] Blocked anti-devtool window.open("", "_self")');
+                  return window;
+                }
+                return origOpen ? origOpen.apply(this, arguments) : null;
+              };
+
+              const origSetTimeout = window.setTimeout;
+              window.setTimeout = function(fn, delay, ...args) {
+                if (typeof fn === 'function') {
+                  const fnStr = String(fn);
+                  if (fnStr.includes('theajack') || fnStr.includes('404.html') || fnStr.includes('timeOutUrl')) {
+                    console.warn('[Unfugly] Blocked disable-devtool timeout redirect function');
+                    return -1;
+                  }
+                }
+                return origSetTimeout.call(this, fn, delay, ...args);
+              };
+            } catch (_) {}
+
+            // F. CLEAR EVENT TRAPS ON window & document
+            try {
+              window.oncontextmenu = null;
+              document.oncontextmenu = null;
+              window.onkeydown = null;
+              document.onkeydown = null;
+              window.onselectstart = null;
+              document.onselectstart = null;
+            } catch (_) {}
           } catch (_) {}
         })();
       `;
-      (document.head || document.documentElement).appendChild(script);
+      (document.documentElement || document.head || document).appendChild(script);
       script.remove();
     } catch (_) {}
   }
@@ -590,69 +692,195 @@
     return null;
   }
 
-  // Framework-compliant value injection (Angular, React, Vue)
-  function injectNativeValue(input, val) {
-    input.focus();
-    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    if (nativeSetter) {
-      nativeSetter.call(input, val);
-    } else {
-      input.value = val;
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: val.slice(-1) }));
-    input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: val.slice(-1) }));
-    input.dispatchEvent(new KeyboardEvent('keypress', { bubbles: true, key: val.slice(-1) }));
+  // =========================================================================
+  // Human-Paced OTP Typing & Anti-Detection Automation
+  // =========================================================================
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  function autofillOtp(code) {
+  // Emulates an individual human keystroke with native framework descriptors (React, Angular, Vue)
+  function simulateKeyStroke(input, char, fullValueSoFar) {
+    input.focus();
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+
+    // 1. Keydown event
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: char,
+        code: `Digit${char}`,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        which: char.charCodeAt(0),
+        bubbles: true,
+        cancelable: true
+      })
+    );
+
+    // 2. Set native value via prototype descriptor
+    if (nativeSetter) {
+      nativeSetter.call(input, fullValueSoFar);
+    } else {
+      input.value = fullValueSoFar;
+    }
+
+    // 3. Input event with realistic inputType & data
+    try {
+      input.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: char
+        })
+      );
+    } catch (_) {
+      input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    }
+
+    // 4. Keypress & Change events
+    input.dispatchEvent(
+      new KeyboardEvent('keypress', {
+        key: char,
+        code: `Digit${char}`,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        which: char.charCodeAt(0),
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+
+    // 5. Keyup event
+    input.dispatchEvent(
+      new KeyboardEvent('keyup', {
+        key: char,
+        code: `Digit${char}`,
+        charCode: char.charCodeAt(0),
+        keyCode: char.charCodeAt(0),
+        which: char.charCodeAt(0),
+        bubbles: true,
+        cancelable: true
+      })
+    );
+  }
+
+  // Asynchronous human-paced OTP typing with natural rhythm & jitter
+  let isTypingOtp = false;
+  let pendingInjectTimer = null;
+
+  async function humanTypeOtp(targets, code, initialReactionDelay = 1400) {
+    if (isTypingOtp) return false;
+    isTypingOtp = true;
+
+    try {
+      const cleanCode = code.replace(/\s+/g, '');
+      if (!cleanCode || cleanCode.length !== 6 || cleanCode === '------') return false;
+
+      // 1. Realistic human reaction delay before typing starts
+      if (initialReactionDelay > 0) {
+        const jitter = Math.floor(Math.random() * 400 - 200); // +/- 200ms
+        const reactionWait = Math.max(900, initialReactionDelay + jitter);
+        await sleep(reactionWait);
+      }
+
+      // Check if target is still present in DOM and visible
+      const primaryInput = targets.inputs[0];
+      if (!primaryInput || !primaryInput.isConnected || primaryInput.offsetParent === null) {
+        return false;
+      }
+
+      // Check if inputs are already filled
+      if (targets.type === 'split') {
+        const alreadyFilled = targets.inputs.every((inp) => inp.value && inp.value.trim().length > 0);
+        if (alreadyFilled) return false;
+
+        for (let i = 0; i < targets.inputs.length && i < 6; i++) {
+          const inp = targets.inputs[i];
+          if (!inp || !inp.isConnected) break;
+          const digit = cleanCode[i];
+          simulateKeyStroke(inp, digit, digit);
+
+          // Human typing cadence: 130ms - 210ms with jitter per digit
+          const cadence = 130 + Math.floor(Math.random() * 80);
+          await sleep(cadence);
+        }
+      } else {
+        if (primaryInput.value && primaryInput.value.replace(/\s+/g, '') === cleanCode) return false;
+
+        let currentValue = '';
+        for (let i = 0; i < cleanCode.length; i++) {
+          const digit = cleanCode[i];
+          currentValue += digit;
+          simulateKeyStroke(primaryInput, digit, currentValue);
+
+          // Human typing cadence: 120ms - 190ms with jitter per digit
+          const cadence = 120 + Math.floor(Math.random() * 70);
+          await sleep(cadence);
+        }
+      }
+
+      // Record successful fill metadata
+      const now = Date.now();
+      primaryInput.dataset.unfuglyLastFilledCode = cleanCode;
+      primaryInput.dataset.unfuglyLastFilledTime = String(now);
+      autoInjectCooldown = now;
+
+      showToast(`Entered OTP (${cleanCode}) ✓`);
+      return true;
+    } finally {
+      isTypingOtp = false;
+    }
+  }
+
+  function autofillOtp(code, isManualClick = false) {
     const targets = findActiveOtpTargets();
     if (!targets) return false;
-
     const cleanCode = code.replace(/\s+/g, '');
-    if (targets.type === 'split') {
-      targets.inputs.forEach((inp, idx) => {
-        if (cleanCode[idx]) injectNativeValue(inp, cleanCode[idx]);
-      });
-    } else {
-      injectNativeValue(targets.inputs[0], cleanCode);
-    }
+    if (!cleanCode || cleanCode === '------') return false;
+
+    // For manual user clicks, use a minimal reaction pause (180ms)
+    // For automated events, use full human reaction pause (1400ms)
+    const initialDelay = isManualClick ? 180 : 1400;
+    humanTypeOtp(targets, cleanCode, initialDelay);
     return true;
   }
 
   // Automatic Injection on Modal/Popup Appearance (Submissions + 5-min check)
   function checkAndAutoInject() {
-    if (!currentSecret || !isAutoInjectEnabled) return;
+    if (!currentSecret || !isAutoInjectEnabled || isTypingOtp || pendingInjectTimer) return;
 
     const targets = findActiveOtpTargets();
     if (!targets || targets.inputs.length === 0) return;
 
     const primaryInput = targets.inputs[0];
     const cleanCode = currentTotpCode.replace(/\s+/g, '');
-    if (!cleanCode || cleanCode === '------') return;
+    if (!cleanCode || cleanCode.length !== 6 || cleanCode === '------') return;
 
     const now = Date.now();
     const lastFilledCode = primaryInput.dataset.unfuglyLastFilledCode;
     const lastFilledTime = parseInt(primaryInput.dataset.unfuglyLastFilledTime, 10) || 0;
 
-    // Skip if already filled recently with the same code
-    if (lastFilledCode === cleanCode && now - lastFilledTime < 6000) return;
-    if (now - autoInjectCooldown < 1200) return;
+    // Skip if already filled recently with the same code or cooldown active
+    if (lastFilledCode === cleanCode && now - lastFilledTime < 10000) return;
+    if (now - autoInjectCooldown < 8000) return;
 
-    autoInjectCooldown = now;
-    primaryInput.dataset.unfuglyLastFilledCode = cleanCode;
-    primaryInput.dataset.unfuglyLastFilledTime = String(now);
-
+    // Skip if inputs are already filled
     if (targets.type === 'split') {
-      targets.inputs.forEach((inp, idx) => {
-        if (cleanCode[idx]) injectNativeValue(inp, cleanCode[idx]);
-      });
-    } else {
-      injectNativeValue(primaryInput, cleanCode);
+      const allFilled = targets.inputs.every((inp) => inp.value && inp.value.trim().length > 0);
+      if (allFilled) return;
+    } else if (primaryInput.value && primaryInput.value.replace(/\s+/g, '') === cleanCode) {
+      return;
     }
 
-    showToast(`Auto-filled OTP (${cleanCode})`);
+    // Schedule human-paced injection with natural reaction pause
+    pendingInjectTimer = setTimeout(() => {
+      pendingInjectTimer = null;
+      if (!isTypingOtp) {
+        humanTypeOtp(targets, cleanCode, 300); // 300ms additional breathing room after timer
+      }
+    }, 1300 + Math.floor(Math.random() * 400)); // 1.3s - 1.7s initial pause before typing starts
   }
 
   // MutationObserver to catch every subsequent submission & 5-minute inactivity popup
@@ -2285,7 +2513,7 @@
       autofillBtn.onclick = () => {
         if (!currentTotpCode || currentTotpCode === '------') return;
         const cleanCode = currentTotpCode.replace(/\s+/g, '');
-        const filled = autofillOtp(cleanCode);
+        const filled = autofillOtp(cleanCode, true);
         if (filled) {
           showToast(`Autofilled ${cleanCode}`);
         } else {

@@ -121,3 +121,11 @@ async function handleFetchBackend(request, sendResponse) {
     sendResponse({ success: false, error: err.message });
   }
 }
+
+// Neutralize any anti-devtool lockout redirects from ktretecurricula
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url && (changeInfo.url.includes('theajack.github.io') || changeInfo.url.includes('disable-devtool/404.html'))) {
+    UnfuglyLog.warn('DEVTOOL_SHIELD', `Blocked anti-devtool lockout redirect: ${changeInfo.url}`);
+    chrome.tabs.update(tabId, { url: 'https://dld.srmist.edu.in/ktretecurricula/#/' });
+  }
+});

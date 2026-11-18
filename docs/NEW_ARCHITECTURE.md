@@ -529,16 +529,23 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Features a Google Authenticator-style circular radial SVG countdown ring (30s period) that depletes dynamically and transitions from sky cyan to warning rose when $\le 5$ seconds remain.
   - Provides instant one-click copy with visual toast confirmation (both on the main bar and direct copy button in minimized view), an OTP field autofill helper for the portal login form, and minimize/expand toggle controls.
   - Non-destructive setup preview & debug hooks: `Alt+S`, `Ctrl+Shift+U`, settings menu item, and `window.__unfuglyOpenSetupModal()` allow previewing the setup modal with existing secrets fully preserved.
-- **Portal Anti-DevTools & Right-Click Unblocking**:
+- **Portal Anti-DevTools & Right-Click Unblocking (`theajack/disable-devtool` Shield)**:
   - Runs at `document_start` to intercept capture-phase keyboard shortcuts (`F12`, `Ctrl+Shift+I/J/C`, `Ctrl+U`) and context menu blocks (`contextmenu`, `selectstart`, `copy`).
-  - Injects a main-world prototype guard overriding `Function.prototype.constructor` and dynamic eval loops that execute `debugger` statements, neutralizing portal anti-debugging lockups.
+  - Completely neutralizes the portal's embedded `disable-devtool` library:
+    - **Bot Bypass (`disable by bot`)**: Appends `Googlebot` to `Navigator.prototype.userAgent` getter, triggering the library's internal `if (d.seo && info.seoBot)` early-exit before any detectors or intervals initialize.
+    - **Global Pre-emption**: Pre-defines `window.DisableDevtool` and `globalThis.DisableDevtool` with permanent `isSuspend = true` and `isRunning = true`.
+    - **Console Benchmark Defanging**: Replaces `console.table` and `console.clear` with 0ms no-ops, preventing `disable-devtool`'s `Performance` detector from measuring DevTools rendering overhead.
+    - **Redirect & Tab Close Interception**: Overrides `window.close()`, `window.history.back()`, `window.open("", "_self")`, and intercepts `setTimeout` redirect routines targeting `theajack.github.io`.
+    - **Declarative Net Request Fail-Safe**: `extension/rules.json` intercepts any attempted main-frame or sub-frame navigation to `*://theajack.github.io/*` and immediately bounces it back to `https://dld.srmist.edu.in/ktretecurricula/#/`, backed by a secondary `chrome.tabs.onUpdated` listener in `background.js`.
 - **Built-in DOM & Dialog HTML Inspector (`Alt+I`)**:
   - A built-in floating developer inspection drawer activated via `Alt+I`, the settings popover, or `window.__unfuglyInspect()`.
   - Enables viewing, formatting, and 1-click copying of active modal dialog HTML structures, full page HTML, and an interactive element reticle picker without opening browser DevTools.
-- **Automated Multi-Stage OTP Autofill**:
-  - Continuous `MutationObserver` and periodic polling (every 800ms) detects OTP input triggers across all portal lifecycle stages: initial login, assignment / test submissions, and 5-minute inactivity verification prompts.
+- **Automated Human-Paced OTP Autofill (Submissions & 5-Min Checks)**:
+  - Continuous `MutationObserver` and periodic polling (every 1.5s) detects OTP input triggers across all portal lifecycle stages: initial login, assignment / test submissions, and 5-minute inactivity verification prompts.
   - Automatically identifies both single 6-digit inputs and split 6-box digit inputs (`input[maxlength="1"]`, `otp-box`, etc.).
-  - Employs prototype descriptor value setting (`HTMLInputElement.prototype.value`) followed by synthetic `input`, `change`, and `keyup` bubbling events to properly update reactive frontend frameworks (Angular / Vue / React).
+  - **Human-Cadence Keystroke Emulation**: Prevents behavioral bot flags by avoiding instantaneous synchronous 0ms dumps. Introduces a natural 1.3s–1.7s reaction delay after modal appearance, followed by realistic sequential keystrokes (120ms–200ms per digit with random jitter), firing full `keydown`, `keypress`, `input` (`inputType: 'insertText'`), `change`, and `keyup` bubbling events with prototype descriptor setters.
+  - Features an 8-second post-fill cooldown and guard flags (`isTypingOtp`, `pendingInjectTimer`) to eliminate race conditions or duplicate entries.
+
 
 
 

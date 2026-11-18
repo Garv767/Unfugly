@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "url": "https://dld.srmist.edu.in/ktretecurricula/#/"
+      }
+    },
+    "condition": {
+      "urlFilter": "*://theajack.github.io/*",
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]
