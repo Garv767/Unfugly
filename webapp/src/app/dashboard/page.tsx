@@ -366,8 +366,16 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${API_URL}/api/v2/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
-    router.push('/login');
+    try {
+      await fetch(`${API_URL}/api/v2/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('unfugly_token');
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      router.push('/login');
+    }
   };
 
   const [error, setError] = useState('');

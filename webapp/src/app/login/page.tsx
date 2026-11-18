@@ -97,6 +97,13 @@ export default function LoginPage() {
       const hashStr = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
       const hashParams = new URLSearchParams(hashStr);
 
+      if (searchParams.get('logout') === 'true') {
+        localStorage.removeItem('unfugly_token');
+        localStorage.clear();
+        sessionStorage.clear();
+        return;
+      }
+
       const token = searchParams.get('token') || searchParams.get('access_token') || hashParams.get('access_token') || hashParams.get('token');
       const code = searchParams.get('code') || hashParams.get('code');
       const type = searchParams.get('type') || hashParams.get('type');
