@@ -38,8 +38,9 @@ export default function LoginPage() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSpPassword, setShowSpPassword] = useState(false);
-  const [showDiagPassword, setShowDiagPassword] = useState(false);
+  const [showAcademiaPassword, setShowAcademiaPassword] = useState(false);
 
   // Status & Error
   const [error, setError] = useState('');
@@ -66,6 +67,8 @@ export default function LoginPage() {
   const [resetOtp, setResetOtp] = useState('');
   const [newResetPassword, setNewResetPassword] = useState('');
   const [confirmResetPassword, setConfirmResetPassword] = useState('');
+  const [showNewResetPassword, setShowNewResetPassword] = useState(false);
+  const [showConfirmResetPassword, setShowConfirmResetPassword] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
 
@@ -921,8 +924,8 @@ export default function LoginPage() {
                   </label>
                   <div className="relative">
                     <input
-                      type={showPassword ? 'text' : 'password'}
-                      className="input-field w-full pl-9 text-sm"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="input-field w-full pl-9 pr-10 text-sm"
                       placeholder="Re-enter master password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -931,6 +934,14 @@ export default function LoginPage() {
                       minLength={6}
                     />
                     <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 
@@ -1134,16 +1145,27 @@ export default function LoginPage() {
                   <label className="block text-xs font-semibold text-muted mb-1">
                     Academia Password (academia.srmist.edu.in)
                   </label>
-                  <input
-                    type="password"
-                    className="input-field w-full text-sm"
-                    placeholder="Enter Academia password"
-                    value={academiaPassword}
-                    onChange={(e) => setAcademiaPassword(e.target.value)}
-                    required
-                    disabled={portalLoading}
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <input
+                      type={showAcademiaPassword ? 'text' : 'password'}
+                      className="input-field w-full pr-10 text-sm"
+                      placeholder="Enter Academia password"
+                      value={academiaPassword}
+                      onChange={(e) => setAcademiaPassword(e.target.value)}
+                      required
+                      disabled={portalLoading}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowAcademiaPassword(!showAcademiaPassword)}
+                      tabIndex={-1}
+                      disabled={portalLoading}
+                    >
+                      {showAcademiaPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -1274,32 +1296,54 @@ export default function LoginPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
                     New Master Password
                   </label>
-                  <input
-                    type="password"
-                    className="input-field w-full pl-3 text-sm"
-                    placeholder="At least 6 characters"
-                    value={newResetPassword}
-                    onChange={(e) => setNewResetPassword(e.target.value)}
-                    required
-                    disabled={resetLoading}
-                    minLength={6}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewResetPassword ? 'text' : 'password'}
+                      className="input-field w-full pl-9 pr-10 text-sm"
+                      placeholder="At least 6 characters"
+                      value={newResetPassword}
+                      onChange={(e) => setNewResetPassword(e.target.value)}
+                      required
+                      disabled={resetLoading}
+                      minLength={6}
+                    />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowNewResetPassword(!showNewResetPassword)}
+                      disabled={resetLoading}
+                    >
+                      {showNewResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
                     Confirm New Password
                   </label>
-                  <input
-                    type="password"
-                    className="input-field w-full pl-3 text-sm"
-                    placeholder="Re-enter password"
-                    value={confirmResetPassword}
-                    onChange={(e) => setConfirmResetPassword(e.target.value)}
-                    required
-                    disabled={resetLoading}
-                    minLength={6}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmResetPassword ? 'text' : 'password'}
+                      className="input-field w-full pl-9 pr-10 text-sm"
+                      placeholder="Re-enter password"
+                      value={confirmResetPassword}
+                      onChange={(e) => setConfirmResetPassword(e.target.value)}
+                      required
+                      disabled={resetLoading}
+                      minLength={6}
+                    />
+                    <Lock className="w-4 h-4 text-muted absolute left-3 top-3" />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-text cursor-pointer"
+                      onClick={() => setShowConfirmResetPassword(!showConfirmResetPassword)}
+                      disabled={resetLoading}
+                    >
+                      {showConfirmResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
