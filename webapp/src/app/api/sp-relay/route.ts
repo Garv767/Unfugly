@@ -5,7 +5,10 @@ export const preferredRegion = 'bom1';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// Hop-by-hop headers to strip before forwarding
+// Hop-by-hop and proxy headers to strip before forwarding upstream to SRMIST
+// Stripping all proxy and client-tracing headers ensures SRMIST's Apache/Tomcat/F5
+// sees the request as originating purely from Vercel's Mumbai AWS (ap-south-1) node,
+// preventing datacenter IP blocks and "Invalid credentials" rejections.
 const STRIP_FORWARD_HEADERS = new Set([
   'host',
   'connection',
@@ -13,6 +16,37 @@ const STRIP_FORWARD_HEADERS = new Set([
   'transfer-encoding',
   'x-target-url',
   'x-relay-secret',
+  'x-forwarded-for',
+  'x-forwarded-host',
+  'x-forwarded-proto',
+  'x-forwarded-port',
+  'x-forwarded-server',
+  'x-real-ip',
+  'x-vercel-id',
+  'x-vercel-forwarded-for',
+  'x-vercel-proxied-for',
+  'x-vercel-ip-country',
+  'x-vercel-ip-country-region',
+  'x-vercel-ip-city',
+  'x-vercel-ip-latitude',
+  'x-vercel-ip-longitude',
+  'x-vercel-ip-timezone',
+  'x-vercel-cache',
+  'x-vercel-execution-region',
+  'x-matched-path',
+  'cf-connecting-ip',
+  'cf-ray',
+  'cf-visitor',
+  'cf-ipcountry',
+  'cdn-loop',
+  'forwarded',
+  'via',
+  'rsc',
+  'next-router-state-tree',
+  'next-router-prefetch',
+  'next-url',
+  'purpose',
+  'priority'
 ]);
 
 // Headers to strip from upstream response before returning to client
@@ -71,10 +105,21 @@ async function handleRelay(req: NextRequest) {
   const forwardHeaders = new Headers();
   req.headers.forEach((val, key) => {
     const lk = key.toLowerCase();
-    if (!STRIP_FORWARD_HEADERS.has(lk)) {
+    if (
+      !STRIP_FORWARD_HEADERS.has(lk) &&
+      !lk.startsWith('x-vercel-') &&
+      !lk.startsWith('x-forwarded-') &&
+      !lk.startsWith('cf-')
+    ) {
       forwardHeaders.set(key, val);
     }
   });
+
+  // Explicitly forward incoming cookies (NextRequest might not iterate over cookie in forEach)
+  const incomingCookie = req.headers.get('cookie');
+  if (incomingCookie) {
+    forwardHeaders.set('cookie', incomingCookie);
+  }
 
   // Ensure default browser headers if not provided
   if (!forwardHeaders.has('user-agent')) {
@@ -83,6 +128,10 @@ async function handleRelay(req: NextRequest) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
   }
+
+  console.log(
+    `[SP_RELAY] Outbound ${req.method} to ${targetUrl} | Cookie: ${Boolean(incomingCookie)} (len=${incomingCookie?.length || 0})`
+  );
 
   try {
     let body: BodyInit | null = null;
