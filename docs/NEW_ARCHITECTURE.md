@@ -289,9 +289,12 @@ Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are
 1. **Centralized Client Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
 2. **Always-Free Edge Relay Architecture (`SP_RELAY_URL`)**:
    - **Primary: Cloudflare Worker Edge Relay (`https://unfugly-sp-relay.unfugly-auth.workers.dev`)**:
-     - Executes natively at Cloudflare's **Chennai (`MAA`) edge node**, immediately adjacent to SRMIST's campus infrastructure in Tamil Nadu.
-     - 100% Always Free tier (100,000 requests/day forever, no credit card required, zero expiration).
-     - Verified live end-to-end: solves CAPTCHA, submits credentials, intercepts 302 redirect, and lands directly on `HRDSystem.jsp`.
+     - **Smart Placement Optimization**: Configured with `[placement] mode = "smart"` in `wrangler.toml`. This instructs Cloudflare's global network routing heuristics to execute worker instances closest to the destination host (`sp.srmist.edu.in`) rather than the caller's ingress node. Consequently, when Render backend calls in Singapore dispatch to Cloudflare, execution dynamically shifts from Singapore (`SIN`) directly to Cloudflare's **Chennai (`MAA`) edge node** in Tamil Nadu, immediately adjacent to SRMIST campus infrastructure.
+     - **SRMIST Geo-Restriction Root Cause**: Empirical inspection revealed SRMIST's upstream firewall/F5 ASM silently rejects non-Indian / foreign datacenter IPs with `Invalid credentials` even on valid passwords and clean CAPTCHAs, whereas requests from Indian edge nodes (`MAA`, `BOM`) succeed immediately with HTTP 302 redirects to `HRDSystem.jsp`.
+     - **100% Always Free Tier**: 100,000 requests/day forever, no credit card required, zero expiration or recurring subscription costs.
+     - **Diagnostic Headers**: Returns `x-colo` (e.g. `MAA`), `x-relay-runtime`, and `x-original-status` for instant real-time telemetry into request routing and edge execution location.
+     - **Preserves Multi-Set-Cookie**: Formats multiple `Set-Cookie` headers into individual response headers, preventing cookie loss for critical session identifiers (`JSESSIONID`, `TS9dec798a027`).
+     - **Verified Live End-to-End**: Reliably solves CAPTCHA, submits credentials, intercepts 302 redirect, and lands directly on `HRDSystem.jsp` with full academic sync (attendance, internal marks, exam timetable, calendar).
      - Defaults automatically in `utils/spClient.js` and `render.yaml`.
    - **Secondary: Vercel Serverless Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
      - Configured with `export const runtime = 'nodejs';` and `export const preferredRegion = 'bom1';` alongside `webapp/vercel.json` (`"regions": ["bom1"]`).
@@ -299,6 +302,8 @@ Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are
      - Strips `x-forwarded-*`, `x-real-ip`, `x-vercel-*`, and `cf-*` headers before dispatching upstream to SRMIST.
    - **Standalone AWS Lambda Package (`lambda-sp-relay/`)**:
      - Zero-dependency Node.js 20/22 Lambda handler with Function URL Payload Format 2.0.
+   - **Repository & CI/CD Cleanliness (Submodule De-indexing)**:
+     - The private `unfugly-backend` folder is removed from the parent git tree index (`git rm --cached unfugly-backend`) and ignored in `.gitignore`, ensuring Cloudflare Pages and Workers CI/CD environments do not fail with submodule clone errors (`error occurred while updating repository submodules`).
    - **Multi-Hop Redirect Ingestion**: When `spFetch` operates in relay mode, all HTTP 301/302/303/307/308 redirects (notably `LoginServlet` -> `HRDSystem.jsp`) are intercepted manually with `followRedirect: false`. Session cookies (`JSESSIONID`, `TS9dec798a027`) from the redirect response are immediately ingested into `cookieJar`, and subsequent redirect requests are piped through the Edge Relay, ensuring that deployment server IPs (e.g., Render) never attempt direct unproxied connections to SRMIST.
    - **Header & Fingerprint Parity (`useHeaderGenerator: false`)**: Disables `got-scraping`'s internal header generator across relay and direct modes. This prevents container runtime environments (such as Render's Linux containers) from auto-injecting Linux client hints (`Sec-Ch-Ua-Platform: "Linux"`) or mismatched User-Agents that conflict with the client telemetry payload (`telemetryPayload.platform: "Win32"`), ensuring F5 ASM and SRM WAF anti-bot checks pass consistently.
    - Handles cookie synchronization: `spFetch` binds session cookies to the actual target URL path (e.g. `/srmiststudentportal/`) across both direct and relayed hops, ensuring `JSESSIONID` and `TS9dec798a027` persistence across `youLogin.jsp`, `SCaptchaServlet`, and `LoginServlet`.

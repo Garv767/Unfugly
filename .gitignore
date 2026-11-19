@@ -12,3 +12,7 @@ plans.txt
 *.jsonl
 .env*
 scratch/
+
+# Separate standalone backend repository
+unfugly-backend/
+
