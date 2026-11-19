@@ -288,9 +288,9 @@ The backend executes a seamless, zero-cloud-cost automated handshake:
 Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. Furthermore, SRMIST Student Portal enforces an aggressive per-IP rate limit on its CAPTCHA generation endpoint (`SCaptchaServlet`) that throttles or blocks IPs after fewer than 10 rapid attempts. To ensure consistent, production-grade connectivity:
 1. **Centralized Client Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
 2. **Dual Edge Relay Architecture (`SP_RELAY_URL`)**:
-   - **Vercel Edge Function Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
-     - Runs on Vercel's global edge network via `export const runtime = 'edge'`.
-     - Zero cold start, executing directly across distributed edge nodes worldwide. Because requests originate across rotating edge IP pools, calls to `SCaptchaServlet` and portal authentication bypass the <10 request per-IP rate limit enforced by SRMIST.
+   - **Vercel Serverless Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
+     - Configured with `export const runtime = 'nodejs';` and `export const preferredRegion = 'bom1';` alongside `webapp/vercel.json` (`"regions": ["bom1"]`).
+     - Egresses physically from **Mumbai, India (AWS `ap-south-1`)**, satisfying geographical requirements while eliminating latency and foreign ASN geolocation flags.
      - Enforces strict security by only proxying to `ALLOWED_ORIGIN_PREFIXES` (`https://sp.srmist.edu.in/`).
      - Supports optional pre-shared secret validation via `SP_RELAY_SECRET` (`X-Relay-Secret`).
      - Preserves multiple `Set-Cookie` headers (`JSESSIONID`, `TS9dec798a027`) using standard `Headers.getSetCookie()`.

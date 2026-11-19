@@ -2,6 +2,11 @@
   "env": {
     "NEXT_PUBLIC_API_URL": "https://unfugly-backend.onrender.com"
   },
+  "build": {
+    "env": {
+      "VERCEL_FORCE_NO_BUILD_CACHE": "1"
+    }
+  },
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",

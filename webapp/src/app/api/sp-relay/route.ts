@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'bom1';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Hop-by-hop headers to strip before forwarding
 const STRIP_FORWARD_HEADERS = new Set([
@@ -23,6 +25,8 @@ async function handleRelay(req: NextRequest) {
     req.headers.get('x-target-url') ||
     req.nextUrl.searchParams.get('url') ||
     '';
+
+  console.log(`[SP_RELAY] Incoming ${req.method} request targeting: ${targetUrl || 'NONE'}`);
 
   if (!targetUrl) {
     return NextResponse.json(
@@ -84,6 +88,8 @@ async function handleRelay(req: NextRequest) {
       redirect: 'manual',
     });
 
+    console.log(`[SP_RELAY] Upstream ${originRes.status} ${originRes.statusText} from ${targetUrl}`);
+
     const resHeaders = new Headers();
     originRes.headers.forEach((val, key) => {
       const lk = key.toLowerCase();
@@ -103,6 +109,11 @@ async function handleRelay(req: NextRequest) {
         resHeaders.set('set-cookie', singleSetCookie);
       }
     }
+
+    // Strict cache invalidation: prevent edge CDN, proxies, or browsers from caching captchas or portal responses
+    resHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    resHeaders.set('Pragma', 'no-cache');
+    resHeaders.set('Expires', '0');
 
     // CORS & Diagnostic headers
     resHeaders.set('x-final-url', originRes.url || targetUrl);
