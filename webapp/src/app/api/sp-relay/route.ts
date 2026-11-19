@@ -15,6 +15,18 @@ const STRIP_FORWARD_HEADERS = new Set([
   'x-relay-secret',
 ]);
 
+// Headers to strip from upstream response before returning to client
+// Node/Edge fetch() automatically decompresses the body, so forwarding content-encoding
+// causes downstream clients (got-scraping/zlib) to fail with "incorrect header check"
+const STRIP_RESPONSE_HEADERS = new Set([
+  'set-cookie',
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'connection',
+  'keep-alive',
+]);
+
 const ALLOWED_ORIGIN_PREFIXES = [
   'https://sp.srmist.edu.in/',
   'https://sp.srmist.edu.in:443/',
@@ -93,7 +105,7 @@ async function handleRelay(req: NextRequest) {
     const resHeaders = new Headers();
     originRes.headers.forEach((val, key) => {
       const lk = key.toLowerCase();
-      if (lk !== 'set-cookie') {
+      if (!STRIP_RESPONSE_HEADERS.has(lk)) {
         resHeaders.set(key, val);
       }
     });
