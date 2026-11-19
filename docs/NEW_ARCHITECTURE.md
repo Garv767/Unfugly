@@ -287,17 +287,18 @@ The backend executes a seamless, zero-cloud-cost automated handshake:
 ### 4.3 Deployment Egress, Residential Proxy, Cloudflare Worker & Vercel Edge Relay
 Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are strictly flagged by Cloudflare WAF bot management rules protecting `sp.srmist.edu.in`. Furthermore, SRMIST Student Portal enforces an aggressive per-IP rate limit on its CAPTCHA generation endpoint (`SCaptchaServlet`) that throttles or blocks IPs after fewer than 10 rapid attempts. To ensure consistent, production-grade connectivity:
 1. **Centralized Client Dispatcher (`utils/spClient.js`)**: All HTTP requests targeting Student Portal (`youLogin.jsp`, `SCaptchaServlet`, `LoginServlet`, attendance, marks, calendar, and profile photo proxy) pass through `spFetch`.
-2. **Dual Edge Relay Architecture (`SP_RELAY_URL`)**:
-   - **Vercel Serverless Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
+2. **Always-Free Edge Relay Architecture (`SP_RELAY_URL`)**:
+   - **Primary: Cloudflare Worker Edge Relay (`https://unfugly-sp-relay.unfugly-auth.workers.dev`)**:
+     - Executes natively at Cloudflare's **Chennai (`MAA`) edge node**, immediately adjacent to SRMIST's campus infrastructure in Tamil Nadu.
+     - 100% Always Free tier (100,000 requests/day forever, no credit card required, zero expiration).
+     - Verified live end-to-end: solves CAPTCHA, submits credentials, intercepts 302 redirect, and lands directly on `HRDSystem.jsp`.
+     - Defaults automatically in `utils/spClient.js` and `render.yaml`.
+   - **Secondary: Vercel Serverless Relay (`webapp/src/app/api/sp-relay/route.ts`)**:
      - Configured with `export const runtime = 'nodejs';` and `export const preferredRegion = 'bom1';` alongside `webapp/vercel.json` (`"regions": ["bom1"]`).
-     - Egresses physically from **Mumbai, India (AWS `ap-south-1`)**, satisfying geographical requirements while eliminating latency and foreign ASN geolocation flags.
-     - Enforces strict security by only proxying to `ALLOWED_ORIGIN_PREFIXES` (`https://sp.srmist.edu.in/`).
-     - Supports optional pre-shared secret validation via `SP_RELAY_SECRET` (`X-Relay-Secret`).
-     - Preserves multiple `Set-Cookie` headers (`JSESSIONID`, `TS9dec798a027`) using standard `Headers.getSetCookie()`.
-     - Sets `redirect: 'manual'` so that all HTTP 302 redirects return intact to `spFetch` for session cookie ingestion.
-     - Backend automatically defaults to `${FRONTEND_URL}/api/sp-relay` or `https://unfugly.app/api/sp-relay` in production.
-   - **Cloudflare Worker Edge Relay**:
-     - Optional alternative running on Cloudflare's global edge network (`AS13335`), natively trusted by SRMIST's Cloudflare WAF.
+     - Egresses physically from **Mumbai, India (AWS `ap-south-1`)**.
+     - Strips `x-forwarded-*`, `x-real-ip`, `x-vercel-*`, and `cf-*` headers before dispatching upstream to SRMIST.
+   - **Standalone AWS Lambda Package (`lambda-sp-relay/`)**:
+     - Zero-dependency Node.js 20/22 Lambda handler with Function URL Payload Format 2.0.
    - **Multi-Hop Redirect Ingestion**: When `spFetch` operates in relay mode, all HTTP 301/302/303/307/308 redirects (notably `LoginServlet` -> `HRDSystem.jsp`) are intercepted manually with `followRedirect: false`. Session cookies (`JSESSIONID`, `TS9dec798a027`) from the redirect response are immediately ingested into `cookieJar`, and subsequent redirect requests are piped through the Edge Relay, ensuring that deployment server IPs (e.g., Render) never attempt direct unproxied connections to SRMIST.
    - **Header & Fingerprint Parity (`useHeaderGenerator: false`)**: Disables `got-scraping`'s internal header generator across relay and direct modes. This prevents container runtime environments (such as Render's Linux containers) from auto-injecting Linux client hints (`Sec-Ch-Ua-Platform: "Linux"`) or mismatched User-Agents that conflict with the client telemetry payload (`telemetryPayload.platform: "Win32"`), ensuring F5 ASM and SRM WAF anti-bot checks pass consistently.
    - Handles cookie synchronization: `spFetch` binds session cookies to the actual target URL path (e.g. `/srmiststudentportal/`) across both direct and relayed hops, ensuring `JSESSIONID` and `TS9dec798a027` persistence across `youLogin.jsp`, `SCaptchaServlet`, and `LoginServlet`.
