@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { UnfuglyLog } from '../utils/logger';
+import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -223,10 +224,9 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
     setEditedSlots(newEdits);
     updateCache(newEdits);
 
-    fetch(`${API_URL}/api/v2/user/slots`, {
+    authFetch(`${API_URL}/api/v2/user/slots`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
-      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ edited_slots_json: newEdits })
     }).catch(err => UnfuglyLog.error('SYNC_02', `Failed to save edited slots to backend: ${err.message}`));
   };
@@ -238,10 +238,9 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
       setEditedSlots(newEdits);
       updateCache(newEdits);
 
-      fetch(`${API_URL}/api/v2/user/slots`, {
+      authFetch(`${API_URL}/api/v2/user/slots`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ edited_slots_json: newEdits })
       }).catch(err => UnfuglyLog.error('SYNC_02', `Failed to save edited slots to backend after removal: ${err.message}`));
   };

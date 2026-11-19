@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -20,7 +21,7 @@ export default function AttendancePredict({ attendanceData, courseData }: { atte
   useEffect(() => {
     if (isOpen && !calendarData) {
       setLoading(true);
-      fetch(`${API_URL}/api/v2/calendar`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
+      authFetch(`${API_URL}/api/v2/calendar`)
         .then(res => res.json())
         .then(data => {
           setCalendarData(data.calendarJson || data.calendar_json || data);

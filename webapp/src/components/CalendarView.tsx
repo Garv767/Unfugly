@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UnfuglyLog } from '../utils/logger';
+import { authFetch } from '@/utils/apiClient';
 
 interface CalendarViewProps {
   profileData?: any;
@@ -60,10 +61,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
 
   // 1. Initial Load: Fetch active calendar and all available semesters dynamically from backend
   useEffect(() => {
-    fetch(`${API_URL}/api/v2/calendar`, {
-      credentials: 'include',
-      headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
-    })
+    authFetch(`${API_URL}/api/v2/calendar`)
       .then(res => res.json())
       .then(data => {
         if (data.availableSemesters && Array.isArray(data.availableSemesters)) {
@@ -112,10 +110,7 @@ export default function CalendarView({ profileData, onBack }: CalendarViewProps)
     }
 
     setLoading(true);
-    fetch(`${API_URL}/api/v2/calendar?semester=${semKey}`, {
-      credentials: 'include',
-      headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
-    })
+    authFetch(`${API_URL}/api/v2/calendar?semester=${semKey}`)
       .then(res => res.json())
       .then(data => {
         const calendarJson = data.calendarJson || data.calendar_json || data;

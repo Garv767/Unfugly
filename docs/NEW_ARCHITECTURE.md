@@ -580,6 +580,20 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - **Human-Cadence Keystroke Emulation**: Prevents behavioral bot flags by avoiding instantaneous synchronous 0ms dumps. Introduces a natural 1.3s–1.7s reaction delay after modal appearance, followed by realistic sequential keystrokes (120ms–200ms per digit with random jitter), firing full `keydown`, `keypress`, `input` (`inputType: 'insertText'`), `change`, and `keyup` bubbling events with prototype descriptor setters.
   - Features an 8-second post-fill cooldown and guard flags (`isTypingOtp`, `pendingInjectTimer`) to eliminate race conditions or duplicate entries.
 
+### 10.6 Webapp Session Persistence & Silent Token Refresh (PWA Anti-Logout)
+- **Problem Formulation**: Default Supabase Auth JWT access tokens expire after exactly 3600 seconds (1 hour). In installed Progressive Web Apps (PWAs) and mobile standalone web views, background processes terminate when inactive. When returning to the app after >1 hour, API requests previously failed with 401 Unauthorized, prematurely kicking students back to `/login`.
+- **60-Day Unified Token Architecture**:
+  - Upon login, signup, or email OTP verification, the backend issues a high-entropy 60-day Unfugly JWT (`unfuglyToken`) signed with `JWT_SECRET` and bound to the student's `net_id` and Supabase UUID.
+  - Concurrently, secure cross-origin HttpOnly cookies (`unfugly_session`, `unfugly_token`, `sb-refresh-token`, `sb-access-token`) are set with `maxAge: 60 * 24 * 60 * 60 * 1000` (60 days), `SameSite: Lax/None`, and `Secure: true`.
+- **Sub-Millisecond Verification with Supabase Fallback (`middleware/auth.js`)**:
+  - `verifyWebappToken` and `optionalWebappToken` verify the local Unfugly JWT first in ~0.05ms with zero remote network calls.
+  - If invalid or signed by Supabase directly, they gracefully fall back to `supabase.auth.getUser(token)`.
+- **Silent Refresh Interceptor (`apiClient.ts` & `POST /api/v2/auth/refresh`)**:
+  - Centralized client `authFetch` transparently intercepts any 401 HTTP response.
+  - Instead of discarding credentials and booting the student out, it seamlessly dispatches a background refresh call to `POST /api/v2/auth/refresh` using the stored `unfugly_refresh_token` or cookie.
+  - When refreshed, both `localStorage` and HttpOnly cookies update, and the original failed request is automatically retried with the new token.
+  - Users returning to the PWA or browser after any length of time within 60 days experience zero session interruptions.
+
 
 
 

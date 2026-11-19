@@ -9,6 +9,7 @@ import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
 import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -82,10 +83,13 @@ export default function Dashboard() {
     }
 
     // 2. Auth check via cookie — verify and fetch fresh DB cache data
-    fetch(`${API_URL}/api/v2/user/data`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } })
+    authFetch(`${API_URL}/api/v2/user/data`)
     .then(res => {
       if (res.status === 401 || res.status === 403) { 
-        if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('unfugly_token');
+          localStorage.removeItem('unfugly_refresh_token');
+        }
         router.push('/login'); 
         return null; 
       }
@@ -141,10 +145,7 @@ export default function Dashboard() {
       return '2026_27_ODD'; // default fallback
     })();
     const calendarParams = `?semester=${encodeURIComponent(currentSemester)}`;
-    fetch(`${API_URL}/api/v2/calendar${calendarParams}`, {
-      credentials: 'include',
-      headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
-    })
+    authFetch(`${API_URL}/api/v2/calendar${calendarParams}`)
       .then(res => res.ok ? res.json() : null)
       .then(calData => { if (calData && !calData.error) setCalendarData(calData.calendarJson || calData.calendar_json || calData); })
       .catch(() => {});
@@ -192,14 +193,15 @@ export default function Dashboard() {
       };
     }
 
-    fetch(`${API_URL}/api/v2/sync/all`, {
+    authFetch(`${API_URL}/api/v2/sync/all`, {
       method:      'POST',
-      credentials: 'include',
-      headers:     { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) }
     })
     .then(res => {
         if (res.status === 401 || res.status === 403) {
-            if (typeof window !== 'undefined') localStorage.removeItem('unfugly_token');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('unfugly_token');
+              localStorage.removeItem('unfugly_refresh_token');
+            }
             router.push('/login');
             return null;
         }
@@ -273,10 +275,9 @@ export default function Dashboard() {
           // Save back to DB only if we got useful new data and have a valid netId
           const saveNetId = mergedData.netId || net_id;
           if (saveNetId && mergedData.profileData?.name) {
-            fetch(`${API_URL}/api/v1/user/save`, {
+            authFetch(`${API_URL}/api/v1/user/save`, {
               method:      'POST',
-              headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
-              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 netId:          saveNetId,
                 profileData:    mergedData.profileData,
@@ -324,11 +325,10 @@ export default function Dashboard() {
     setUpdatePasswordLoading(true);
     setUpdatePasswordError('');
     try {
-      const res = await fetch(`${API_URL}/api/v2/auth/connect-sp`, {
+      const res = await authFetch(`${API_URL}/api/v2/auth/connect-sp`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           sp_password: newSpPassword
@@ -360,6 +360,7 @@ export default function Dashboard() {
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('unfugly_token');
+        localStorage.removeItem('unfugly_refresh_token');
         localStorage.clear();
         sessionStorage.clear();
       }

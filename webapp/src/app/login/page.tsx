@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ShieldCheck, Lock, Mail, ArrowRight, KeyRound, Sparkles, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { silentRefreshToken } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -89,6 +90,7 @@ export default function LoginPage() {
 
       if (searchParams.get('logout') === 'true') {
         localStorage.removeItem('unfugly_token');
+        localStorage.removeItem('unfugly_refresh_token');
         localStorage.clear();
         sessionStorage.clear();
         return;
@@ -123,10 +125,16 @@ export default function LoginPage() {
         })
           .then(res => res.json())
           .then(data => {
-            const tok = data.session?.access_token || data.token;
+            const tok = data.token || data.unfuglyToken || data.session?.access_token;
+            const ref = data.refreshToken || data.session?.refresh_token;
             if (tok) {
               localStorage.setItem('unfugly_token', tok);
               setCurrentSessionToken(tok);
+            }
+            if (ref) {
+              localStorage.setItem('unfugly_refresh_token', ref);
+            }
+            if (tok) {
               handlePostLoginCheck(data.profile, tok);
             }
           })
@@ -136,13 +144,30 @@ export default function LoginPage() {
       }
     }
 
-    // 2. Check if already authenticated by testing /api/v2/auth/me
+    // 2. Check if already authenticated by testing /api/v2/auth/me (with silent refresh fallback)
     const token = typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null;
     if (token) {
       fetch(`${API_URL}/api/v2/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-        .then(res => res.json())
+        .then(async (res) => {
+          if (res.status === 401) {
+            const refreshed = await silentRefreshToken();
+            if (refreshed) {
+              const retryRes = await fetch(`${API_URL}/api/v2/auth/me`, {
+                headers: { Authorization: `Bearer ${refreshed}` }
+              });
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                if (retryData?.user) {
+                  router.push('/dashboard');
+                }
+              }
+            }
+            return null;
+          }
+          return res.json();
+        })
         .then(data => {
           if (data && data.user) {
             router.push('/dashboard');
@@ -178,10 +203,14 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
-      const token = data.session?.access_token || data.token;
+      const token = data.token || data.unfuglyToken || data.session?.access_token;
+      const refresh = data.refreshToken || data.session?.refresh_token;
       if (token) {
         localStorage.setItem('unfugly_token', token);
         setCurrentSessionToken(token);
+      }
+      if (refresh) {
+        localStorage.setItem('unfugly_refresh_token', refresh);
       }
 
       handlePostLoginCheck(data.profile, token);
@@ -243,10 +272,14 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Invalid OTP code');
 
-      const token = data.session?.access_token || data.token;
+      const token = data.token || data.unfuglyToken || data.session?.access_token;
+      const refresh = data.refreshToken || data.session?.refresh_token;
       if (token) {
         localStorage.setItem('unfugly_token', token);
         setCurrentSessionToken(token);
+      }
+      if (refresh) {
+        localStorage.setItem('unfugly_refresh_token', refresh);
       }
 
       handlePostLoginCheck(data.profile, token);
@@ -320,10 +353,14 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Invalid OTP code');
 
-      const token = data.session?.access_token || data.token;
+      const token = data.token || data.unfuglyToken || data.session?.access_token;
+      const refresh = data.refreshToken || data.session?.refresh_token;
       if (token) {
         localStorage.setItem('unfugly_token', token);
         setCurrentSessionToken(token);
+      }
+      if (refresh) {
+        localStorage.setItem('unfugly_refresh_token', refresh);
       }
 
       setSuccessMsg('Email verified successfully! Connecting portals...');

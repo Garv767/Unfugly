@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Rocket } from 'lucide-react';
 import { UnfuglyLog } from '../utils/logger';
+import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -37,7 +38,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
 
   const fetchFeedbackCount = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v2/feedback/count`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } });
+      const res = await authFetch(`${API_URL}/api/v2/feedback/count`);
       if (res.status === 401) return;
       const data = await res.json();
       if (data.count !== undefined) setTotalFeedbackCount(data.count);
@@ -51,7 +52,7 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
     setError('');
     
     try {
-      const res = await fetch(`${API_URL}/api/v2/feedback/fields`, { credentials: 'include', headers: { ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) } });
+      const res = await authFetch(`${API_URL}/api/v2/feedback/fields`);
       const data = await res.json();
       
       if (!res.ok) {
@@ -148,10 +149,9 @@ export default function FeedbackFiller({ profileData, courseData, asMenuItem = f
     setSubmissionStatus(newStatus);
 
     try {
-      const res = await fetch(`${API_URL}/api/v2/feedback/batch`, {
+      const res = await authFetch(`${API_URL}/api/v2/feedback/batch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined' && localStorage.getItem('unfugly_token')) ? { Authorization: 'Bearer ' + localStorage.getItem('unfugly_token') } : {}) },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ submissions })
       });
 
