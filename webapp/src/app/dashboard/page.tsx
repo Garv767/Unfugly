@@ -8,7 +8,7 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
-import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff } from 'lucide-react';
+import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff, KeyRound } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -57,15 +57,14 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [partialErrors, setPartialErrors] = useState<Record<string,string>>({});
   const [showErrorToast, setShowErrorToast] = useState(false);
-  const [showPortalCaptchaModal, setShowPortalCaptchaModal] = useState(false);
-  const [portalCaptchaImg, setPortalCaptchaImg] = useState('');
-  const [portalChallengeId, setPortalChallengeId] = useState('');
-  const [portalCaptchaCode, setPortalCaptchaCode] = useState('');
-  const [portalSpPassword, setPortalSpPassword] = useState('');
-  const [showPortalSpPassword, setShowPortalSpPassword] = useState(false);
-  const [portalCaptchaLoading, setPortalCaptchaLoading] = useState(false);
-  const [portalModalError, setPortalModalError] = useState('');
-  const [portalModalSuccess, setPortalModalSuccess] = useState('');
+  const [showUpdatePasswordModal, setShowUpdatePasswordModal] = useState(false);
+  const [newSpPassword, setNewSpPassword] = useState('');
+  const [showNewSpPassword, setShowNewSpPassword] = useState(false);
+  const [updatePasswordLoading, setUpdatePasswordLoading] = useState(false);
+  const [updatePasswordError, setUpdatePasswordError] = useState('');
+  const [updatePasswordSuccess, setUpdatePasswordSuccess] = useState('');
+  const [requiresPasswordUpdate, setRequiresPasswordUpdate] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
   const scrapingStarted = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -102,6 +101,11 @@ export default function Dashboard() {
       // Set data even if profileData is null (for graceful degradation)
       setData(cachedData);
       setLoading(false);
+
+      if (cachedData.requiresSpPasswordUpdate) {
+        setRequiresPasswordUpdate(true);
+        setPasswordErrorMessage(cachedData.spError || 'Invalid login credentials. The user ID or password entered is invalid.');
+      }
       
       // Only save to localStorage if we have any data
       if (cachedData.profileData || cachedData.attendanceData || cachedData.marksData || cachedData.timetableHTML) {
@@ -218,6 +222,11 @@ export default function Dashboard() {
         return;
       }
 
+      if (scrapedData.requires_sp_password_update || scrapedData.is_invalid_credentials) {
+        setRequiresPasswordUpdate(true);
+        setPasswordErrorMessage(scrapedData.sp_error || 'Invalid login credentials. The user ID or password entered is invalid.');
+      }
+
       if (scrapedData.errors && Object.keys(scrapedData.errors).length > 0) {
         setPartialErrors(scrapedData.errors);
         setShowErrorToast(true);
@@ -296,28 +305,10 @@ export default function Dashboard() {
 
   };
 
-  const fetchPortalCaptcha = async (options?: { keepError?: boolean }) => {
-    const keepError = Boolean(options?.keepError);
-    setPortalCaptchaLoading(true);
-    if (!keepError) setPortalModalError('');
-    try {
-      const res = await fetch(`${API_URL}/api/v2/auth/sp-challenge`);
-      const challenge = await res.json();
-      if (!res.ok) throw new Error(challenge.error || 'Failed to fetch captcha challenge');
-      setPortalChallengeId(challenge.challengeId);
-      setPortalCaptchaImg(challenge.captchaImage);
-      setPortalCaptchaCode('');
-    } catch (err: any) {
-      setPortalModalError(err.message || 'Error loading captcha challenge');
-    } finally {
-      setPortalCaptchaLoading(false);
-    }
-  };
-
-  const handleVerifyPortalCaptcha = async (e: React.FormEvent) => {
+  const handleUpdateSpPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!portalCaptchaCode || portalCaptchaCode.trim().length !== 6) {
-      setPortalModalError('Please enter the 6-character captcha');
+    if (!newSpPassword) {
+      setUpdatePasswordError('Please enter your Student Portal password');
       return;
     }
     const token = typeof window !== 'undefined' ? localStorage.getItem('unfugly_token') : null;
@@ -330,38 +321,36 @@ export default function Dashboard() {
       } catch {}
     }
 
-    setPortalCaptchaLoading(true);
-    setPortalModalError('');
+    setUpdatePasswordLoading(true);
+    setUpdatePasswordError('');
     try {
-      const res = await fetch(`${API_URL}/api/v2/auth/sp-verify-challenge`, {
+      const res = await fetch(`${API_URL}/api/v2/auth/connect-sp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          net_id: netId,
-          sp_password: portalSpPassword,
-          captcha_code: portalCaptchaCode.trim(),
-          challenge_id: portalChallengeId
+          sp_password: newSpPassword
         })
       });
       const result = await res.json();
       if (!res.ok || !result.success) {
-        throw new Error(result.error || 'Verification failed');
+        throw new Error(result.error || 'Failed to update password');
       }
-      setPortalModalSuccess('Portal session verified! Syncing fresh academic data...');
+      setUpdatePasswordSuccess('Portal password verified and updated! Syncing fresh academic data...');
+      setRequiresPasswordUpdate(false);
       setTimeout(() => {
-        setShowPortalCaptchaModal(false);
-        setPortalModalSuccess('');
+        setShowUpdatePasswordModal(false);
+        setUpdatePasswordSuccess('');
+        setNewSpPassword('');
         scrapingStarted.current = false;
         startScraping(false, netId);
       }, 1000);
     } catch (err: any) {
-      setPortalModalError(err.message);
-      fetchPortalCaptcha({ keepError: true });
+      setUpdatePasswordError(err.message);
     } finally {
-      setPortalCaptchaLoading(false);
+      setUpdatePasswordLoading(false);
     }
   };
 
@@ -549,10 +538,10 @@ export default function Dashboard() {
                         </button>
 
                         <button 
-                           onClick={() => { setIsMenuOpen(false); setShowPortalCaptchaModal(true); fetchPortalCaptcha(); }} 
+                           onClick={() => { setIsMenuOpen(false); setShowUpdatePasswordModal(true); }} 
                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3 cursor-pointer"
                         >
-                           <ShieldCheck className="w-4 h-4 text-emerald-400" /> Verify Portal Captcha
+                           <KeyRound className="w-4 h-4 text-emerald-400" /> Update Portal Password
                         </button>
                         
                         <div className="flex justify-center gap-7 px-4 py-1.5 mt-0.5">
@@ -597,22 +586,18 @@ export default function Dashboard() {
                
                
                <div className="max-w-[1400px] mx-auto space-y-12 pb-4 lg:pb-0">
-                   {/* Student Portal Captcha / Verification Banner if sync encountered issues */}
-                   {partialErrors && Object.values(partialErrors).some(err => {
-                      const str = typeof err === 'string' ? err : (err && typeof err === 'object' ? JSON.stringify(err) : '');
-                      const lower = str.toLowerCase();
-                      return lower.includes('portal') || lower.includes('captcha') || lower.includes('credentials') || lower.includes('session');
-                   }) && (
-                      <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in">
-                        <div className="flex items-center gap-2 text-amber-300">
+                   {/* Student Portal Password Update Banner only when credentials explicitly invalid */}
+                   {requiresPasswordUpdate && (
+                      <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-between text-xs animate-in fade-in">
+                        <div className="flex items-center gap-2 text-red-300">
                           <span className="text-base">⚠️</span>
-                          <span>Student Portal session needs verification to sync fresh Attendance & Marks.</span>
+                          <span>{passwordErrorMessage || 'Invalid login credentials. The user ID or password entered is invalid. Please re-enter your password.'}</span>
                         </div>
                         <button
-                          onClick={() => { setShowPortalCaptchaModal(true); fetchPortalCaptcha(); }}
-                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition-colors cursor-pointer"
+                          onClick={() => setShowUpdatePasswordModal(true)}
+                          className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors cursor-pointer shrink-0 ml-3"
                         >
-                          Solve Captcha
+                          Re-enter Password
                         </button>
                       </div>
                    )}
@@ -652,114 +637,69 @@ export default function Dashboard() {
          </div>
       </main>
 
-       {/* Portal Captcha Modal for Subsequent Logins / Sync */}
-       {showPortalCaptchaModal && (
+       {/* Portal Password Update Modal */}
+       {showUpdatePasswordModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
              <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-left">
                 <button
-                   onClick={() => setShowPortalCaptchaModal(false)}
+                   onClick={() => setShowUpdatePasswordModal(false)}
                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                    <X className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#333]">
                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                      <ShieldCheck className="w-5 h-5" />
+                      <KeyRound className="w-5 h-5" />
                    </div>
                    <div>
-                      <h3 className="text-sm font-bold text-white">Student Portal Verification</h3>
-                      <p className="text-xs text-gray-400">Solve live captcha to re-authenticate and sync data</p>
+                      <h3 className="text-sm font-bold text-white">Update Student Portal Password</h3>
+                      <p className="text-xs text-gray-400">Save your new portal password to resume automatic background sync</p>
                    </div>
                 </div>
 
-                <form onSubmit={handleVerifyPortalCaptcha} className="space-y-4">
-                   <div className="p-3 rounded-xl bg-black/40 border border-[#333] space-y-2">
-                      <div className="flex items-center justify-between">
-                         <span className="text-xs font-semibold text-gray-400">Live Captcha Challenge:</span>
-                         <button
-                            type="button"
-                            onClick={() => fetchPortalCaptcha()}
-                            disabled={portalCaptchaLoading}
-                            className="text-xs text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
-                         >
-                            <RefreshCw className={`w-3 h-3 ${portalCaptchaLoading ? 'animate-spin' : ''}`} />
-                            <span>Refresh</span>
-                         </button>
-                      </div>
-                      <div className="flex items-center justify-center p-2 rounded-lg bg-[#121212] border border-[#2a2a2a] min-h-[50px]">
-                         {portalCaptchaLoading ? (
-                            <div className="flex items-center gap-2 text-xs text-gray-400">
-                               <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                               <span>Fetching captcha from portal...</span>
-                            </div>
-                         ) : portalCaptchaImg ? (
-                            <img
-                               src={portalCaptchaImg}
-                               alt="Portal Captcha"
-                               className="h-10 rounded border border-[#444] object-contain"
-                            />
-                         ) : (
-                            <span className="text-xs text-gray-500">No challenge loaded</span>
-                         )}
-                      </div>
-                   </div>
-
+                <form onSubmit={handleUpdateSpPassword} className="space-y-4">
                    <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-1">
-                         Enter Captcha Code (6 Characters)
-                      </label>
-                      <input
-                         type="text"
-                         maxLength={6}
-                         placeholder="e.g. 5x8yb2"
-                         value={portalCaptchaCode}
-                         onChange={(e) => setPortalCaptchaCode(e.target.value.trim())}
-                         className="w-full px-3 py-2 bg-[#121212] border border-[#333] rounded-lg text-center text-sm font-mono tracking-[0.25em] font-bold text-white focus:outline-none focus:border-emerald-500"
-                         required
-                      />
-                   </div>
-
-                   <div>
-                      <label className="block text-xs font-semibold text-gray-400 mb-1">
-                         Student Portal Password <span className="text-gray-500 font-normal">(Leave blank if already saved)</span>
+                         Student Portal Password
                       </label>
                       <div className="relative">
                          <input
-                            type={showPortalSpPassword ? 'text' : 'password'}
-                            placeholder="Update Portal Password (optional)"
-                            value={portalSpPassword}
-                            onChange={(e) => setPortalSpPassword(e.target.value)}
+                            type={showNewSpPassword ? 'text' : 'password'}
+                            placeholder="Enter your Student Portal password"
+                            value={newSpPassword}
+                            onChange={(e) => setNewSpPassword(e.target.value)}
+                            required
                             className="w-full px-3 py-2 pr-10 bg-[#121212] border border-[#333] rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
                          />
                          <button
                             type="button"
-                            onClick={() => setShowPortalSpPassword(!showPortalSpPassword)}
+                            onClick={() => setShowNewSpPassword(!showNewSpPassword)}
                             tabIndex={-1}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white cursor-pointer"
                          >
-                            {showPortalSpPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {showNewSpPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                          </button>
                       </div>
                    </div>
 
-                   {portalModalError && (
+                   {updatePasswordError && (
                       <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
-                         {portalModalError}
+                         {updatePasswordError}
                       </div>
                    )}
 
-                   {portalModalSuccess && (
+                   {updatePasswordSuccess && (
                       <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-                         {portalModalSuccess}
+                         {updatePasswordSuccess}
                       </div>
                    )}
 
                    <button
                       type="submit"
-                      disabled={portalCaptchaLoading || !portalCaptchaCode}
+                      disabled={updatePasswordLoading || !newSpPassword}
                       className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
                    >
-                      {portalCaptchaLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Verify & Sync'}
+                      {updatePasswordLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Save & Sync'}
                    </button>
                 </form>
              </div>

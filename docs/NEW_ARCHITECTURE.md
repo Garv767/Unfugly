@@ -311,17 +311,15 @@ Cloud hosting environments (Render, AWS, GCP) reside on datacenter ASNs that are
 4. **Resilient DNS Resolver (`utils/dnsResolver.js`)**: In local development environments, local router or ISP DNS resolvers frequently refuse or fail to resolve education subdomains (`sp.srmist.edu.in`, `academia.srmist.edu.in`) returning `ENOTFOUND`. A monkey-patched fallback resolver automatically intercepts queries for SRMIST domains and queries Google DNS (`8.8.8.8`) and Cloudflare DNS (`1.1.1.1`) via `dns.promises.Resolver`, ensuring local dev servers communicate directly and reliably with SRMIST.
 5. **Local Direct Routing Parity**: In non-production environments (`NODE_ENV !== 'production'` without `RENDER` or `FORCE_SP_RELAY`), `spClient.js` bypasses datacenter relay hops and connects directly, utilizing native residential IP trust to avoid Cloudflare/F5 ASM IP quarantine.
 
-### 4.4 In-Memory Session Caching & Human-in-the-Loop CAPTCHA
-1. **`spSessionStore` TTL Cache**: Successful Student Portal authentications (whether automated or manual) cache the authenticated `tough-cookie` `CookieJar` in-memory for 45 minutes. Subsequent background sync calls on the dashboard reuse this active session directly, avoiding repeated login overhead and eliminating unnecessary CAPTCHA solver cycles.
-2. **Human-in-the-Loop Fallback**:
-   - Both the webapp Login page and Dashboard provide interactive CAPTCHA verification (`/api/v2/auth/sp-challenge` and `/api/v2/auth/sp-verify-challenge`).
-   - If a student's session expires or if Cloudflare/SRM triggers an anti-bot check, the webapp presents an inline "Solve Captcha" modal.
-   - Upon successful manual verification, the backend automatically seeds `spSessionStore`, vaults the password, and instantly resumes background synchronization without requiring full app re-login.
-
-### 4.5 Inline Server-Side Reverse Proxy Diagnostics
-To debug and verify firewall connectivity directly from the deployed server's egress IP:
-- `GET /api/v2/auth/sp-proxy-view`: Proxies the Student Portal login page through the backend, injects `<base href="...">`, and strips `X-Frame-Options` and CSP headers to allow safe rendering inside an embedded iframe on the same tab.
-- `GET /api/v2/auth/sp-live-embed`: Serves an interactive standalone diagnostics console displaying the server's public IP, active proxy status, live embedded portal frame, and a direct challenge solver.
+### 4.4 In-Memory Session Caching & Strict Credential Failure Discrimination
+1. **`spSessionStore` TTL Cache**: Successful Student Portal authentications cache the authenticated `tough-cookie` `CookieJar` in-memory for 45 minutes. Subsequent background sync calls on the dashboard reuse this active session directly, avoiding repeated login overhead and eliminating unnecessary CAPTCHA solver cycles.
+2. **Autonomous Captcha Resolution**: All background and on-demand Student Portal authentications solve CAPTCHAs automatically in-process via ONNX runtime through the Chennai Edge Relay, removing all manual CAPTCHA solving popups from the frontend.
+3. **Strict Credential Failure Discrimination**:
+   - The backend specifically discriminates between transient scraper/network issues and genuine password rejections.
+   - **Only when SRMIST specifically responds with the attempt-tracking warning**:
+     `"Alert Invalid login credentials The user ID or password entered is invalid.The login attempt was unsuccessful. You have 2 out of 3 login attempts remaining."`
+     does the system flag `isInvalidCredentials: true` and prompt the user to re-enter/update their Student Portal password.
+   - For all other errors (transient network timeout, rare OCR misread), the scraper retries up to 5 attempts silently or reports a temporary portal sync unavailability without falsely claiming the user's password was wrong.
 
 ### 4.6 Automated 100% Offline Extension ONNX Captcha Solver (`sp_content.js`)
 When a student opens Student Portal (`https://sp.srmist.edu.in/...`):
