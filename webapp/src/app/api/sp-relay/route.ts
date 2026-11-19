@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const preferredRegion = 'bom1';
 
 // Hop-by-hop headers to strip before forwarding
 const STRIP_FORWARD_HEADERS = new Set([
@@ -105,7 +106,7 @@ async function handleRelay(req: NextRequest) {
 
     // CORS & Diagnostic headers
     resHeaders.set('x-final-url', originRes.url || targetUrl);
-    resHeaders.set('x-relay-runtime', 'vercel-edge');
+    resHeaders.set('x-relay-runtime', 'vercel-bom1');
     resHeaders.set('access-control-allow-origin', '*');
     resHeaders.set('access-control-allow-credentials', 'true');
     resHeaders.set(
