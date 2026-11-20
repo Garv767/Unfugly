@@ -63,7 +63,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                   <p className="text-gray-400 text-[0.9em] mt-[2px] mb-0 opacity-80">
                      {courseType}
                      {isInternal && (
-                         <span className="text-[0.8em] text-[#FBC02D]"> (Internal)</span>
+                         <span className="text-[0.8em] text-[#F59E0B]"> (Internal)</span>
                      )}
                   </p>
                </div>
@@ -72,12 +72,12 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                       <span className="font-bold text-[1em]" style={{ color: (() => {
                          const pct = totalMaxMarks > 0 ? (totalObtainedMarks / totalMaxMarks) * 100 : 0;
                          if (isInternal) {
-                            if (pct > 91) return '#81c784';
-                            if (pct > 50) return '#fbc02d';
+                            if (pct >= 90) return '#81c784';
+                            if (pct >= 50) return '#F59E0B';
                             return '#e57373';
                          } else {
-                            if (pct > 85) return '#81c784';
-                            if (pct > 50) return '#fbc02d';
+                            if (pct >= 85) return '#81c784';
+                            if (pct >= 50) return '#F59E0B';
                             return '#e57373';
                          }
                       })() }}>
@@ -118,7 +118,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                              <div className="mt-1 text-[#aaa] text-[0.82em] flex items-center gap-1.5">
                                 <span className="text-gray-400">Type:</span> 
                                 {isInternal 
-                                   ? <span className="flex items-center gap-1 text-gray-200"><Lock size={12} className="text-[#FBC02D]" /> Fully Internal</span> 
+                                   ? <span className="flex items-center gap-1 text-gray-200"><Lock size={12} className="text-[#F59E0B]" /> Fully Internal</span> 
                                    : <span className="flex items-center gap-1 text-gray-200"><FileText size={12} className="text-[#64b5f6]" /> Theory (60+40)</span>
                                 }
                              </div>
@@ -140,7 +140,7 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                                          const extNeeded40 = Math.max(0, g.min - internalObtained);
                                          const extNeeded75 = extNeeded40 > 40 ? '—' : Math.ceil(extNeeded40 * 75 / 40);
                                          const impossible = extNeeded75 === '—' || (typeof extNeeded75 === 'number' && extNeeded75 > 75);
-                                         const rowColor = impossible ? '#E57373' : (extNeeded75 > 70 ? '#FBC02D' : '#81C784');
+                                         const rowColor = impossible ? '#E57373' : (extNeeded75 > 70 ? '#F59E0B' : '#81C784');
                                          const displayNeeded = impossible ? <X size={14} className="inline-block" /> : `${extNeeded75}/75`;
                                          return (
                                             <tr key={g.grade} className="border-b border-[#2a2a2a]">
@@ -170,12 +170,12 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                          backgroundColor: (() => {
                             const pct = (totalObtainedMarks / totalMaxMarks) * 100;
                             if (isInternal) {
-                               if (pct > 91) return '#81C784';
-                               if (pct > 50) return '#FBC02D';
+                               if (pct >= 90) return '#81C784';
+                               if (pct >= 50) return '#F59E0B';
                                return '#E57373';
                             } else {
-                               if (pct > 85) return '#81C784';
-                               if (pct > 50) return '#FBC02D';
+                               if (pct >= 85) return '#81C784';
+                               if (pct >= 50) return '#F59E0B';
                                return '#E57373';
                             }
                          })()
@@ -197,12 +197,12 @@ export default function MarksView({ data, isBgScraping }: { data: any, isBgScrap
                       
                       const getScoreColor = (pct: number) => {
                           if (isInternal) {
-                              if (pct > 91) return '#81C784';
-                              if (pct > 50) return '#FBC02D';
+                              if (pct >= 90) return '#81C784';
+                              if (pct >= 50) return '#F59E0B';
                               return '#E57373';
                           } else {
-                              if (pct > 85) return '#81C784';
-                              if (pct > 50) return '#FBC02D';
+                              if (pct >= 85) return '#81C784';
+                              if (pct >= 50) return '#F59E0B';
                               return '#E57373';
                           }
                       };

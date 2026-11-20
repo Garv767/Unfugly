@@ -8,7 +8,7 @@ import AttendancePredict from '@/components/AttendancePredict';
 import AttendanceView from '@/components/AttendanceView';
 import MarksView from '@/components/MarksView';
 import BottomNav from '@/components/BottomNav';
-import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { CalendarRange, LogOut, Rocket, ShieldCheck, RefreshCw, X, Eye, EyeOff, KeyRound, User, Award, BookOpen } from 'lucide-react';
 import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -530,6 +530,18 @@ export default function Dashboard() {
                   
                   {isMenuOpen && (
                      <div className="absolute left-0 bottom-[calc(100%+8px)] bg-[#1e1e1e] border border-[#444] rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] transition-all w-[240px] p-2 text-left z-50 flex flex-col gap-1">
+                        <button onClick={() => router.push('/profile')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                           <User className="w-4 h-4 text-[#1E88E5]" /> Profile
+                        </button>
+
+                        <button onClick={() => router.push('/gpa')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                           <Award className="w-4 h-4 text-amber-400" /> SGPA & CGPA
+                        </button>
+
+                        <button onClick={() => router.push('/exams')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
+                           <BookOpen className="w-4 h-4 text-[#64B5F6]" /> Exam Timetable
+                        </button>
+
                         <button onClick={() => router.push('/feedback')} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#2a2a2a] hover:text-white rounded-lg transition-colors flex items-center gap-3">
                            <Rocket className="w-4 h-4 text-purple-400" /> Feedback Fastrack
                         </button>

@@ -18,6 +18,33 @@ interface TimetableViewProps {
   dbEditedSlots?: any;
 }
 
+
+const COURSE_PALETTE = [
+  '#AED6F1', // Soft Sky Blue
+  '#A9DFBF', // Soft Mint Green
+  '#FAD7A0', // Warm Light Amber
+  '#D7BDE2', // Soft Lavender
+  '#A3E4D7', // Soft Aquamarine
+  '#FADBD8', // Soft Rose
+  '#F9E79F', // Soft Pale Sun
+  '#EDBB99', // Warm Sand
+  '#D2B4DE', // Lilac
+  '#A2D9CE', // Soft Seafoam
+  '#F5CBA7', // Peach
+  '#FCF3CF'  // Soft Cream Yellow
+];
+
+function getCourseColor(key: string): string {
+  if (!key) return '#AED6F1';
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % COURSE_PALETTE.length;
+  return COURSE_PALETTE[index];
+}
+
 function parseTableToJSON(table: HTMLTableElement) {
     const data: any = { headers: [], days: [], extraSlotFlag: false };
     if (!table) return data;
@@ -439,15 +466,22 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                     if (edit && viewState !== 'hide') {
                         displayTitle = edit.editedTitle;
                         displayRoom = edit.editedClassroom;
-                        displayBg = '#FBC02D';
+                        displayBg = '#F59E0B';
                         isReplaced = true;
                     } else if (mappedCourse && cleanSlotText !== '') {
                         displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
                         displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                         isReplaced = true;
+                        if (!displayBg || displayBg === 'transparent') {
+                            displayBg = getCourseColor(cleanSlotText || displayTitle);
+                        }
                     } else if (cleanSlotText !== '') {
                         displayBg = '#585b5b';
                         isGrey = true;
+                    } else if (displayTitle) {
+                        if (!displayBg || displayBg === 'transparent') {
+                            displayBg = getCourseColor(displayTitle);
+                        }
                     }
 
                     if (!displayTitle && cleanSlotText === '') {
@@ -488,7 +522,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                display: 'block', 
                                fontWeight: isGrey ? '400' : '600',
                                fontSize: '11px',
-                               color: isGrey ? 'rgb(170,170,170)' : '#334'
+                               color: isGrey ? 'rgb(170,170,170)' : '#111827'
                            }}>
                                {isGrey ? (cleanSlotText || rawSlotText) : displayTitle}
                            </span>
@@ -498,7 +532,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                    display: 'block',
                                    fontWeight: '600',
                                    fontSize: '9px',
-                                   color: '#555'
+                                   color: '#374151'
                                }}>
                                    {displayRoom.startsWith('Room:') ? displayRoom : `Room: ${displayRoom}`}
                                </span>
@@ -593,15 +627,18 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       if (edit && viewState !== 'hide') {
                           displayTitle = edit.editedTitle;
                           displayRoom = edit.editedClassroom;
-                          displayBg = '#FBC02D';
+                          displayBg = '#F59E0B';
                           isReplaced = true;
                       } else if (mappedCourse && cleanSlotText !== '') {
                           displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
                           displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                           isReplaced = true;
+                          displayBg = getCourseColor(cleanSlotText || displayTitle);
                       } else if (cleanSlotText !== '') {
                           displayBg = '#585b5b';
                           isGrey = true;
+                      } else if (displayTitle) {
+                          displayBg = getCourseColor(displayTitle);
                       }
 
                       if (!displayTitle && cleanSlotText === '') {

@@ -582,9 +582,9 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
 
 ### 10.6 Webapp Session Persistence & Silent Token Refresh (PWA Anti-Logout)
 - **Problem Formulation**: Default Supabase Auth JWT access tokens expire after exactly 3600 seconds (1 hour). In installed Progressive Web Apps (PWAs) and mobile standalone web views, background processes terminate when inactive. When returning to the app after >1 hour, API requests previously failed with 401 Unauthorized, prematurely kicking students back to `/login`.
-- **60-Day Unified Token Architecture**:
-  - Upon login, signup, or email OTP verification, the backend issues a high-entropy 60-day Unfugly JWT (`unfuglyToken`) signed with `JWT_SECRET` and bound to the student's `net_id` and Supabase UUID.
-  - Concurrently, secure cross-origin HttpOnly cookies (`unfugly_session`, `unfugly_token`, `sb-refresh-token`, `sb-access-token`) are set with `maxAge: 60 * 24 * 60 * 60 * 1000` (60 days), `SameSite: Lax/None`, and `Secure: true`.
+- **20-Day Unified Token Architecture**:
+  - Upon login, signup, or email OTP verification, the backend issues a high-entropy 20-day Unfugly JWT (`unfuglyToken`) signed with `JWT_SECRET` and bound to the student's `net_id` and Supabase UUID.
+  - Concurrently, secure cross-origin HttpOnly cookies (`unfugly_session`, `unfugly_token`, `sb-refresh-token`, `sb-access-token`) are set with `maxAge: 20 * 24 * 60 * 60 * 1000` (20 days), `SameSite: Lax/None`, and `Secure: true`.
 - **Sub-Millisecond Verification with Supabase Fallback (`middleware/auth.js`)**:
   - `verifyWebappToken` and `optionalWebappToken` verify the local Unfugly JWT first in ~0.05ms with zero remote network calls.
   - If invalid or signed by Supabase directly, they gracefully fall back to `supabase.auth.getUser(token)`.
@@ -592,7 +592,16 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
   - Centralized client `authFetch` transparently intercepts any 401 HTTP response.
   - Instead of discarding credentials and booting the student out, it seamlessly dispatches a background refresh call to `POST /api/v2/auth/refresh` using the stored `unfugly_refresh_token` or cookie.
   - When refreshed, both `localStorage` and HttpOnly cookies update, and the original failed request is automatically retried with the new token.
-  - Users returning to the PWA or browser after any length of time within 60 days experience zero session interruptions.
+  - Users returning to the PWA or browser after any length of time within 20 days experience zero session interruptions.
+
+### 10.7 Dedicated Academic Suites: Student Profile, SGPA/CGPA Simulator, and Exam Timetable
+- **Dedicated Route Architecture**: Rather than crowding raw text into cramped popups or mobile dialogs, high-value academic tools are broken out into dedicated, responsive pages:
+  - **`/profile` (Student Identity Suite)**: Dedicated SRM student card displaying student photograph with fallback monogram, registration number, program, branch, school, department, section, semester, current day order, and portal connection indicators.
+  - **`/gpa` (Interactive SGPA & Cumulative CGPA Simulator)**: Dynamic grade point calculator (`O: 10`, `A+: 9`, `A: 8`, `B+: 7`, `B: 6`, `C: 5`, `P: 4`, `F: 0`) that pre-populates the student's enrolled courses. Dynamically calculates predicted semester SGPA and projects real-time shifts in Cumulative CGPA based on previous credits and CGPA. Includes a by-default closed accordion for past semesters (Semesters 1 through 8) with persistent `localStorage` storage.
+  - **`/exams` (University Examination Timetable)**: Displays official end-semester and mid-term exam schedules scraped from Student Portal (`iden=126`), including course code, course title, date and session (FN/AN), hall number, and seat number.
+- **Section Extraction & Senior Student Backfill**: Student Portal personal details often omit section data for seniors (batches < 2030). The sync engine extracts the section string (e.g. `(Section F1)`) directly from Academia timetable DOM headers / course allotment records or legacy database records and persists it into `profiles.section`.
+- **Timetable Pastel Color Restoration**: Subject cells utilize a deterministic, high-contrast pastel palette (`COURSE_PALETTE`) derived from course code hashing, pairing soft pastel backgrounds with `#111827` high-contrast typography, restoring vibrant desktop and mobile schedules.
+- **Marks Color Palette & Boundary Refinement**: Refined color thresholds ensure boundary grades receive their appropriate upper grade tier (`91/100` and $\ge 90\%$ render in vibrant green `#81C784`; `7.5/15` and $\ge 50\%$ render in warm amber `#F59E0B`, replacing outdated yellow `#FBC02D`).
 
 
 
