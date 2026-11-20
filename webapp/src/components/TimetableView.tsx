@@ -455,7 +455,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                     const actualCourseData: Record<string, any> = courseData || {};
                     const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[rawSlotText];
 
-                    let displayBg = slot.bgColor;
+                    let displayBg = slot.bgColor && slot.bgColor !== 'transparent' && slot.bgColor !== '#585b5b' ? slot.bgColor : '';
                     let displayTitle = slot.title;
                     let displayRoom = slot.classroom;
                     let isReplaced = false;
@@ -472,16 +472,16 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                         displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
                         displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                         isReplaced = true;
-                        if (!displayBg || displayBg === 'transparent') {
+                        if (!displayBg) {
+                            displayBg = getCourseColor(cleanSlotText || displayTitle);
+                        }
+                    } else if (displayTitle || displayRoom) {
+                        if (!displayBg) {
                             displayBg = getCourseColor(cleanSlotText || displayTitle);
                         }
                     } else if (cleanSlotText !== '') {
                         displayBg = '#585b5b';
                         isGrey = true;
-                    } else if (displayTitle) {
-                        if (!displayBg || displayBg === 'transparent') {
-                            displayBg = getCourseColor(displayTitle);
-                        }
                     }
 
                     if (!displayTitle && cleanSlotText === '') {
@@ -618,7 +618,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
 
                       let displayTitle = slot.title;
                       let displayRoom = slot.classroom;
-                      let displayBg = slot.bgColor !== 'transparent' && slot.bgColor ? slot.bgColor : '#333';
+                      let displayBg = slot.bgColor && slot.bgColor !== 'transparent' && slot.bgColor !== '#585b5b' ? slot.bgColor : '';
                       let isReplaced = false;
                       let isGrey = false;
 
@@ -633,12 +633,16 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                           displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
                           displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                           isReplaced = true;
-                          displayBg = getCourseColor(cleanSlotText || displayTitle);
+                          if (!displayBg) {
+                              displayBg = getCourseColor(cleanSlotText || displayTitle);
+                          }
+                      } else if (displayTitle || displayRoom) {
+                          if (!displayBg) {
+                              displayBg = getCourseColor(cleanSlotText || displayTitle);
+                          }
                       } else if (cleanSlotText !== '') {
                           displayBg = '#585b5b';
                           isGrey = true;
-                      } else if (displayTitle) {
-                          displayBg = getCourseColor(displayTitle);
                       }
 
                       if (!displayTitle && cleanSlotText === '') {

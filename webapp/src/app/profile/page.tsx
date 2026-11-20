@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ChevronLeft, User, ShieldCheck, Award, BookOpen, Building2, Calendar, Hash, Layers, KeyRound, LogOut, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, User, Award, BookOpen, Calendar, Layers, LogOut, CheckCircle2 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { authFetch } from '@/utils/apiClient';
 
@@ -119,41 +119,25 @@ export default function ProfilePage() {
                 {profileData?.name || netId.toUpperCase() || 'Student'}
               </h2>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#1E88E5]/20 text-[#64B5F6] border border-[#1E88E5]/30">
-                  {netId.toUpperCase() || 'SRMIST'}
-                </span>
                 {profileData?.registrationNo || profileData?.registration_no ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#333] text-gray-300 border border-[#444]">
-                    Reg: {profileData?.registrationNo || profileData?.registration_no}
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#2a2a2a] text-gray-200 border border-[#444]">
+                    Reg No: <span className="text-white font-mono">{profileData?.registrationNo || profileData?.registration_no}</span>
                   </span>
                 ) : null}
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Active Student
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Active Student
                 </span>
               </div>
-              <p className="text-sm text-gray-400 pt-1">
+              <p className="text-sm text-gray-300 pt-1 font-medium">
                 {profileData?.programmeBranch || profileData?.programme_branch || 'Undergraduate Engineering & Technology'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Detailed Metadata Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5">
-            <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-[#1E88E5]">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Section</div>
-              <div className="text-lg font-bold text-white mt-0.5">
-                {profileData?.section || 'Section A'}
-              </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Assigned Class Group</div>
-            </div>
-          </div>
-
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5">
+        {/* The 3 Core Academic Metadata Cards: Semester, Section, Day Order */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5 shadow-lg">
             <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-purple-400">
               <Award className="w-5 h-5" />
             </div>
@@ -162,11 +146,24 @@ export default function ProfilePage() {
               <div className="text-lg font-bold text-white mt-0.5">
                 {profileData?.semester ? `Semester ${profileData.semester}` : 'Current Semester'}
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Academic Cycle 2026-27</div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Academic Cycle</div>
             </div>
           </div>
 
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5">
+          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5 shadow-lg">
+            <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-[#1E88E5]">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Section</div>
+              <div className="text-lg font-bold text-white mt-0.5">
+                {profileData?.section || 'N/A'}
+              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Class Allotment</div>
+            </div>
+          </div>
+
+          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5 shadow-lg">
             <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-emerald-400">
               <Calendar className="w-5 h-5" />
             </div>
@@ -176,59 +173,6 @@ export default function ProfilePage() {
                 {dayOrder}
               </div>
               <div className="text-[11px] text-gray-500 mt-0.5">Timetable Cycle Rotation</div>
-            </div>
-          </div>
-
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5">
-            <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-amber-400">
-              <Hash className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Net ID / Username</div>
-              <div className="text-lg font-bold text-white mt-0.5 font-mono">
-                {netId.toLowerCase()}
-              </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">SRM Central Single Sign-On</div>
-            </div>
-          </div>
-
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-4 flex items-start gap-3.5 sm:col-span-2">
-            <div className="p-2.5 rounded-lg bg-[#2a2a2a] text-[#64B5F6]">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Department & School</div>
-              <div className="text-base font-semibold text-white mt-0.5">
-                {profileData?.schoolDepartment || profileData?.school_department || 'School of Computing, SRMIST Kattankulathur'}
-              </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Main Campus, Kattankulathur, Chennai</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Portals Connection Status */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 space-y-3">
-          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" /> Connected Academic Portals
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#252525] border border-[#3a3a3a]">
-              <div>
-                <div className="text-sm font-semibold text-white">Student Portal (SP)</div>
-                <div className="text-xs text-gray-400">Attendance, Marks & Exams</div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Connected
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#252525] border border-[#3a3a3a]">
-              <div>
-                <div className="text-sm font-semibold text-white">Academia Portal</div>
-                <div className="text-xs text-gray-400">Official Course Timetable</div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Connected
-              </span>
             </div>
           </div>
         </div>

@@ -25,6 +25,74 @@ interface CourseItem {
   title: string;
   credit: number;
   grade: string;
+  obtainedMarks?: number;
+  maxMarks?: number;
+  isFullyInternal?: boolean;
+}
+
+function getHighestPossibleGrade(obtained: number, maxUploaded: number): string {
+  if (maxUploaded <= 0) return 'O';
+  const marksLost = Math.max(0, maxUploaded - obtained);
+  const maxPossible = 100 - marksLost;
+
+  if (maxPossible >= 91) return 'O';
+  if (maxPossible >= 81) return 'A+';
+  if (maxPossible >= 71) return 'A';
+  if (maxPossible >= 61) return 'B+';
+  if (maxPossible >= 56) return 'B';
+  if (maxPossible >= 50) return 'C';
+  return 'F';
+}
+
+function buildCourseItems(rawAttendance: any[], rawMarks: any[]): CourseItem[] {
+  const marksMap = new Map<string, any>();
+  if (Array.isArray(rawMarks)) {
+    rawMarks.forEach(m => {
+      const code = String(m.courseCode || m.CourseCode || '').trim().toUpperCase();
+      if (code) marksMap.set(code, m);
+    });
+  }
+
+  const items: CourseItem[] = [];
+  const seen = new Set<string>();
+  const sourceList = Array.isArray(rawAttendance) && rawAttendance.length > 0 ? rawAttendance : rawMarks;
+
+  if (Array.isArray(sourceList)) {
+    sourceList.forEach((c: any, idx: number) => {
+      const rawCode = String(c.courseCode || c.course_code || `COURSE_${idx + 1}`).trim();
+      const upperCode = rawCode.toUpperCase();
+      if (seen.has(upperCode)) return;
+      seen.add(upperCode);
+
+      const markObj = marksMap.get(upperCode) || (rawMarks ? rawMarks.find((m: any) => String(m.courseCode || m.CourseCode || '').trim().toUpperCase() === upperCode) : null);
+      
+      const totalMaxMarks = Number(markObj?.totalMaxMarks ?? markObj?.TotalMaxMarks ?? 0);
+      const totalObtainedMarks = Number(markObj?.totalObtainedMarks ?? markObj?.TotalObtainedMarks ?? 0);
+
+      const creditRaw = (c.credit !== undefined && c.credit !== null && !isNaN(Number(c.credit))) ? Number(c.credit) : 3;
+      const isFullyInternal = creditRaw === 0 || 
+                              upperCode.startsWith('21LEM') || 
+                              upperCode.includes('LEM') || 
+                              upperCode.endsWith('P') || 
+                              upperCode.endsWith('L') || 
+                              totalMaxMarks > 60;
+
+      const initialGrade = totalMaxMarks > 0 ? getHighestPossibleGrade(totalObtainedMarks, totalMaxMarks) : 'O';
+
+      items.push({
+        id: `course-${idx}`,
+        code: rawCode,
+        title: c.courseTitle || c.course_title || markObj?.courseTitle || markObj?.CourseTitle || rawCode,
+        credit: creditRaw,
+        grade: initialGrade,
+        obtainedMarks: totalMaxMarks > 0 ? totalObtainedMarks : undefined,
+        maxMarks: totalMaxMarks > 0 ? totalMaxMarks : undefined,
+        isFullyInternal
+      });
+    });
+  }
+
+  return items;
 }
 
 interface PastSemester {
@@ -95,23 +163,7 @@ export default function GpaPage() {
             applyGpaRecord(parsed.gpaRecord || parsed.gpa_record);
           }
 
-          const rawList = parsed?.attendanceData || parsed?.marksData || [];
-          if (Array.isArray(rawList) && rawList.length > 0) {
-            const seen = new Set<string>();
-            rawList.forEach((c: any, idx: number) => {
-              const code = c.courseCode || c.course_code || `COURSE_${idx + 1}`;
-              if (!seen.has(code)) {
-                seen.add(code);
-                loadedCourses.push({
-                  id: `course-${idx}`,
-                  code: code,
-                  title: c.courseTitle || c.course_title || code,
-                  credit: Number(c.credit) || 3,
-                  grade: 'A+'
-                });
-              }
-            });
-          }
+          loadedCourses = buildCourseItems(parsed?.attendanceData || [], parsed?.marksData || []);
         } catch (e) {}
       }
     }
@@ -157,23 +209,9 @@ export default function GpaPage() {
             applyGpaRecord(d.gpaRecord || d.gpa_record);
           }
 
-          if (Array.isArray(d.attendanceData) && d.attendanceData.length > 0 && loadedCourses.length === 0) {
-            const freshList: CourseItem[] = [];
-            const seen = new Set<string>();
-            d.attendanceData.forEach((c: any, idx: number) => {
-              const code = c.courseCode || c.course_code || `COURSE_${idx + 1}`;
-              if (!seen.has(code)) {
-                seen.add(code);
-                freshList.push({
-                  id: `course-${idx}`,
-                  code: code,
-                  title: c.courseTitle || c.course_title || code,
-                  credit: Number(c.credit) || 3,
-                  grade: 'A+'
-                });
-              }
-            });
-            if (freshList.length > 0) setCourses(freshList);
+          const freshList = buildCourseItems(d.attendanceData || [], d.marksData || []);
+          if (freshList.length > 0) {
+            setCourses(freshList);
           }
         }
       })
@@ -499,13 +537,25 @@ export default function GpaPage() {
                 className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-[#252525] border border-[#3a3a3a] gap-3"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-[#64B5F6]">{c.code}</span>
                     <span className="text-[11px] text-gray-400 px-2 py-0.5 rounded bg-[#1e1e1e] border border-[#444]">
-                      {c.credit} Credits
+                      {c.credit} {c.credit === 1 ? 'Credit' : 'Credits'}
                     </span>
+                    {c.isFullyInternal && (
+                      <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">
+                        Fully Internal
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm font-semibold text-white truncate mt-0.5">{c.title}</div>
+                  <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+                    {c.maxMarks !== undefined && c.maxMarks > 0 ? (
+                      <span>Marks Uploaded: <b className="text-emerald-400 font-medium">{c.obtainedMarks}</b> / {c.maxMarks}</span>
+                    ) : (
+                      <span className="text-gray-500">Marks Uploaded: <span className="italic">Not yet uploaded</span></span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -517,7 +567,7 @@ export default function GpaPage() {
                       onChange={(e) => handleCreditChange(c.id, Number(e.target.value))}
                       className="bg-[#121212] border border-[#444] text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#1E88E5]"
                     >
-                      {[1, 2, 3, 4, 5].map(cr => (
+                      {[0, 1, 2, 3, 4, 5].map(cr => (
                         <option key={cr} value={cr}>{cr}</option>
                       ))}
                     </select>

@@ -610,6 +610,33 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
 - **Timetable Pastel Color Restoration**: Subject cells utilize a deterministic, high-contrast pastel palette (`COURSE_PALETTE`) derived from course code hashing, pairing soft pastel backgrounds with `#111827` high-contrast typography, restoring vibrant desktop and mobile schedules.
 - **Marks Color Palette & Boundary Refinement**: Refined color thresholds ensure boundary grades receive their appropriate upper grade tier (`91/100` and $\ge 90\%$ render in vibrant green `#81C784`; `7.5/15` and $\ge 50\%$ render in warm amber `#F59E0B`, replacing outdated yellow `#FBC02D`).
 
+### 10.8 Profile, SGPA Simulator & Timetable Color Refinements
+- **Streamlined 6-Field Profile Suite (`/profile`)**:
+  - The profile page displays strictly and only 6 core identity fields:
+    1. **Name**
+    2. **Registration Number**
+    3. **Program**
+    4. **Semester**
+    5. **Section**
+    6. **Today's Day Order**
+  - Ancillary cards (NetID, Department & School, Connected Portals) are removed to maintain a focused identity card.
+- **Section Extraction for Academia & SP Batches**:
+  - For students with Academia access, section is styled in red font inside brackets (e.g., `(<font color="red">L1 Section</font>)` or `(L1 Section)`). The parser uses targeted regexes and DOM queries (`font[color*="red"]`) to cleanly isolate the section code (`L1`, `AH2`, etc.) and persists it to `profiles.section`.
+- **Gender Persistence & On-Demand Fetching**:
+  - Gender (`'male'`, `'female'`, `'other'`) is extracted from Student Portal (`studentPersonalDetails.jsp` / `iden=17`) and persisted into `profiles.gender`.
+  - **Skip Re-fetching**: If `profiles.gender` is already present and valid in the database, `authenticateStudentPortal` skips fetching `studentPersonalDetails.jsp` during subsequent sync cycles, cutting sync latency and network overhead.
+- **SGPA Page Credits & Fully Internal Course Handling**:
+  - **Zero-Credit Bug Fix**: Corrected truthy fallback `Number(c.credit) || 3` $\to$ `c.credit !== undefined && c.credit !== null && !isNaN(Number(c.credit)) ? Number(c.credit) : 3`. Zero-credit courses (such as Indian Art Form `21LEM301T`) remain 0 credits and do not distort GPA computations.
+  - **Manual 0-Credit Dropdown Option**: Dropdown includes `[0, 1, 2, 3, 4, 5]`, enabling manual adjustment to 0 credits.
+  - **Highest Achievable Grade Auto-Selection**: Course grade selectors automatically initialize with the highest grade the student can mathematically achieve based on marks uploaded so far:
+    $$\text{Max Possible Score} = 100 - (\text{Uploaded Max Marks} - \text{Uploaded Obtained Marks})$$
+    Mapped to SRM grade boundaries (`O: >= 91`, `A+: >= 81`, `A: >= 71`, `B+: >= 61`, `B: >= 56`, `C: >= 50`, `F: < 50`).
+  - **Marks Uploaded & Fully Internal Badges**: Each course card displays total marks uploaded so far (`Marks Uploaded: ${obtained} / ${max}`), and courses identified as fully internal (`LEM` courses, `credit === 0`, courses ending in `P` or `L`, or `totalMaxMarks > 60`) are badged with `"Fully Internal"`.
+- **Timetable Subject Cell Color Restoration (`TimetableView.tsx`)**:
+  - Removed faulty fallback logic where populated subject titles triggered `displayBg = '#585b5b'`, which previously turned active classes grey.
+  - Active subject cells preserve scraped batch timetable colors (`slot.bgColor`) or dynamically resolve to the high-contrast deterministic `COURSE_PALETTE` across both desktop table and mobile carousel views.
+
+
 
 
 
