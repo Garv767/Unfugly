@@ -39,6 +39,7 @@ export default function GpaPage() {
   const [courses, setCourses] = useState<CourseItem[]>([]);
   const [prevCgpa, setPrevCgpa] = useState<string>('');
   const [prevCredits, setPrevCredits] = useState<string>('');
+  const [isOfficialRecord, setIsOfficialRecord] = useState(false);
   const [isAccordionOpen, setIsAccordionOpen] = useState(false); // By-default closed accordion
   const [pastSemesters, setPastSemesters] = useState<PastSemester[]>([
     { semester: 1, sgpa: '', credits: '' },
@@ -52,6 +53,30 @@ export default function GpaPage() {
   ]);
 
   useEffect(() => {
+    const applyGpaRecord = (gpaRecord: any) => {
+      if (!gpaRecord) return;
+      if (gpaRecord.cgpa) {
+        setPrevCgpa(String(gpaRecord.cgpa));
+      }
+      if (gpaRecord.totalEarnedCredits) {
+        setPrevCredits(String(gpaRecord.totalEarnedCredits));
+      }
+      if (Array.isArray(gpaRecord.semesters) && gpaRecord.semesters.length > 0) {
+        setPastSemesters(prev => prev.map(s => {
+          const match = gpaRecord.semesters.find((m: any) => Number(m.semester) === s.semester);
+          if (match) {
+            return {
+              semester: s.semester,
+              sgpa: String(match.sgpa || ''),
+              credits: String(match.credits || '')
+            };
+          }
+          return s;
+        }));
+      }
+      setIsOfficialRecord(true);
+    };
+
     // 1. Load user data from localStorage
     const netIdKey = Object.keys(localStorage).find(key => key.startsWith('unfuglyData_') && key !== 'unfuglyData_calendar');
     let loadedCourses: CourseItem[] = [];
@@ -64,6 +89,11 @@ export default function GpaPage() {
           const parsed = JSON.parse(cachedStr);
           currentNetId = parsed?.netId || '';
           setNetId(currentNetId);
+
+          // Auto-apply official GPA record if present in cached data bundle
+          if (parsed?.gpaRecord || parsed?.gpa_record) {
+            applyGpaRecord(parsed.gpaRecord || parsed.gpa_record);
+          }
 
           const rawList = parsed?.attendanceData || parsed?.marksData || [];
           if (Array.isArray(rawList) && rawList.length > 0) {
@@ -99,40 +129,52 @@ export default function GpaPage() {
       ]);
     }
 
-    // 2. Load stored GPA records
+    // 2. Load stored user-customized GPA records if no official record was loaded
     if (typeof window !== 'undefined') {
       const savedGpa = localStorage.getItem(`unfugly_gpa_${currentNetId || 'default'}`);
       if (savedGpa) {
         try {
           const parsedGpa = JSON.parse(savedGpa);
-          if (parsedGpa.prevCgpa) setPrevCgpa(parsedGpa.prevCgpa);
-          if (parsedGpa.prevCredits) setPrevCredits(parsedGpa.prevCredits);
-          if (parsedGpa.pastSemesters) setPastSemesters(parsedGpa.pastSemesters);
+          if (parsedGpa.prevCgpa) setPrevCgpa(prev => prev || parsedGpa.prevCgpa);
+          if (parsedGpa.prevCredits) setPrevCredits(prev => prev || parsedGpa.prevCredits);
+          if (parsedGpa.pastSemesters) {
+            setPastSemesters(prev => {
+              const hasExisting = prev.some(s => s.sgpa !== '');
+              return hasExisting ? prev : parsedGpa.pastSemesters;
+            });
+          }
         } catch (e) {}
       }
     }
 
-    // 3. Fresh bundle fetch
+    // 3. Fresh bundle fetch from API
     authFetch(`${API_URL}/api/v2/user/data`)
       .then(res => res.json())
       .then(d => {
-        if (d.success && Array.isArray(d.attendanceData) && d.attendanceData.length > 0 && loadedCourses.length === 0) {
-          const freshList: CourseItem[] = [];
-          const seen = new Set<string>();
-          d.attendanceData.forEach((c: any, idx: number) => {
-            const code = c.courseCode || c.course_code || `COURSE_${idx + 1}`;
-            if (!seen.has(code)) {
-              seen.add(code);
-              freshList.push({
-                id: `course-${idx}`,
-                code: code,
-                title: c.courseTitle || c.course_title || code,
-                credit: Number(c.credit) || 3,
-                grade: 'A+'
-              });
-            }
-          });
-          if (freshList.length > 0) setCourses(freshList);
+        if (d.success) {
+          // Auto-apply official GPA record from Student Portal
+          if (d.gpaRecord || d.gpa_record) {
+            applyGpaRecord(d.gpaRecord || d.gpa_record);
+          }
+
+          if (Array.isArray(d.attendanceData) && d.attendanceData.length > 0 && loadedCourses.length === 0) {
+            const freshList: CourseItem[] = [];
+            const seen = new Set<string>();
+            d.attendanceData.forEach((c: any, idx: number) => {
+              const code = c.courseCode || c.course_code || `COURSE_${idx + 1}`;
+              if (!seen.has(code)) {
+                seen.add(code);
+                freshList.push({
+                  id: `course-${idx}`,
+                  code: code,
+                  title: c.courseTitle || c.course_title || code,
+                  credit: Number(c.credit) || 3,
+                  grade: 'A+'
+                });
+              }
+            });
+            if (freshList.length > 0) setCourses(freshList);
+          }
         }
       })
       .catch(() => {});
@@ -313,9 +355,17 @@ export default function GpaPage() {
 
         {/* Previous CGPA Inputs Card */}
         <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-lg">
-          <div className="flex items-center gap-2 mb-3">
-            <Calculator className="w-4 h-4 text-[#1E88E5]" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Previous Cumulative Record</h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-[#1E88E5]" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Previous Cumulative Record</h2>
+            </div>
+            {isOfficialRecord && (
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Official Portal Record</span>
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -354,7 +404,14 @@ export default function GpaPage() {
             <div className="flex items-center gap-2.5">
               <Award className="w-4 h-4 text-purple-400" />
               <div>
-                <span className="text-sm font-bold text-white block">Previous Semesters Record (Semester 1–8)</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white block">Previous Semesters Record (Semester 1–8)</span>
+                  {isOfficialRecord && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Synced
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-gray-400">Expandable history & cumulative auto-calculation</span>
               </div>
             </div>
@@ -367,7 +424,9 @@ export default function GpaPage() {
           {isAccordionOpen && (
             <div className="px-5 pb-5 pt-2 border-t border-[#333] space-y-4">
               <p className="text-xs text-gray-400">
-                Log each past semester's SGPA and credits earned. They persist in your browser so you don't have to re-enter them.
+                {isOfficialRecord
+                  ? "Official semester-by-semester SGPA and credits synced from Student Portal. Feel free to tweak values to simulate what-if scenarios."
+                  : "Log each past semester's SGPA and credits earned. They persist in your browser so you don't have to re-enter them."}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">

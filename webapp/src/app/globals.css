@@ -49,3 +49,19 @@ body {
     @apply bg-accent hover:bg-accent2 text-white font-medium py-2 px-4 rounded-md transition-colors shadow-sm;
   }
 }
+
+@keyframes pageFadeSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.page-transition-enter {
+  animation: pageFadeSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
