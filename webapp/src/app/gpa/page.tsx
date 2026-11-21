@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import { ChevronLeft, Award, TrendingUp, Calculator, ChevronDown, ChevronUp, Plus, Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Award, TrendingUp, Calculator, ChevronDown, ChevronUp, Plus, Trash2, RotateCcw } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import DesktopSidebar from '@/components/DesktopSidebar';
 import { authFetch } from '@/utils/apiClient';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -44,6 +45,22 @@ function getHighestPossibleGrade(obtained: number, maxUploaded: number): string 
   return 'F';
 }
 
+function inferCourseCredit(courseCode: string, explicitCredit?: number | string | null): number {
+  const code = (courseCode || '').toUpperCase();
+  if (code.includes('LEM') || code.includes('GNM') || code.includes('CYM') || code.includes('PDM') || code.includes('ART') || code.includes('COMMUNITY')) {
+    return 0;
+  }
+  if (explicitCredit !== undefined && explicitCredit !== null && !isNaN(Number(explicitCredit))) {
+    const num = Number(explicitCredit);
+    if (num > 0) return num;
+  }
+  if (code.endsWith('J')) return 4;
+  if (code.startsWith('21MAB') || code.startsWith('18MAB')) return 4;
+  if (code.endsWith('T') || code.endsWith('P')) return 3;
+  if (code.endsWith('L')) return 1;
+  return 3;
+}
+
 function buildCourseItems(rawAttendance: any[], rawMarks: any[]): CourseItem[] {
   const marksMap = new Map<string, any>();
   if (Array.isArray(rawMarks)) {
@@ -69,12 +86,18 @@ function buildCourseItems(rawAttendance: any[], rawMarks: any[]): CourseItem[] {
       const totalMaxMarks = Number(markObj?.totalMaxMarks ?? markObj?.TotalMaxMarks ?? 0);
       const totalObtainedMarks = Number(markObj?.totalObtainedMarks ?? markObj?.TotalObtainedMarks ?? 0);
 
-      const creditRaw = (c.credit !== undefined && c.credit !== null && !isNaN(Number(c.credit))) ? Number(c.credit) : 3;
+      const courseTitle = c.courseTitle || c.course_title || markObj?.courseTitle || markObj?.CourseTitle || rawCode;
+      const upperTitle = courseTitle.toUpperCase();
+      const isZeroCredit = upperCode.includes('LEM') || upperCode.includes('GNM') || upperCode.includes('CYM') || upperCode.includes('PDM') || upperTitle.includes('ART') || upperTitle.includes('COMMUNITY');
+      const creditRaw = isZeroCredit ? 0 : inferCourseCredit(upperCode, c.credit);
+
       const isFullyInternal = creditRaw === 0 || 
                               upperCode.startsWith('21LEM') || 
                               upperCode.includes('LEM') || 
                               upperCode.endsWith('P') || 
                               upperCode.endsWith('L') || 
+                              upperTitle.includes('ART') || 
+                              upperTitle.includes('COMMUNITY') || 
                               totalMaxMarks > 60;
 
       const initialGrade = totalMaxMarks > 0 ? getHighestPossibleGrade(totalObtainedMarks, totalMaxMarks) : 'O';
@@ -82,7 +105,7 @@ function buildCourseItems(rawAttendance: any[], rawMarks: any[]): CourseItem[] {
       items.push({
         id: `course-${idx}`,
         code: rawCode,
-        title: c.courseTitle || c.course_title || markObj?.courseTitle || markObj?.CourseTitle || rawCode,
+        title: courseTitle,
         credit: creditRaw,
         grade: initialGrade,
         obtainedMarks: totalMaxMarks > 0 ? totalObtainedMarks : undefined,
@@ -104,6 +127,8 @@ interface PastSemester {
 export default function GpaPage() {
   const router = useRouter();
   const [netId, setNetId] = useState<string>('');
+  const [profileData, setProfileData] = useState<any>(null);
+  const [calendarData, setCalendarData] = useState<any>(null);
   const [courses, setCourses] = useState<CourseItem[]>([]);
   const [prevCgpa, setPrevCgpa] = useState<string>('');
   const [prevCredits, setPrevCredits] = useState<string>('');
@@ -157,6 +182,7 @@ export default function GpaPage() {
           const parsed = JSON.parse(cachedStr);
           currentNetId = parsed?.netId || '';
           setNetId(currentNetId);
+          if (parsed?.profileData) setProfileData(parsed.profileData);
 
           // Auto-apply official GPA record if present in cached data bundle
           if (parsed?.gpaRecord || parsed?.gpa_record) {
@@ -166,6 +192,13 @@ export default function GpaPage() {
           loadedCourses = buildCourseItems(parsed?.attendanceData || [], parsed?.marksData || []);
         } catch (e) {}
       }
+    }
+
+    const cachedCal = localStorage.getItem('unfuglyData_calendar');
+    if (cachedCal) {
+      try {
+        setCalendarData(JSON.parse(cachedCal));
+      } catch (e) {}
     }
 
     if (loadedCourses.length > 0) {
@@ -204,6 +237,8 @@ export default function GpaPage() {
       .then(res => res.json())
       .then(d => {
         if (d.success) {
+          if (d.profileData) setProfileData(d.profileData);
+          if (d.netId) setNetId(d.netId);
           // Auto-apply official GPA record from Student Portal
           if (d.gpaRecord || d.gpa_record) {
             applyGpaRecord(d.gpaRecord || d.gpa_record);
@@ -325,86 +360,89 @@ export default function GpaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans pb-24 lg:pb-12">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-[#1e1e1e]/80 backdrop-blur-xl border-b border-[#333] px-4 py-3 flex items-center justify-between">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-[#444] cursor-pointer"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span>Dashboard</span>
-        </button>
-        <h1 className="text-base font-bold text-white flex items-center gap-2">
-          <Award className="w-4 h-4 text-amber-400" /> SGPA & CGPA Simulator
-        </h1>
-        <div className="w-20"></div>
-      </header>
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col lg:flex-row font-sans overflow-hidden">
+      {/* Desktop Sidebar on Laptop/Desktop View */}
+      <DesktopSidebar
+        profileData={profileData}
+        calendarData={calendarData}
+        netId={netId}
+        activePage="gpa"
+      />
 
-      {/* Main Content */}
-      <main className="max-w-4xl w-full mx-auto px-4 mt-6 space-y-6">
-        {/* Metric Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Current Predicted SGPA */}
-          <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#333] rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Current Semester SGPA</span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#1E88E5]/20 text-[#64B5F6] border border-[#1E88E5]/30">
-                {currentCredits} Credits
-              </span>
-            </div>
-            <div className="flex items-baseline gap-3 mt-3">
-              <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200">
-                {currentSgpa.toFixed(2)}
-              </span>
-              <span className="text-sm text-gray-400 font-medium">/ 10.00</span>
-            </div>
-            <div className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Based on {courses.length} enrolled subjects</span>
-            </div>
-          </div>
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto custom-scrollbar pb-24 lg:pb-12">
+        {/* Top Navbar */}
+        <header className="sticky top-0 z-30 bg-[#1e1e1e]/80 backdrop-blur-xl border-b border-[#333] px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors bg-[#2a2a2a] px-3 py-1.5 rounded-lg border border-[#444] cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Dashboard</span>
+          </button>
+          <h1 className="text-base font-bold text-white flex items-center gap-2">
+            <Award className="w-4 h-4 text-amber-400" /> SGPA & CGPA Simulator
+          </h1>
+          <div className="w-20"></div>
+        </header>
 
-          {/* Cumulative CGPA Simulator */}
-          <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#333] rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Projected Cumulative CGPA</span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                Overall
-              </span>
-            </div>
-            <div className="flex items-baseline gap-3 mt-3">
-              <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
-                {predictedCgpa !== null ? predictedCgpa.toFixed(2) : (prevCgpa ? parseFloat(prevCgpa).toFixed(2) : currentSgpa.toFixed(2))}
-              </span>
-              <span className="text-sm text-gray-400 font-medium">/ 10.00</span>
-            </div>
-            <div className="text-xs text-gray-400 mt-2">
-              {predictedCgpa !== null && prevCgpa ? (
-                <span className="text-emerald-400 font-semibold">
-                  Shift: {prevCgpa} → {predictedCgpa.toFixed(2)} ({predictedCgpa >= parseFloat(prevCgpa) ? `+${(predictedCgpa - parseFloat(prevCgpa)).toFixed(2)}` : (predictedCgpa - parseFloat(prevCgpa)).toFixed(2)})
+        {/* Main Content */}
+        <main className="max-w-4xl w-full mx-auto px-4 mt-6 space-y-6">
+          {/* Metric Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Current Predicted SGPA */}
+            <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#333] rounded-2xl p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Current Semester SGPA</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#1E88E5]/20 text-[#64B5F6] border border-[#1E88E5]/30">
+                  {currentCredits} Credits
                 </span>
-              ) : (
-                <span>Enter previous CGPA below to simulate shift</span>
-              )}
+              </div>
+              <div className="flex items-baseline gap-3 mt-3">
+                <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200">
+                  {currentSgpa.toFixed(2)}
+                </span>
+                <span className="text-sm text-gray-400 font-medium">/ 10.00</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Based on {courses.length} enrolled subjects</span>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Previous CGPA Inputs Card */}
-        <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Calculator className="w-4 h-4 text-[#1E88E5]" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Previous Cumulative Record</h2>
+            {/* Cumulative CGPA Simulator */}
+            <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#333] rounded-2xl p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Projected Cumulative CGPA</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Overall
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 mt-3">
+                <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
+                  {predictedCgpa !== null ? predictedCgpa.toFixed(2) : (prevCgpa ? parseFloat(prevCgpa).toFixed(2) : currentSgpa.toFixed(2))}
+                </span>
+                <span className="text-sm text-gray-400 font-medium">/ 10.00</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-2">
+                {predictedCgpa !== null && prevCgpa ? (
+                  <span className="text-emerald-400 font-semibold">
+                    Shift: {prevCgpa} → {predictedCgpa.toFixed(2)} ({predictedCgpa >= parseFloat(prevCgpa) ? `+${(predictedCgpa - parseFloat(prevCgpa)).toFixed(2)}` : (predictedCgpa - parseFloat(prevCgpa)).toFixed(2)})
+                  </span>
+                ) : (
+                  <span>Enter previous CGPA below to simulate shift</span>
+                )}
+              </div>
             </div>
-            {isOfficialRecord && (
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Official Portal Record</span>
-              </span>
-            )}
           </div>
+
+          {/* Previous CGPA Inputs Card */}
+          <div className="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-[#1E88E5]" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Previous Cumulative Record</h2>
+              </div>
+            </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-400 font-medium mb-1">Previous CGPA (e.g. 8.75)</label>
@@ -601,6 +639,7 @@ export default function GpaPage() {
       </main>
 
       <BottomNav />
+      </div>
     </div>
   );
 }

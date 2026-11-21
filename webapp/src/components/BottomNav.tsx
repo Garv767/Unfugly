@@ -62,9 +62,11 @@ export default function BottomNav({ activeTab, onTabChange, calendarData }: Bott
   const pathname = usePathname();
 
   // Determine active tab from route if not passed explicitly
+  const isDedicatedPage = pathname === '/profile' || pathname === '/gpa' || pathname === '/exams';
   const resolvedActive = activeTab ||
     (pathname === '/calendar' ? 'Calendar' :
-     pathname === '/feedback' ? 'Feedback' : 'Timetable');
+     pathname === '/feedback' ? 'Feedback' : 
+     (isDedicatedPage ? null : 'Timetable'));
 
   const handleClick = (tab: typeof tabs[0]) => {
     if (tab.route) {

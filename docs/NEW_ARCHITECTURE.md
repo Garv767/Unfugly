@@ -619,22 +619,51 @@ To avoid student confusion across the 3 shared services (Unfugly Webapp, Convoy 
     4. **Semester**
     5. **Section**
     6. **Today's Day Order**
-  - Ancillary cards (NetID, Department & School, Connected Portals) are removed to maintain a focused identity card.
+  - Removed "Active Student" badge, "Academic Cycle", "Class Allotment", and "Timetable Cycle Rotation" subtitle texts.
+  - Day Order never outputs generic "N/A" (renders "Weekend" or active "Day X").
 - **Section Extraction for Academia & SP Batches**:
   - For students with Academia access, section is styled in red font inside brackets (e.g., `(<font color="red">L1 Section</font>)` or `(L1 Section)`). The parser uses targeted regexes and DOM queries (`font[color*="red"]`) to cleanly isolate the section code (`L1`, `AH2`, etc.) and persists it to `profiles.section`.
 - **Gender Persistence & On-Demand Fetching**:
   - Gender (`'male'`, `'female'`, `'other'`) is extracted from Student Portal (`studentPersonalDetails.jsp` / `iden=17`) and persisted into `profiles.gender`.
   - **Skip Re-fetching**: If `profiles.gender` is already present and valid in the database, `authenticateStudentPortal` skips fetching `studentPersonalDetails.jsp` during subsequent sync cycles, cutting sync latency and network overhead.
 - **SGPA Page Credits & Fully Internal Course Handling**:
-  - **Zero-Credit Bug Fix**: Corrected truthy fallback `Number(c.credit) || 3` $\to$ `c.credit !== undefined && c.credit !== null && !isNaN(Number(c.credit)) ? Number(c.credit) : 3`. Zero-credit courses (such as Indian Art Form `21LEM301T`) remain 0 credits and do not distort GPA computations.
+  - **Inferred Course Credit Logic (`inferCourseCredit`)**: Prevents courses from defaulting to 0 credits when timetable scraping is delayed. Standard theory courses receive 3 credits, embedded `J` courses receive 4, labs receive 1, while `LEM`, `GNM`, `CYM`, `PDM`, `ART`, and `COMMUNITY` remain strictly 0 credit.
   - **Manual 0-Credit Dropdown Option**: Dropdown includes `[0, 1, 2, 3, 4, 5]`, enabling manual adjustment to 0 credits.
   - **Highest Achievable Grade Auto-Selection**: Course grade selectors automatically initialize with the highest grade the student can mathematically achieve based on marks uploaded so far:
     $$\text{Max Possible Score} = 100 - (\text{Uploaded Max Marks} - \text{Uploaded Obtained Marks})$$
     Mapped to SRM grade boundaries (`O: >= 91`, `A+: >= 81`, `A: >= 71`, `B+: >= 61`, `B: >= 56`, `C: >= 50`, `F: < 50`).
-  - **Marks Uploaded & Fully Internal Badges**: Each course card displays total marks uploaded so far (`Marks Uploaded: ${obtained} / ${max}`), and courses identified as fully internal (`LEM` courses, `credit === 0`, courses ending in `P` or `L`, or `totalMaxMarks > 60`) are badged with `"Fully Internal"`.
-- **Timetable Subject Cell Color Restoration (`TimetableView.tsx`)**:
-  - Removed faulty fallback logic where populated subject titles triggered `displayBg = '#585b5b'`, which previously turned active classes grey.
-  - Active subject cells preserve scraped batch timetable colors (`slot.bgColor`) or dynamically resolve to the high-contrast deterministic `COURSE_PALETTE` across both desktop table and mobile carousel views.
+  - Removed "Official Portal Record" badge from `/gpa`.
+
+### 10.9 Exam Hall Ticket Verification & Examination Suite
+- **Student Portal Exam Hall Ticket Scraper (`iden=42`)**:
+  - Queries `POST /students/report/StudentHallticket.jsp` (`iden=42&filter=&hdnFormDetails=1&csrfPreventionSalt=`).
+  - Ingests release status into `syncReport` and `userBundle.js` (`hallTicket: { isIssued: boolean, statusText: string, downloadUrl: string | null }`).
+- **Single Top Status Banner (`/exams`)**:
+  - Replaces individual per-card "Status: Hall Ticket Issued" tags with a single top status banner:
+    - If issued: Emerald status banner with a direct 1-click button to download/view `StudentHallticketinner.jsp`.
+    - If not released: Clean slate status indicating hall ticket release is pending Controller of Examinations publication.
+- **Fully Internal Course Differentiation**:
+  - Courses with `dateSession === '- -'` or practical / LEM courses display a `"Fully Internal"` badge.
+  - The clock `--` placeholder is hidden.
+  - Examination hall details (`Hall No. TBA`, `Seat No. TBA`, `Reporting Time 09:00 AM`) are hidden, replaced by an informative note describing continuous internal assessment.
+
+### 10.10 Timetable Precision Aesthetics & Cross-Page Sidebar Architecture
+- **Exact Timetable Color & Text Matching (`TimetableView.tsx`)**:
+  - Empty slots strictly render `#585b5b` with slot codes (`P6`, `P7`, `E`, `L21`, etc.) centered in muted grey font (`rgb(170,170,170)`).
+  - Hover tooltip displays `Slot: ${slotCode}` (without parentheses).
+  - Course title character length limit: 50 characters maximum (if longer, truncated to `47 + '...'`).
+  - Subtitle displays `Room: ${displayRoom || 'To be Alloted'}`.
+  - Active subject cell background colors:
+    - Lab practicals: `lightgreen`
+    - Mandatory / life skills (`Indian Art Form`, `Community Connect`): `dodgerblue`
+    - Optional classes (`CN Optional`, `ASQL Optional`, `FLA Optional`): `#F5B041`
+    - Theory classes: `rgb(249, 231, 159)` (soft yellow)
+- **Universal Desktop Sidebar Persistence (`<DesktopSidebar />`)**:
+  - Shared desktop sidebar component maintains consistent profile overview and navigation menu across `/dashboard`, `/profile`, `/gpa`, and `/exams` on laptop/desktop viewports (`hidden lg:flex`).
+- **Mobile Bottom Nav Active Tab Correction (`BottomNav.tsx`)**:
+  - On `/profile`, `/gpa`, and `/exams`, `resolvedActive` resolves to `null` so `'Timetable'` is never mistakenly highlighted in the mobile nav pill.
+- **Universal camelCase Payload Standard**:
+  - Standardized pure `camelCase` across API outputs (`attendanceData`, `marksData`, `examTimetable`, `timetableJson`, `gpaRecord`, `hallTicket`) while maintaining backward-compatible table persistence.
 
 
 

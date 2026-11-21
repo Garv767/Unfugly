@@ -449,50 +449,81 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                     if (!hasExtraSlots && sIndex >= day.slots.length - 2) return null;
                     
                     const slotId = `slot-${dIndex * day.slots.length + sIndex + 1}`;
-                    const rawSlotText: string = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
-                    const cleanSlotText: string = rawSlotText.split('/')[0].trim().toUpperCase();
+                    const edit = editedSlots[slotId];
+
+                    const slotCode = (slot.slot || slot.active_slot || slot.title || '').replace(/^Slot:\s*/i, '').trim();
+                    const rawSlotTitle: string = (slot.title || '').replace(/^Slot:\s*/i, '').trim();
+
+                    // Strip any trailing slot brackets (e.g. "Computer Networks (A)" -> "Computer Networks")
+                    let cleanTitle = rawSlotTitle.replace(/\s*\([^)]*\)$/, '').trim();
 
                     const actualCourseData: Record<string, any> = courseData || {};
-                    const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[rawSlotText];
+                    const cleanCodeUpper = slotCode.split('/')[0].trim().toUpperCase();
+                    const mappedCourse = actualCourseData[cleanCodeUpper] || actualCourseData[cleanTitle.toUpperCase()] || null;
 
-                    let displayBg = slot.bgColor && slot.bgColor !== 'transparent' && slot.bgColor !== '#585b5b' ? slot.bgColor : '';
-                    let displayTitle = slot.title;
-                    let displayRoom = slot.classroom;
+                    const hasExplicitClass = slot.hasClass === true || slot.has_class === true;
+                    const hasRoom = Boolean(slot.classroom && slot.classroom.trim() !== '' && slot.classroom !== 'TBA');
+                    const isKnownCourse = Boolean(mappedCourse) || (cleanTitle !== '' && !cleanTitle.match(/^(?:P\d+|L\d+|E)(?:\/[A-Z0-9]+)?$/i));
+                    let isActiveClass = hasExplicitClass || (hasRoom && isKnownCourse) || Boolean(mappedCourse);
+
+                    let displayTitle = cleanTitle || slotCode;
+                    let displayRoom = slot.classroom || (isActiveClass ? 'To be Alloted' : '');
+                    let displayBg = '#585b5b';
+                    let isGrey = !isActiveClass;
                     let isReplaced = false;
-                    let isGrey = false;
-
-                    const edit = editedSlots[slotId];
 
                     if (edit && viewState !== 'hide') {
                         displayTitle = edit.editedTitle;
                         displayRoom = edit.editedClassroom;
                         displayBg = '#F59E0B';
+                        isActiveClass = true;
+                        isGrey = false;
                         isReplaced = true;
-                    } else if (mappedCourse && cleanSlotText !== '') {
-                        displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
-                        displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
-                        isReplaced = true;
-                        if (!displayBg) {
-                            displayBg = getCourseColor(cleanSlotText || displayTitle);
+                    } else if (isActiveClass) {
+                        if (mappedCourse) {
+                            displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
+                            displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                         }
-                    } else if (displayTitle || displayRoom) {
-                        if (!displayBg) {
-                            displayBg = getCourseColor(cleanSlotText || displayTitle);
+
+                        // Truncate title: limit 50, if longer 47 + '...'
+                        if (displayTitle.length > 50) {
+                            displayTitle = displayTitle.substring(0, 47) + '...';
                         }
-                    } else if (cleanSlotText !== '') {
+
+                        const upperTitle = displayTitle.toUpperCase();
+                        const upperRoom = (displayRoom || '').toUpperCase();
+                        const isLab = upperRoom.startsWith('CLS') || (slotCode && slotCode.toUpperCase().startsWith('P')) || upperTitle.includes('PRACTICAL') || upperTitle.includes('LAB');
+                        const isMandatory = upperTitle.includes('ART') || upperTitle.includes('COMMUNITY') || upperTitle.includes('LEM');
+                        const isOptional = upperTitle.includes('OPTIONAL');
+
+                        if (isLab) {
+                            displayBg = 'lightgreen';
+                        } else if (isMandatory) {
+                            displayBg = 'dodgerblue';
+                        } else if (isOptional) {
+                            displayBg = '#F5B041';
+                        } else {
+                            displayBg = (slot.bgColor && slot.bgColor !== '#585b5b' && slot.bgColor !== 'transparent') ? slot.bgColor : 'rgb(249, 231, 159)';
+                        }
+                    } else {
+                        // Empty slot
+                        displayTitle = slotCode || rawSlotTitle;
                         displayBg = '#585b5b';
                         isGrey = true;
                     }
 
-                    if (!displayTitle && cleanSlotText === '') {
-                        return <td key={sIndex} className="empty-slot-mask empty-slot" style={{ padding: '8px 5px', borderRadius: '3px' }}></td>;
+                    if (!displayTitle && slotCode === '') {
+                        return <td key={sIndex} className="empty-slot-mask empty-slot" style={{ padding: '8px 5px', borderRadius: '3px', backgroundColor: '#585b5b' }}></td>;
                     }
+
+                    // Hover shows clean slot name without bracket
+                    const tooltipSlot = slotCode.replace(/\s*\([^)]*\)$/, '').trim() || cleanTitle;
 
                     return (
                         <td 
                            key={sIndex}
                            id={slotId}
-                           title={`Slot: ${rawSlotText}`}
+                           title={`Slot: ${tooltipSlot}`}
                            className={isReplaced ? 'replaced-slot' : ''}
                            onClick={() => isEditMode ? handleSlotClick(slotId, displayTitle, displayRoom) : null}
                            style={{
@@ -524,7 +555,7 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                                fontSize: '11px',
                                color: isGrey ? 'rgb(170,170,170)' : '#111827'
                            }}>
-                               {isGrey ? (cleanSlotText || rawSlotText) : displayTitle}
+                               {displayTitle}
                            </span>
                            
                            {!isGrey && displayRoom && (
@@ -610,17 +641,25 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                       const totalSlotsBefore = parsedData.days.slice(0, mobileDayIndex).reduce((acc: number, d: any) => acc + d.slots.length, 0);
                       const slotId = `slot-${totalSlotsBefore + idx + 1}`;
 
-                      const rawSlotText = slot.title ? String(slot.title).replace('Slot:', '').trim() : '';
+                      const rawSlotText = (slot.slot || slot.active_slot || slot.title || '').replace(/^Slot:\s*/i, '').trim();
+                      const rawSlotTitle: string = (slot.title || '').replace(/^Slot:\s*/i, '').trim();
+
+                      // Strip any trailing slot brackets
+                      let cleanTitle = rawSlotTitle.replace(/\s*\([^)]*\)$/, '').trim();
                       const cleanSlotText = rawSlotText.split('/')[0].trim().toUpperCase();
 
                       const actualCourseData: Record<string, any> = courseData || {};
-                      const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[rawSlotText];
+                      const mappedCourse = actualCourseData[cleanSlotText] || actualCourseData[cleanTitle.toUpperCase()] || null;
 
-                      let displayTitle = slot.title;
-                      let displayRoom = slot.classroom;
-                      let displayBg = slot.bgColor && slot.bgColor !== 'transparent' && slot.bgColor !== '#585b5b' ? slot.bgColor : '';
+                      const hasExplicitClass = slot.hasClass === true || slot.has_class === true;
+                      const hasRoom = Boolean(slot.classroom && slot.classroom.trim() !== '' && slot.classroom !== 'TBA');
+                      const isKnownCourse = Boolean(mappedCourse) || (cleanTitle !== '' && !cleanTitle.match(/^(?:P\d+|L\d+|E)(?:\/[A-Z0-9]+)?$/i));
+                      const isActiveClass = hasExplicitClass || (hasRoom && isKnownCourse) || Boolean(mappedCourse);
+
+                      let displayTitle = cleanTitle || rawSlotText;
+                      let displayRoom = slot.classroom || (isActiveClass ? 'To be Alloted' : '');
+                      let displayBg = '#585b5b';
                       let isReplaced = false;
-                      let isGrey = false;
 
                       const edit = editedSlots[slotId];
 
@@ -629,41 +668,37 @@ export default function TimetableView({ htmlContent, courseData, netId, calendar
                           displayRoom = edit.editedClassroom;
                           displayBg = '#F59E0B';
                           isReplaced = true;
-                      } else if (mappedCourse && cleanSlotText !== '') {
-                          displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
-                          displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
-                          isReplaced = true;
-                          if (!displayBg) {
-                              displayBg = getCourseColor(cleanSlotText || displayTitle);
+                      } else if (isActiveClass) {
+                          if (mappedCourse) {
+                              displayTitle = mappedCourse['Course Title'] || mappedCourse.title || displayTitle;
+                              displayRoom = mappedCourse['Room No.'] || mappedCourse.classroom || mappedCourse.classRoom || displayRoom;
                           }
-                      } else if (displayTitle || displayRoom) {
-                          if (!displayBg) {
-                              displayBg = getCourseColor(cleanSlotText || displayTitle);
+                          if (displayTitle.length > 50) {
+                              displayTitle = displayTitle.substring(0, 47) + '...';
                           }
-                      } else if (cleanSlotText !== '') {
-                          displayBg = '#585b5b';
-                          isGrey = true;
-                      }
 
-                      if (!displayTitle && cleanSlotText === '') {
-                          return null;
-                      }
+                          const upperTitle = displayTitle.toUpperCase();
+                          const upperRoom = (displayRoom || '').toUpperCase();
+                          const isLab = upperRoom.startsWith('CLS') || cleanSlotText.startsWith('P') || upperTitle.includes('PRACTICAL') || upperTitle.includes('LAB');
+                          const isMandatory = upperTitle.includes('ART') || upperTitle.includes('COMMUNITY') || upperTitle.includes('LEM');
+                          const isOptional = upperTitle.includes('OPTIONAL');
 
-                      // Type-based colors for mobile card sidebar
-                      if (!isReplaced || displayBg === '#333' || displayBg === 'transparent') {
-                          const isPrac = cleanSlotText.startsWith('P');
-                          const isExtra = cleanSlotText.startsWith('L');
-                          const isTheory = cleanSlotText.match(/^[A-G]/);
-
-                          if (isPrac || (mappedCourse && (mappedCourse as any)['Course Type']?.toLowerCase().includes('practical'))) {
+                          if (isLab) {
                               displayBg = '#81c784';
-                          } else if (isExtra) {
+                          } else if (isMandatory) {
                               displayBg = '#42a5f5';
-                          } else if (isTheory || mappedCourse) {
-                              displayBg = '#ffd54f';
+                          } else if (isOptional) {
+                              displayBg = '#F5B041';
                           } else {
-                              displayBg = '#555555';
+                              displayBg = (slot.bgColor && slot.bgColor !== '#585b5b' && slot.bgColor !== 'transparent') ? slot.bgColor : '#ffd54f';
                           }
+                      } else {
+                          displayTitle = rawSlotText;
+                          displayBg = '#555555';
+                      }
+
+                      if (!isActiveClass && !edit) {
+                          return null; // On mobile list, show scheduled classes cleanly
                       }
 
                       return (
